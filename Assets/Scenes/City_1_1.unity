@@ -497,7 +497,7 @@ GameObject:
   - component: {fileID: 182079008}
   - component: {fileID: 182079007}
   - component: {fileID: 182079006}
-  - component: {fileID: 182079005}
+  - component: {fileID: 182079009}
   m_Layer: 0
   m_Name: ControlPanel
   m_TagString: Untagged
@@ -520,28 +520,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1546713394}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &182079005
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 182079003}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1ab08cde55ce7a8448e7699af969bbe6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::InteractableWithMenu
-  hintText: "\u0412\u0435\u0440\u0441\u0442\u0430\u043A \u043E\u0440\u0443\u0436\u0438\u044F"
-  interactionType: 0
-  keyLabel: F
-  useEmissionHighlight: 1
-  emissionColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
-  emissionIntensity: 2
-  highlightMaterial: {fileID: 0}
-  highlightLight: {fileID: 0}
-  teleportTarget: {fileID: 0}
-  sceneToLoad: 
 --- !u!65 &182079006
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -619,6 +597,40 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 182079003}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &182079009
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 182079003}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca0bf588a6eaf484989681616fa2e67f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InteractableActionHost
+  hintText: "\u0412\u0437\u0430\u0438\u043C\u043E\u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435
+    \u0441 \u0432\u0435\u0440\u0441\u0442\u0430\u043A\u043E\u043C \u043E\u0440\u0443\u0436\u0438\u044F"
+  interactionType: 0
+  keyLabel: F
+  useEmissionHighlight: 1
+  emissionColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  emissionIntensity: 2
+  highlightMaterial: {fileID: 0}
+  highlightLight: {fileID: 0}
+  executionMode: 0
+  activeIndex: 0
+  actions:
+  - type: 3
+    delayBefore: 0
+    sceneName: 
+    useAsync: 0
+    teleportTarget: {fileID: 0}
+    menuTitle: "\u0412\u0435\u0440\u0441\u0442\u0430\u043A"
+    option1Label: "\u041E\u0442\u043A\u0440\u044B\u0442\u044C"
+    option2Label: "\u041E\u0442\u043C\u0435\u043D\u0430"
+    sceneNameSecondary: 
+    vehicleRoot: {fileID: 0}
 --- !u!1 &287330560
 GameObject:
   m_ObjectHideFlags: 0
@@ -2419,7 +2431,7 @@ GameObject:
   - component: {fileID: 709776949}
   - component: {fileID: 709776948}
   - component: {fileID: 709776947}
-  - component: {fileID: 709776946}
+  - component: {fileID: 709776950}
   m_Layer: 0
   m_Name: ControlPanel
   m_TagString: Untagged
@@ -2442,28 +2454,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2107878447}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &709776946
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 709776944}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1ab08cde55ce7a8448e7699af969bbe6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::InteractableWithMenu
-  hintText: "\u041F\u043B\u0430\u0432\u0438\u043B\u044C\u043D\u044F"
-  interactionType: 0
-  keyLabel: F
-  useEmissionHighlight: 1
-  emissionColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
-  emissionIntensity: 2
-  highlightMaterial: {fileID: 0}
-  highlightLight: {fileID: 0}
-  teleportTarget: {fileID: 0}
-  sceneToLoad: 
 --- !u!65 &709776947
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -2541,6 +2531,40 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 709776944}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &709776950
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 709776944}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca0bf588a6eaf484989681616fa2e67f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InteractableActionHost
+  hintText: "\u0412\u0437\u0430\u0438\u043C\u043E\u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435
+    \u0441 \u043F\u043B\u0430\u0432\u0438\u043B\u044C\u043D\u0435\u0439"
+  interactionType: 0
+  keyLabel: F
+  useEmissionHighlight: 1
+  emissionColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  emissionIntensity: 2
+  highlightMaterial: {fileID: 0}
+  highlightLight: {fileID: 0}
+  executionMode: 0
+  activeIndex: 0
+  actions:
+  - type: 3
+    delayBefore: 0
+    sceneName: 
+    useAsync: 0
+    teleportTarget: {fileID: 0}
+    menuTitle: "\u0412\u0435\u0440\u0441\u0442\u0430\u043A"
+    option1Label: "\u041E\u0442\u043A\u0440\u044B\u0442\u044C"
+    option2Label: "\u041E\u0442\u043C\u0435\u043D\u0430"
+    sceneNameSecondary: 
+    vehicleRoot: {fileID: 0}
 --- !u!1 &723248756
 GameObject:
   m_ObjectHideFlags: 0
@@ -2553,8 +2577,8 @@ GameObject:
   - component: {fileID: 723248760}
   - component: {fileID: 723248759}
   - component: {fileID: 723248758}
-  - component: {fileID: 723248761}
   - component: {fileID: 723248762}
+  - component: {fileID: 723248763}
   m_Layer: 0
   m_Name: Shturval
   m_TagString: Untagged
@@ -2654,28 +2678,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 723248756}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!114 &723248761
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 723248756}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1ab08cde55ce7a8448e7699af969bbe6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::InteractableWithMenu
-  hintText: "\u041F\u0435\u043F\u0435\u043B\u0430\u0446"
-  interactionType: 0
-  keyLabel: F
-  useEmissionHighlight: 1
-  emissionColor: {r: 0.33596906, g: 0.8415094, b: 0.20164466, a: 1}
-  emissionIntensity: 2
-  highlightMaterial: {fileID: 0}
-  highlightLight: {fileID: 0}
-  teleportTarget: {fileID: 0}
-  sceneToLoad: 
 --- !u!114 &723248762
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2697,6 +2699,39 @@ MonoBehaviour:
   highlightMaterial: {fileID: 0}
   highlightLight: {fileID: 0}
   vehicleRoot: {fileID: 0}
+--- !u!114 &723248763
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 723248756}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca0bf588a6eaf484989681616fa2e67f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InteractableActionHost
+  hintText: "\u0421\u0435\u0441\u0442\u044C \u0437\u0430 \u0448\u0442\u0443\u0440\u0432\u0430\u043B"
+  interactionType: 2
+  keyLabel: F
+  useEmissionHighlight: 1
+  emissionColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  emissionIntensity: 2
+  highlightMaterial: {fileID: 0}
+  highlightLight: {fileID: 0}
+  executionMode: 0
+  activeIndex: 0
+  actions:
+  - type: 4
+    delayBefore: 0
+    sceneName: 
+    useAsync: 0
+    teleportTarget: {fileID: 0}
+    menuTitle: 
+    option1Label: 
+    option2Label: 
+    sceneNameSecondary: 
+    vehicleRoot: {fileID: 633439056}
 --- !u!1 &757749893
 GameObject:
   m_ObjectHideFlags: 0
@@ -2847,7 +2882,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: -65}
-  m_SizeDelta: {x: 350, y: 80}
+  m_SizeDelta: {x: 600, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!225 &787455386
 CanvasGroup:
@@ -3300,7 +3335,7 @@ GameObject:
   - component: {fileID: 1240852632}
   - component: {fileID: 1240852631}
   - component: {fileID: 1240852635}
-  - component: {fileID: 1240852636}
+  - component: {fileID: 1240852637}
   m_Layer: 0
   m_Name: Door Exit
   m_TagString: Untagged
@@ -3338,7 +3373,7 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
@@ -3413,7 +3448,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LocationData
   sceneName: WorldMap
---- !u!114 &1240852636
+--- !u!114 &1240852637
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -3422,19 +3457,31 @@ MonoBehaviour:
   m_GameObject: {fileID: 1240852628}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 00cbe87b443b91444b5ab6311ce3090e, type: 3}
+  m_Script: {fileID: 11500000, guid: ca0bf588a6eaf484989681616fa2e67f, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::InteractableScenePortal
-  hintText: "\u041F\u0435\u0440\u0435\u043C\u0435\u0449\u0435\u043D\u0438\u0435"
-  interactionType: 3
+  m_EditorClassIdentifier: Assembly-CSharp::InteractableActionHost
+  hintText: "\u041F\u0435\u0440\u0435\u0439\u0442\u0438 \u043D\u0430 \u043A\u0430\u0440\u0442\u0443
+    \u043C\u0438\u0440\u0430"
+  interactionType: 0
   keyLabel: F
   useEmissionHighlight: 1
   emissionColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   emissionIntensity: 2
   highlightMaterial: {fileID: 0}
   highlightLight: {fileID: 0}
-  sceneToLoad: WorldMap
-  delayBeforeLoad: 0.3
+  executionMode: 0
+  activeIndex: 0
+  actions:
+  - type: 1
+    delayBefore: 0
+    sceneName: WorldMap
+    useAsync: 1
+    teleportTarget: {fileID: 0}
+    menuTitle: 
+    option1Label: 
+    option2Label: 
+    sceneNameSecondary: 
+    vehicleRoot: {fileID: 0}
 --- !u!4 &1357754517 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 58b848cfbf6669247b5f25f2669209f7, type: 3}
@@ -4414,7 +4461,7 @@ GameObject:
   - component: {fileID: 1629271961}
   - component: {fileID: 1629271960}
   - component: {fileID: 1629271959}
-  - component: {fileID: 1629271958}
+  - component: {fileID: 1629271962}
   m_Layer: 0
   m_Name: ControlPanel
   m_TagString: Untagged
@@ -4437,28 +4484,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1781709815}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1629271958
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1629271956}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1ab08cde55ce7a8448e7699af969bbe6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::InteractableWithMenu
-  hintText: "\u0412\u0435\u0440\u0441\u0442\u0430\u043A \u0431\u043E\u0435\u043F\u0440\u0438\u043F\u0430\u0441\u043E\u0432"
-  interactionType: 0
-  keyLabel: F
-  useEmissionHighlight: 1
-  emissionColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
-  emissionIntensity: 2
-  highlightMaterial: {fileID: 0}
-  highlightLight: {fileID: 0}
-  teleportTarget: {fileID: 0}
-  sceneToLoad: 
 --- !u!65 &1629271959
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -4536,6 +4561,40 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1629271956}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1629271962
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1629271956}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca0bf588a6eaf484989681616fa2e67f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InteractableActionHost
+  hintText: "\u0412\u0437\u0430\u0438\u043C\u043E\u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435
+    \u0441 \u0432\u0435\u0440\u0441\u0442\u0430\u043A\u043E\u043C \u0431\u043E\u0435\u043F\u0440\u0438\u043F\u0430\u0441\u043E\u0432"
+  interactionType: 0
+  keyLabel: F
+  useEmissionHighlight: 1
+  emissionColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  emissionIntensity: 2
+  highlightMaterial: {fileID: 0}
+  highlightLight: {fileID: 0}
+  executionMode: 0
+  activeIndex: 0
+  actions:
+  - type: 3
+    delayBefore: 0
+    sceneName: 
+    useAsync: 0
+    teleportTarget: {fileID: 0}
+    menuTitle: "\u0412\u0435\u0440\u0441\u0442\u0430\u043A"
+    option1Label: "\u041E\u0442\u043A\u0440\u044B\u0442\u044C"
+    option2Label: "\u041E\u0442\u043C\u0435\u043D\u0430"
+    sceneNameSecondary: 
+    vehicleRoot: {fileID: 0}
 --- !u!1 &1700972256
 GameObject:
   m_ObjectHideFlags: 0
@@ -4838,7 +4897,7 @@ GameObject:
   - component: {fileID: 1902917823}
   - component: {fileID: 1902917822}
   - component: {fileID: 1902917821}
-  - component: {fileID: 1902917820}
+  - component: {fileID: 1902917824}
   m_Layer: 0
   m_Name: ControlPanel
   m_TagString: Untagged
@@ -4861,28 +4920,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1967686036}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1902917820
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1902917818}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1ab08cde55ce7a8448e7699af969bbe6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::InteractableWithMenu
-  hintText: "\u0412\u0435\u0440\u0441\u0442\u0430\u043A \u043C\u043E\u0434\u0443\u043B\u0435\u0439"
-  interactionType: 0
-  keyLabel: F
-  useEmissionHighlight: 1
-  emissionColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
-  emissionIntensity: 2
-  highlightMaterial: {fileID: 0}
-  highlightLight: {fileID: 0}
-  teleportTarget: {fileID: 0}
-  sceneToLoad: 
 --- !u!65 &1902917821
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -4960,6 +4997,40 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1902917818}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1902917824
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1902917818}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca0bf588a6eaf484989681616fa2e67f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InteractableActionHost
+  hintText: "\u0412\u0437\u0430\u0438\u043C\u043E\u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435
+    \u0441 \u0432\u0435\u0440\u0441\u0442\u0430\u043A\u043E\u043C"
+  interactionType: 0
+  keyLabel: F
+  useEmissionHighlight: 1
+  emissionColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  emissionIntensity: 2
+  highlightMaterial: {fileID: 0}
+  highlightLight: {fileID: 0}
+  executionMode: 0
+  activeIndex: 0
+  actions:
+  - type: 3
+    delayBefore: 0
+    sceneName: 
+    useAsync: 0
+    teleportTarget: {fileID: 0}
+    menuTitle: "\u0412\u0435\u0440\u0441\u0442\u0430\u043A"
+    option1Label: "\u041E\u0442\u043A\u0440\u044B\u0442\u044C"
+    option2Label: "\u041E\u0442\u043C\u0435\u043D\u0430"
+    sceneNameSecondary: 
+    vehicleRoot: {fileID: 0}
 --- !u!1 &1903180954
 GameObject:
   m_ObjectHideFlags: 0
