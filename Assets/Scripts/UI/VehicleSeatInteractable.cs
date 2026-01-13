@@ -6,6 +6,9 @@ public class VehicleSeatInteractable : InteractableBase
     [Tooltip("Ссылка на корневой объект транспорта/штурвала")]
     public GameObject vehicleRoot;
 
+    [Tooltip("Точка, куда будет перемещён игрок при посадке (позиция/ориентация у штурвала)")]
+    public Transform seatStandPoint;
+
     private void Reset()
     {
         // Значения по умолчанию при добавлении компонента
@@ -16,18 +19,31 @@ public class VehicleSeatInteractable : InteractableBase
 
     public override void Interact()
     {
-        // ШАГ 1: только лог/заготовка.
-        // ШАГ 2: здесь будем переключать управление от PlayerController к vehicle controller.
-        Debug.Log($"[VehicleSeatInteractable] Interact -> сесть за штурвал {name} (vehicle={vehicleRoot})");
+        if (vehicleRoot == null)
+        {
+            Debug.LogWarning($"[VehicleSeatInteractable] vehicleRoot не назначен на {name}");
+            return;
+        }
 
-        // Например, можно временно показать меню-подтверждение вместо мгновенного входа:
-        /*
-        InteractionMenuUI.Instance.Show(
-            "Сесть за штурвал?",
-            "Да", () => { /* здесь будет реальный вход в транспорт * / },
-            "Отмена", () => { },    // опциональная вторая опция
-            () => { }               // cancel
-        );
-        */
+        // Пытаемся найти контроллер транспорта на корне
+        var vehicleController = vehicleRoot.GetComponent<PepelacController>();
+        if (vehicleController == null)
+        {
+            Debug.LogWarning($"[VehicleSeatInteractable] На vehicleRoot={vehicleRoot.name} не найден PepelacController.");
+            return;
+        }
+
+        // Ищем игрока в сцене (можно заменить на более строгую ссылку, если есть GameManager)
+        var player = FindObjectOfType<PlayerVehicleController>();
+        if (player == null)
+        {
+            Debug.LogError("[VehicleSeatInteractable] PlayerVehicleController не найден в сцене.");
+            return;
+        }
+
+        // Передаём управление менеджеру
+        player.EnterVehicle(this, vehicleController, seatStandPoint);
+
+        Debug.Log($"[VehicleSeatInteractable] Игрок сел за штурвал {name} (vehicle={vehicleRoot.name})");
     }
 }
