@@ -1,37 +1,48 @@
+п»їusing System;
 using UnityEngine;
 
 /// <summary>
 /// PlayerVehicleController
 /// ----------------------------------------
-/// - Садит игрока за штурвал транспорта (Paluba с PepelacController).
-/// - Привязывает корень игрока к палубе и каждый кадр удерживает его
-///   на seatStandPoint, чтобы он "замирал" относительно палубы.
-/// - При выходе возвращает родителя и управление.
+/// - РЎР°РґРёС‚ РёРіСЂРѕРєР° Р·Р° С€С‚СѓСЂРІР°Р» С‚СЂР°РЅСЃРїРѕСЂС‚Р° (Paluba СЃ PepelacController).
+/// - РџСЂРёРІСЏР·С‹РІР°РµС‚ РєРѕСЂРµРЅСЊ РёРіСЂРѕРєР° Рє РїР°Р»СѓР±Рµ Рё СѓРґРµСЂР¶РёРІР°РµС‚ РµРіРѕ РЅР° seatStandPoint.
+/// - РСЃРїСЂР°РІР»РµРЅРёСЏ:
+///   * CharacterController С‚РµРїРµСЂСЊ РѕС‚РєР»СЋС‡Р°РµС‚СЃСЏ С‚РѕР»СЊРєРѕ РѕРґРёРЅ СЂР°Р· РїСЂРё РїРѕСЃР°РґРєРµ Рё РІРєР»СЋС‡Р°РµС‚СЃСЏ РѕРґРёРЅ СЂР°Р· РїСЂРё РІС‹С…РѕРґРµ (РЅРµ РєР°Р¶РґС‹Р№ РєР°РґСЂ).
+///   * РџСЂРё РІС…РѕРґРµ РёРіСЂРѕРє РїСЂРёРІСЏР·С‹РІР°РµС‚СЃСЏ Рє С‚РµРєСѓС‰РµРјСѓ С‚СЂР°РЅСЃРїРѕСЂС‚Сѓ Рё Р±СѓРґРµС‚ СЃР»РµРґРѕРІР°С‚СЊ Р·Р° РЅРёРј вЂ” РїСЂРё РІС‹С…РѕРґРµ РѕРєР°Р¶РµС‚СЃСЏ РІ Р°РєС‚СѓР°Р»СЊРЅРѕРј РјРµСЃС‚Рµ РїР°Р»СѓР±С‹.
+///   * Р”РѕР±Р°РІР»РµРЅС‹ СЃРѕР±С‹С‚РёСЏ OnEnteredVehicle / OnExitedVehicle.
+/// 
+/// Р’Р°Р¶РЅРѕ:
+/// - playerController Р±СѓРґРµС‚ РѕС‚РєР»СЋС‡С‘РЅ РїСЂРё РїРѕСЃР°РґРєРµ (С‡С‚РѕР±С‹ РїРµС€РµРµ СѓРїСЂР°РІР»РµРЅРёРµ РЅРµ РјРµС€Р°Р»Рѕ).
+/// - playerRoot (РѕР±С‹С‡РЅРѕ РєРѕСЂРµРЅСЊ РёРіСЂРѕРєР°) РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ РЅР°Р·РЅР°С‡РµРЅ РІ РёРЅСЃРїРµРєС‚РѕСЂРµ (РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ this.transform).
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(CharacterController))]
 public class PlayerVehicleController : MonoBehaviour
 {
     [Header("References")]
-    [Tooltip("Основной контроллер игрока (ходьба/бег/прыжок). Отключается при посадке.")]
+    [Tooltip("РћСЃРЅРѕРІРЅРѕР№ РєРѕРЅС‚СЂРѕР»Р»РµСЂ РёРіСЂРѕРєР° (С…РѕРґСЊР±Р°/Р±РµРі/РїСЂС‹Р¶РѕРє). РћС‚РєР»СЋС‡Р°РµС‚СЃСЏ РїСЂРё РїРѕСЃР°РґРєРµ.")]
     public PlayerController playerController;
 
-    [Tooltip("CharacterController игрока.")]
+    [Tooltip("CharacterController РёРіСЂРѕРєР°.")]
     public CharacterController characterController;
 
-    [Tooltip("Корневой объект игрока, который двигается (обычно тот же объект, где CC/PlayerController).")]
+    [Tooltip("РљРѕСЂРЅРµРІРѕР№ РѕР±СЉРµРєС‚ РёРіСЂРѕРєР°, РєРѕС‚РѕСЂС‹Р№ РґРІРёРіР°РµС‚СЃСЏ (РѕР±С‹С‡РЅРѕ С‚РѕС‚ Р¶Рµ РѕР±СЉРµРєС‚, РіРґРµ CC/PlayerController).")]
     public Transform playerRoot;
 
     [Header("Debug / State (read-only)")]
     [SerializeField] private bool isInVehicle = false;
-    [SerializeField] private PepelacController currentVehicle;        // контроллер транспорта (на Paluba)
-    [SerializeField] private VehicleSeatInteractable currentSeat;     // сиденье/штурвал
-    [SerializeField] private Transform currentSeatStandPoint;         // точка стояния у штурвала
+    [SerializeField] private PepelacController currentVehicle;        // РєРѕРЅС‚СЂРѕР»Р»РµСЂ С‚СЂР°РЅСЃРїРѕСЂС‚Р° (РЅР° Paluba)
+    [SerializeField] private VehicleSeatInteractable currentSeat;     // СЃРёРґРµРЅСЊРµ/С€С‚СѓСЂРІР°Р»
+    [SerializeField] private Transform currentSeatStandPoint;         // С‚РѕС‡РєР° СЃС‚РѕСЏРЅРёСЏ Сѓ С€С‚СѓСЂРІР°Р»Р°
 
-    // Сохранённые данные до посадки
+    // РЎРѕС…СЂР°РЅС‘РЅРЅС‹Рµ РґР°РЅРЅС‹Рµ РґРѕ РїРѕСЃР°РґРєРё
     private Vector3 storedPlayerPosition;
     private Quaternion storedPlayerRotation;
     private Transform originalParent;
+
+    // РЎРѕР±С‹С‚РёСЏ
+    public event Action<PepelacController> OnEnteredVehicle;
+    public event Action OnExitedVehicle;
 
     void Awake()
     {
@@ -47,24 +58,17 @@ public class PlayerVehicleController : MonoBehaviour
 
     void Update()
     {
-        // Пока игрок в транспорте — жёстко держим его в точке seatStandPoint
+        // РџРѕРєР° РёРіСЂРѕРє РІ С‚СЂР°РЅСЃРїРѕСЂС‚Рµ вЂ” РґРµСЂР¶РёРј РµРіРѕ РІ С‚РѕС‡РєРµ seatStandPoint РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ РїР°Р»СѓР±С‹.
+        // Р’Р°Р¶РЅРѕ: РќР• РІРєР»СЋС‡Р°РµРј/РѕС‚РєР»СЋС‡Р°РµРј CharacterController Р·РґРµСЃСЊ.
         if (isInVehicle && currentSeatStandPoint != null)
         {
-            // Отключаем CC на время позиционирования, чтобы он не вмешивался
-            if (characterController != null && characterController.enabled)
-                characterController.enabled = false;
-
-            // Удерживаем позицию и ориентацию точно как у seatStandPoint (в мировых координатах)
+            // РџРѕР·РёС†РёРѕРЅРёСЂСѓРµРј РёРіСЂРѕРєР° Р¶С‘СЃС‚РєРѕ РІ РјРёСЂРѕРІС‹С… РєРѕРѕСЂРґРёРЅР°С‚Р°С… РєР°Рє seatStandPoint.
+            // РўР°Рє РєР°Рє playerRoot СЏРІР»СЏРµС‚СЃСЏ СЂРµР±С‘РЅРєРѕРј С‚СЂР°РЅСЃРїРѕСЂС‚Р°, РјРѕР¶РЅРѕ С‚Р°РєР¶Рµ Р·Р°РґР°С‚СЊ localPosition/localRotation,
+            // РЅРѕ СѓСЃС‚Р°РЅРѕРІРєР° РјРёСЂРѕРІС‹С… РєРѕРѕСЂРґРёРЅР°С‚ Р·РґРµСЃСЊ Р±РµР·РѕРїР°СЃРЅР° Рё РїРѕРЅСЏС‚РЅР°.
             playerRoot.position = currentSeatStandPoint.position;
             playerRoot.rotation = currentSeatStandPoint.rotation;
-
-            if (characterController != null)
-                characterController.enabled = true;
         }
     }
-
-    void OnEnable() { }
-    void OnDisable() { }
 
     public bool IsInVehicle => isInVehicle;
 
@@ -75,14 +79,14 @@ public class PlayerVehicleController : MonoBehaviour
     }
 
     /// <summary>
-    /// Вход в транспорт (Paluba) с указанного сиденья.
-    /// Вызывается из VehicleSeatInteractable.Interact().
+    /// Р’С…РѕРґ РІ С‚СЂР°РЅСЃРїРѕСЂС‚ (Paluba) СЃ СѓРєР°Р·Р°РЅРЅРѕРіРѕ СЃРёРґРµРЅСЊСЏ.
+    /// Р’С‹Р·С‹РІР°РµС‚СЃСЏ РёР· VehicleSeatInteractable.Interact().
     /// </summary>
     public void EnterVehicle(VehicleSeatInteractable seat, PepelacController vehicle, Transform seatStandPoint)
     {
         if (isInVehicle)
         {
-            Debug.LogWarning("[PlayerVehicleController] Попытка EnterVehicle, когда уже в транспорте.");
+            Debug.LogWarning("[PlayerVehicleController] РџРѕРїС‹С‚РєР° EnterVehicle, РєРѕРіРґР° СѓР¶Рµ РІ С‚СЂР°РЅСЃРїРѕСЂС‚Рµ.");
             return;
         }
 
@@ -96,83 +100,86 @@ public class PlayerVehicleController : MonoBehaviour
         currentVehicle = vehicle;
         currentSeatStandPoint = seatStandPoint;
 
-        // Сохраняем позицию/ротацию и родителя корня игрока
+        // РЎРѕС…СЂР°РЅСЏРµРј РїРѕР·РёС†РёСЋ/СЂРѕС‚Р°С†РёСЋ Рё СЂРѕРґРёС‚РµР»СЏ РєРѕСЂРЅСЏ РёРіСЂРѕРєР°
         originalParent = playerRoot.parent;
         storedPlayerPosition = playerRoot.position;
         storedPlayerRotation = playerRoot.rotation;
 
-        // 1) Перемещаем к seatStandPoint
+        // 1) РџРµСЂРµРјРµС‰Р°РµРј Рє seatStandPoint (РµСЃР»Рё СѓРєР°Р·Р°РЅ)
         if (seatStandPoint != null)
         {
-            if (characterController != null)
+            // РћС‚РєР»СЋС‡Р°РµРј CharacterController РѕРґРёРЅ СЂР°Р· РїРµСЂРµРґ РїРµСЂРµРјРµС‰РµРЅРёРµРј, С‡С‚РѕР±С‹ РёР·Р±РµР¶Р°С‚СЊ РєРѕРЅС„Р»РёРєС‚РѕРІ
+            if (characterController != null && characterController.enabled)
                 characterController.enabled = false;
 
             playerRoot.position = seatStandPoint.position;
             playerRoot.rotation = seatStandPoint.rotation;
         }
 
-        // 2) Привязываем к транспорту (Paluba)
+        // 2) РџСЂРёРІСЏР·С‹РІР°РµРј Рє С‚СЂР°РЅСЃРїРѕСЂС‚Сѓ (Paluba)
         Transform vehicleTransform = currentVehicle.transform;
-        playerRoot.SetParent(vehicleTransform, true); // сохраняем мировые координаты
+        // РЎС‚Р°РЅРѕРІРёРјСЃСЏ РґРѕС‡РµСЂРЅРёРј РѕР±СЉРµРєС‚РѕРј РїР°Р»СѓР±С‹: playerRoot Р±СѓРґРµС‚ СЃР»РµРґРѕРІР°С‚СЊ Р·Р° РїР°Р»СѓР±РѕР№.
+        playerRoot.SetParent(vehicleTransform, true); // true - СЃРѕС…СЂР°РЅРёРј РјРёСЂРѕРІС‹Рµ РєРѕРѕСЂРґРёРЅР°С‚С‹ РїСЂРё РїСЂРёСЃРѕРµРґРёРЅРµРЅРёРё
 
-        if (characterController != null)
-            characterController.enabled = true;
-
-        // 3) Отключаем управление пешим персонажем
+        // 3) РћС‚РєР»СЋС‡Р°РµРј СѓРїСЂР°РІР»РµРЅРёРµ РїРµС€РёРј РїРµСЂСЃРѕРЅР°Р¶РµРј
         if (playerController != null)
             playerController.enabled = false;
 
-        // 4) Включаем управление транспортом
+        // 4) Р’РєР»СЋС‡Р°РµРј СѓРїСЂР°РІР»РµРЅРёРµ С‚СЂР°РЅСЃРїРѕСЂС‚РѕРј
         currentVehicle.EnableControl();
 
+        // РЎРѕСЃС‚РѕСЏРЅРёРµ
         isInVehicle = true;
 
-        Debug.Log($"[PlayerVehicleController] Вход в транспорт: {vehicle.name} (seat={seat?.name}), " +
-                  $"playerRoot теперь ребёнок {playerRoot.parent?.name}");
+        Debug.Log($"[PlayerVehicleController] Р’С…РѕРґ РІ С‚СЂР°РЅСЃРїРѕСЂС‚: {vehicle.name} (seat={seat?.name}), playerRoot С‚РµРїРµСЂСЊ СЂРµР±С‘РЅРѕРє {playerRoot.parent?.name}");
 
-        InteractionHintUI.Instance?.SetVisible(true, "[F]", "Выйти из транспорта");
+        // Р’С‹Р·РѕРІ СЃРѕР±С‹С‚РёСЏ
+        OnEnteredVehicle?.Invoke(currentVehicle);
+
+        // UI hint (РјРѕР¶РЅРѕ Р·Р°РјРµРЅРёС‚СЊ/СЂР°СЃС€РёСЂРёС‚СЊ РёР·РІРЅРµ С‡РµСЂРµР· РїРѕРґРїРёСЃРєСѓ РЅР° СЃРѕР±С‹С‚РёРµ)
+        InteractionHintUI.Instance?.SetVisible(true, "[F]", "Р’С‹Р№С‚Рё РёР· С‚СЂР°РЅСЃРїРѕСЂС‚Р°");
     }
 
     /// <summary>
-    /// Выход из транспорта.
+    /// Р’С‹С…РѕРґ РёР· С‚СЂР°РЅСЃРїРѕСЂС‚Р°.
     /// </summary>
     public void ExitVehicle()
     {
         if (!isInVehicle)
             return;
 
-        Debug.Log($"[PlayerVehicleController] Выход из транспорта: {currentVehicle?.name}");
+        Debug.Log($"[PlayerVehicleController] Р’С‹С…РѕРґ РёР· С‚СЂР°РЅСЃРїРѕСЂС‚Р°: {currentVehicle?.name}");
 
-        // 1) Отключаем управление транспортом
+        // 1) РћС‚РєР»СЋС‡Р°РµРј СѓРїСЂР°РІР»РµРЅРёРµ С‚СЂР°РЅСЃРїРѕСЂС‚РѕРј
         if (currentVehicle != null)
         {
             currentVehicle.DisableControl();
         }
 
-        // 2) Отвязываем корень игрока от палубы и возвращаем родителя
-        if (characterController != null)
-            characterController.enabled = false;
-
+        // 2) РћС‚РІСЏР·С‹РІР°РµРј РєРѕСЂРµРЅСЊ РёРіСЂРѕРєР° РѕС‚ РїР°Р»СѓР±С‹ Рё РІРѕР·РІСЂР°С‰Р°РµРј СЂРѕРґРёС‚РµР»СЏ
         if (originalParent != null)
             playerRoot.SetParent(originalParent, true);
         else
             playerRoot.SetParent(null, true);
 
-        if (characterController != null)
-            characterController.enabled = true;
-
-        // (Опционально) вернуть в позицию до посадки:
+        // РџРѕ Р¶РµР»Р°РЅРёСЋ: РјРѕР¶РЅРѕ РІРѕСЃСЃС‚Р°РЅРѕРІРёС‚СЊ РїРѕР·РёС†РёСЋ РґРѕ РїРѕСЃР°РґРєРё (Р·Р°РєРѕРјРјРµРЅС‚РёСЂРѕРІР°РЅРѕ)
         // playerRoot.position = storedPlayerPosition;
         // playerRoot.rotation = storedPlayerRotation;
 
-        // 3) Включаем обратно управление персонажем
+        // 3) Р’РєР»СЋС‡Р°РµРј РѕР±СЂР°С‚РЅРѕ СѓРїСЂР°РІР»РµРЅРёРµ РїРµСЂСЃРѕРЅР°Р¶РµРј Рё CharacterController
         if (playerController != null)
             playerController.enabled = true;
+
+        if (characterController != null && !characterController.enabled)
+            characterController.enabled = true;
 
         isInVehicle = false;
         currentVehicle = null;
         currentSeat = null;
         currentSeatStandPoint = null;
+
+        // Р’С‹Р·РѕРІ СЃРѕР±С‹С‚РёСЏ
+        OnExitedVehicle?.Invoke();
 
         InteractionHintUI.Instance?.SetVisible(false);
     }
