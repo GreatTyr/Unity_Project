@@ -2248,6 +2248,7 @@ GameObject:
   - component: {fileID: 709776948}
   - component: {fileID: 709776947}
   - component: {fileID: 709776950}
+  - component: {fileID: 709776951}
   m_Layer: 0
   m_Name: ControlPanel
   m_TagString: Untagged
@@ -2361,7 +2362,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::InteractableActionHost
   hintText: "\u0412\u0437\u0430\u0438\u043C\u043E\u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435
     \u0441 \u043F\u043B\u0430\u0432\u0438\u043B\u044C\u043D\u0435\u0439"
-  interactionType: 0
+  interactionType: 1
   keyLabel: F
   useEmissionHighlight: 1
   emissionColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
@@ -2376,11 +2377,40 @@ MonoBehaviour:
     sceneName: 
     useAsync: 0
     teleportTarget: {fileID: 0}
-    menuTitle: "\u0412\u0435\u0440\u0441\u0442\u0430\u043A"
+    menuTitle: "\u041F\u043B\u0430\u0432\u0438\u043B\u044C\u043D\u044F"
     option1Label: "\u041E\u0442\u043A\u0440\u044B\u0442\u044C"
     option2Label: "\u041E\u0442\u043C\u0435\u043D\u0430"
     sceneNameSecondary: 
     vehicleRoot: {fileID: 0}
+--- !u!114 &709776951
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 709776944}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e04c1081563562d4abd16f0686bc410c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Smelting
+  furnaceCapacity: 100
+  furnaceTier: 1
+  smelterEfficiency: 100
+  metalTier: 1
+  metalAmount: 50
+  usePolymers: 0
+  polymerSharePercent: 0
+  useNanites: 0
+  kineticAbsorb: 0
+  kineticResist: 0
+  thermalAbsorb: 0
+  thermalResist: 0
+  energyAbsorb: 0
+  energyResist: 0
+  chemicalAbsorb: 0
+  chemicalResist: 0
+  freePoints: 0
 --- !u!1 &723248756
 GameObject:
   m_ObjectHideFlags: 0
@@ -2517,6 +2547,7 @@ MonoBehaviour:
   highlightLight: {fileID: 0}
   vehicleRoot: {fileID: 1080166585}
   seatStandPoint: {fileID: 1864929878}
+  playerVehicleController: {fileID: 0}
 --- !u!114 &723248763
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3017,10 +3048,6 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967295
   rb: {fileID: 0}
-  moveInput: 0
-  turnInput: 0
-  verticalInput: 0
-  controlEnabled: 0
 --- !u!4 &1080166589
 Transform:
   m_ObjectHideFlags: 0
@@ -4041,10 +4068,11 @@ MonoBehaviour:
   rotateToCameraOnInput: 1
   instantRotateToCamera: 1
   rotationSmoothTime: 0.12
-  debugLogsEnabled: 0
   jumpForce: 5
   gravity: -9.81
   useCharacterControllerGround: 1
+  jumpBufferTime: 0.15
+  acceptHoldToRepeat: 0
   groundLayers:
     serializedVersion: 2
     m_Bits: 4294967295
@@ -4195,7 +4223,6 @@ MonoBehaviour:
   characterController: {fileID: 1371907983}
   playerRoot: {fileID: 1371907978}
   isInVehicle: 0
-  currentVehicle: {fileID: 0}
   currentSeat: {fileID: 0}
   currentSeatStandPoint: {fileID: 0}
 --- !u!114 &1376496703

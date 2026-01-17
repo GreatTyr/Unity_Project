@@ -2,18 +2,12 @@
 using UnityEngine;
 
 /// <summary>
-/// PlayerVehicleController
-/// ----------------------------------------
-/// - Садит игрока за штурвал транспорта (Paluba с PepelacController).
-/// - Привязывает корень игрока к палубе и удерживает его на seatStandPoint.
-/// - Исправления:
-///   * CharacterController теперь отключается только один раз при посадке и включается один раз при выходе (не каждый кадр).
-///   * При входе игрок привязывается к текущему транспорту и будет следовать за ним — при выходе окажется в актуальном месте палубы.
-///   * Добавлены события OnEnteredVehicle / OnExitedVehicle.
-/// 
-/// Важно:
-/// - playerController будет отключён при посадке (чтобы пешее управление не мешало).
-/// - playerRoot (обычно корень игрока) должен быть назначен в инспекторе (по умолчанию this.transform).
+/// PlayerVehicleController (обновлён)
+/// - Работает с IControllableVehicle (а не напрямую с PepelacController).
+/// - EnterVehicle / ExitVehicle используют контракт интерфейса.
+/// - CharacterController отключается один раз при посадке и включается один раз при выходе.
+/// - При входе playerRoot привязывается к vehicle.Root (player будет следовать за палубой).
+/// - События OnEnteredVehicle / OnExitedVehicle для подписчиков.
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(CharacterController))]
@@ -26,12 +20,12 @@ public class PlayerVehicleController : MonoBehaviour
     [Tooltip("CharacterController игрока.")]
     public CharacterController characterController;
 
-    [Tooltip("Корневой объект игрока, который двигается (обычно тот же объект, где CC/PlayerController).")]
+    [Tooltip("Корневой объект игрока (обычно тот же объект, где CC/PlayerController).")]
     public Transform playerRoot;
 
     [Header("Debug / State (read-only)")]
     [SerializeField] private bool isInVehicle = false;
-    [SerializeField] private PepelacController currentVehicle;        // контроллер транспорта (на Paluba)
+    [SerializeField] private IControllableVehicle currentVehicle;        // контроллер транспорта (IControllableVehicle)
     [SerializeField] private VehicleSeatInteractable currentSeat;     // сиденье/штурвал
     [SerializeField] private Transform currentSeatStandPoint;         // точка стояния у штурвала
 
@@ -41,7 +35,7 @@ public class PlayerVehicleController : MonoBehaviour
     private Transform originalParent;
 
     // События
-    public event Action<PepelacController> OnEnteredVehicle;
+    public event Action<IControllableVehicle> OnEnteredVehicle;
     public event Action OnExitedVehicle;
 
     void Awake()
@@ -58,13 +52,9 @@ public class PlayerVehicleController : MonoBehaviour
 
     void Update()
     {
-        // Пока игрок в транспорте — держим его в точке seatStandPoint относительно палубы.
-        // Важно: НЕ включаем/отключаем CharacterController здесь.
         if (isInVehicle && currentSeatStandPoint != null)
         {
-            // Позиционируем игрока жёстко в мировых координатах как seatStandPoint.
-            // Так как playerRoot является ребёнком транспорта, можно также задать localPosition/localRotation,
-            // но установка мировых координат здесь безопасна и понятна.
+            // Держим игрока строго в точке, соответствующей seatStandPoint (в мировых координатах)
             playerRoot.position = currentSeatStandPoint.position;
             playerRoot.rotation = currentSeatStandPoint.rotation;
         }
@@ -79,10 +69,9 @@ public class PlayerVehicleController : MonoBehaviour
     }
 
     /// <summary>
-    /// Вход в транспорт (Paluba) с указанного сиденья.
-    /// Вызывается из VehicleSeatInteractable.Interact().
+    /// EnterVehicle: принимает VehicleSeatInteractable, IControllableVehicle и точку стояния.
     /// </summary>
-    public void EnterVehicle(VehicleSeatInteractable seat, PepelacController vehicle, Transform seatStandPoint)
+    public void EnterVehicle(VehicleSeatInteractable seat, IControllableVehicle vehicle, Transform seatStandPoint)
     {
         if (isInVehicle)
         {
@@ -100,15 +89,14 @@ public class PlayerVehicleController : MonoBehaviour
         currentVehicle = vehicle;
         currentSeatStandPoint = seatStandPoint;
 
-        // Сохраняем позицию/ротацию и родителя корня игрока
+        // Сохраняем позицию/ротацию и родителя
         originalParent = playerRoot.parent;
         storedPlayerPosition = playerRoot.position;
         storedPlayerRotation = playerRoot.rotation;
 
-        // 1) Перемещаем к seatStandPoint (если указан)
+        // 1) Перемещаем к seatStandPoint
         if (seatStandPoint != null)
         {
-            // Отключаем CharacterController один раз перед перемещением, чтобы избежать конфликтов
             if (characterController != null && characterController.enabled)
                 characterController.enabled = false;
 
@@ -116,57 +104,46 @@ public class PlayerVehicleController : MonoBehaviour
             playerRoot.rotation = seatStandPoint.rotation;
         }
 
-        // 2) Привязываем к транспорту (Paluba)
-        Transform vehicleTransform = currentVehicle.transform;
-        // Становимся дочерним объектом палубы: playerRoot будет следовать за палубой.
-        playerRoot.SetParent(vehicleTransform, true); // true - сохраним мировые координаты при присоединении
+        // 2) Привязываем к vehicle.Root — playerRoot будет следовать за палубой
+        var vehicleTransform = vehicle.Root;
+        playerRoot.SetParent(vehicleTransform, true);
 
         // 3) Отключаем управление пешим персонажем
         if (playerController != null)
             playerController.enabled = false;
 
-        // 4) Включаем управление транспортом
-        currentVehicle.EnableControl();
+        // 4) Включаем управление транспортом через интерфейс
+        vehicle.EnableControl();
 
-        // Состояние
         isInVehicle = true;
 
-        Debug.Log($"[PlayerVehicleController] Вход в транспорт: {vehicle.name} (seat={seat?.name}), playerRoot теперь ребёнок {playerRoot.parent?.name}");
+        Debug.Log($"[PlayerVehicleController] Вход в транспорт (IControllableVehicle) playerRoot теперь ребёнок {playerRoot.parent?.name}");
 
-        // Вызов события
-        OnEnteredVehicle?.Invoke(currentVehicle);
+        OnEnteredVehicle?.Invoke(vehicle);
 
-        // UI hint (можно заменить/расширить извне через подписку на событие)
         InteractionHintUI.Instance?.SetVisible(true, "[F]", "Выйти из транспорта");
     }
 
     /// <summary>
-    /// Выход из транспорта.
+    /// ExitVehicle — отключение управления транспортом и восстановление управления персонажем.
     /// </summary>
     public void ExitVehicle()
     {
         if (!isInVehicle)
             return;
 
-        Debug.Log($"[PlayerVehicleController] Выход из транспорта: {currentVehicle?.name}");
+        Debug.Log($"[PlayerVehicleController] Выход из транспорта: {currentVehicle?.Root?.name}");
 
         // 1) Отключаем управление транспортом
-        if (currentVehicle != null)
-        {
-            currentVehicle.DisableControl();
-        }
+        currentVehicle?.DisableControl();
 
-        // 2) Отвязываем корень игрока от палубы и возвращаем родителя
+        // 2) Отвязываем и возвращаем родителя
         if (originalParent != null)
             playerRoot.SetParent(originalParent, true);
         else
             playerRoot.SetParent(null, true);
 
-        // По желанию: можно восстановить позицию до посадки (закомментировано)
-        // playerRoot.position = storedPlayerPosition;
-        // playerRoot.rotation = storedPlayerRotation;
-
-        // 3) Включаем обратно управление персонажем и CharacterController
+        // 3) Включаем управление персонажем и CharacterController
         if (playerController != null)
             playerController.enabled = true;
 
@@ -178,7 +155,6 @@ public class PlayerVehicleController : MonoBehaviour
         currentSeat = null;
         currentSeatStandPoint = null;
 
-        // Вызов события
         OnExitedVehicle?.Invoke();
 
         InteractionHintUI.Instance?.SetVisible(false);

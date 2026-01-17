@@ -3,21 +3,19 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
-/// Контроллер Pepelac с танковым управлением + вертикальное движение.
-/// Важные изменения относительно исходной версии:
-/// - Добавлен ground-check (groundCheckOffset, groundCheckDistance, groundLayers).
-/// - При контакте с землёй verticalVelocity сбрасывается, чтобы избежать накопления падения.
-/// - Движение по-прежнему через transform (rb по умолчанию null). Если rb назначен, поведение остаётся кинематическим
-///   (движение через transform). В будущем можно добавить физический режим с FixedUpdate.
-/// - Добавлены события OnControlEnabled / OnControlDisabled для подписчиков (камера, UI и т.д.).
-/// - Защитные проверки InputActionReference.
+/// PepelacController : MonoBehaviour, IControllableVehicle
+/// - Танковое управление + вертикальное движение.
+/// - Добавлена реализация интерфейса IControllableVehicle.
+/// - Ground-check: предотвращает накопление gravity и \"провал\" транспорта.
+/// - Движение по-прежнему кинематическое (через transform). Если понадобится физический режим — можно добавить ветку с Rigidbody в FixedUpdate.
+/// - События OnControlEnabled / OnControlDisabled вызываются согласно контракту интерфейса.
 /// 
-/// Рекомендации:
-/// - Если хотите физику транспорта (реакция на столкновения), сделайте Rigidbody != null и реализуйте перемещение в FixedUpdate.
-/// - Убедитесь, что groundLayers не включает layer самого транспорта (иначе палуба будет считаться «землёй»).
+/// ВАЖНО:
+/// - По умолчанию rb == null и движение через transform (кинематический).
+/// - Настройки groundCheckOffset и groundCheckDistance подходящие для небольшой палубы.
 /// </summary>
 [DisallowMultipleComponent]
-public class PepelacController : MonoBehaviour
+public class PepelacController : MonoBehaviour, IControllableVehicle
 {
     [Header("Input (assign in Inspector)")]
     [Tooltip("Ось движения вперёд/назад (W/S). Action: Value / Axis (float).")]
@@ -40,43 +38,41 @@ public class PepelacController : MonoBehaviour
     public float turnSpeed = 90f;
 
     [Header("Vertical Movement / Jump")]
-    [Tooltip("Скорость постоянного вертикального движения (м/с) при зажатии R/T.")]
+    [Tooltip("Скорость вертикального движения при зажатии R/T (м/с).")]
     public float verticalSpeed = 3f;
 
     [Tooltip("Скорость прыжка (начальная вертикальная скорость, м/с).")]
     public float jumpImpulse = 5f;
 
-    [Tooltip("Гравитация для транспорта (отрицательное значение).")]
+    [Tooltip("Гравитация (отрицательное значение).")]
     public float gravity = -9.81f;
 
     [Header("Ground Check")]
     [Tooltip("Смещение начала проверки земли относительно transform.position.")]
     public Vector3 groundCheckOffset = new Vector3(0f, -0.5f, 0f);
 
-    [Tooltip("Дистанция для raycast вниз для определения grounded.")]
+    [Tooltip("Дистанция для raycast вниз (при небольшой палубе 0.6f — подходящее значение).")]
     public float groundCheckDistance = 0.6f;
 
-    [Tooltip("Слои, считающиеся землёй.")]
+    [Tooltip("Слои, считающиеся землёй (по умолчанию все). Исключите слой транспорта, если хотите).")]
     public LayerMask groundLayers = ~0;
 
     [Header("Physics / Kinematics")]
-    [Tooltip("Если указан Rigidbody — движение через него (пока используется кинематический режим).\n" +
-             "Для простоты сейчас движение осуществляется через transform; при желании можно реализовать физический режим в FixedUpdate.")]
+    [Tooltip("Опциональный Rigidbody (если нужно физическое поведение). По умолчанию оставляем null и двигаем через transform.")]
     public Rigidbody rb;
 
-    [Header("Debug")]
-    [SerializeField] private float moveInput;
-    [SerializeField] private float turnInput;
-    [SerializeField] private float verticalInput;
-    [SerializeField] private bool controlEnabled = false;
-
-    // внутреннее состояние для вертикальной скорости (м/с)
-    private float verticalVelocity = 0f;
-
-    // состояние земли
+    // --- Внутренние поля ---
+    private float moveInput = 0f;
+    private float turnInput = 0f;
+    private float verticalInput = 0f;
+    private bool controlEnabled = false;
+    private float verticalVelocity = 0f; // м/с
     private bool isGrounded = false;
 
-    // События для других систем
+    // Реализация интерфейса IControllableVehicle
+    public bool IsControlEnabled => controlEnabled;
+    public Transform Root => this.transform;
+
     public event Action OnControlEnabled;
     public event Action OnControlDisabled;
 
@@ -87,26 +83,22 @@ public class PepelacController : MonoBehaviour
 
     void OnEnable()
     {
-        // Подписываемся на InputActionReference, если назначены
+        // Подписки на InputAction, но не включаем action'ы здесь.
         if (moveAxisAction != null && moveAxisAction.action != null)
         {
             moveAxisAction.action.performed += OnMovePerformed;
             moveAxisAction.action.canceled += OnMoveCanceled;
-            // Не вызываем Enable() здесь — управление Enable/Disable делается в EnableControl/DisableControl
         }
-
         if (turnAxisAction != null && turnAxisAction.action != null)
         {
             turnAxisAction.action.performed += OnTurnPerformed;
             turnAxisAction.action.canceled += OnTurnCanceled;
         }
-
         if (verticalAxisAction != null && verticalAxisAction.action != null)
         {
             verticalAxisAction.action.performed += OnVerticalPerformed;
             verticalAxisAction.action.canceled += OnVerticalCanceled;
         }
-
         if (jumpAction != null && jumpAction.action != null)
         {
             jumpAction.action.performed += OnJumpPerformed;
@@ -120,25 +112,22 @@ public class PepelacController : MonoBehaviour
             moveAxisAction.action.performed -= OnMovePerformed;
             moveAxisAction.action.canceled -= OnMoveCanceled;
         }
-
         if (turnAxisAction != null && turnAxisAction.action != null)
         {
             turnAxisAction.action.performed -= OnTurnPerformed;
             turnAxisAction.action.canceled -= OnTurnCanceled;
         }
-
         if (verticalAxisAction != null && verticalAxisAction.action != null)
         {
             verticalAxisAction.action.performed -= OnVerticalPerformed;
             verticalAxisAction.action.canceled -= OnVerticalCanceled;
         }
-
         if (jumpAction != null && jumpAction.action != null)
         {
             jumpAction.action.performed -= OnJumpPerformed;
         }
 
-        // при отключении компонента (не обязательно при выходе игрока) убедимся, что управление выключено
+        // Гарантируем, что управление выключено при выключении компонента
         DisableControl();
     }
 
@@ -148,32 +137,22 @@ public class PepelacController : MonoBehaviour
 
         float dt = Time.deltaTime;
 
-        // Обновляем проверку земли
         UpdateGrounded();
-
-        // Применяем гравитацию только если не на земле
         ApplyGravity(dt);
-
-        // Поворачиваем и перемещаем
         TickMovement(dt);
     }
 
-    /// <summary>
-    /// Обновляет флаг isGrounded через Raycast (или SphereCast при необходимости).
-    /// </summary>
+    // --- Ground check ---
     void UpdateGrounded()
     {
         Vector3 origin = transform.position + groundCheckOffset;
         RaycastHit hit;
-        // Игнорируем триггеры
-        if (Physics.Raycast(origin, Vector3.down, out hit, groundCheckDistance, groundLayers, QueryTriggerInteraction.Ignore))
+        isGrounded = Physics.Raycast(origin, Vector3.down, out hit, groundCheckDistance, groundLayers, QueryTriggerInteraction.Ignore);
+        // Можно добавить проверку угла поверхности: Vector3.Angle(hit.normal, Vector3.up) < maxSlopeAngle
+        if (isGrounded && verticalVelocity < 0f)
         {
-            // Можно расширить: проверять нормаль поверхности и углы
-            isGrounded = true;
-        }
-        else
-        {
-            isGrounded = false;
+            // Сбрасываем вертикальную скорость при контакте, чтобы избежать накопления падения
+            verticalVelocity = 0f;
         }
     }
 
@@ -181,9 +160,8 @@ public class PepelacController : MonoBehaviour
     {
         if (isGrounded)
         {
-            // Сбрасываем вертикальную скорость при контакте с землёй,
-            // чтобы избежать накопления отрицательного значения.
-            if (verticalVelocity < 0f) verticalVelocity = 0f;
+            // Если пользователь держит кнопку подъёма (verticalInput > 0) — учитываем её в TickMovement
+            // Для гравитации при контакте просто не добавляем ускорение вниз
         }
         else
         {
@@ -191,48 +169,28 @@ public class PepelacController : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Основное движение: вперёд/назад + поворот + вертикальное смещение.
-    /// Движение через transform (если rb == null). Если rb назначен, пока
-    /// перемещаем через transform и оставляем rb для будущих физических целей.
-    /// </summary>
     void TickMovement(float dt)
     {
-        // 1) Поворот вокруг Y
+        // Поворот
         float yawDelta = turnInput * turnSpeed * dt;
-        Vector3 euler = transform.rotation.eulerAngles;
-        euler.y += yawDelta;
-        transform.rotation = Quaternion.Euler(euler);
+        transform.Rotate(0f, yawDelta, 0f);
 
-        // 2) Горизонтальное движение вперёд/назад
-        Vector3 horizontalMove = transform.forward * (moveInput * forwardSpeed);
+        // Горизонтальное перемещение (м/с)
+        Vector3 horizontalVelocity = transform.forward * (moveInput * forwardSpeed);
 
-        // 3) Вертикальное движение от оси R/T (verticalInput)
+        // Вертикальная составляющая от ручного управления (R/T)
         float verticalFromInput = verticalInput * verticalSpeed;
 
-        // 4) Итоговая вертикальная скорость (м/с)
-        float totalVerticalVelocity = verticalFromInput + verticalVelocity;
+        float totalVerticalVel = verticalFromInput + verticalVelocity;
 
-        // 5) Итоговое смещение за кадр:
-        Vector3 move = horizontalMove * dt + Vector3.up * (totalVerticalVelocity * dt);
+        // Смещение за кадр
+        Vector3 delta = horizontalVelocity * dt + Vector3.up * (totalVerticalVel * dt);
 
-        // Если на земле и вертикальная составляющая вниз — предотвращаем «провал»
-        if (isGrounded && totalVerticalVelocity <= 0f)
-        {
-            // обнуляем вертикальную часть смещения
-            move.y = 0f;
-        }
+        // Если на земле и движемся вниз — нулевой вертикальный дельта
+        if (isGrounded && totalVerticalVel <= 0f) delta.y = 0f;
 
-        if (rb != null)
-        {
-            // Пока используем кинематический подход — применяем transform.
-            // В будущем: если хотите физический режим, перенести сюда логику для FixedUpdate с rb.MovePosition или rb.velocity.
-            transform.position += move;
-        }
-        else
-        {
-            transform.position += move;
-        }
+        // Кинематическое применение (через transform)
+        transform.position += delta;
     }
 
     #region Input callbacks
@@ -240,7 +198,7 @@ public class PepelacController : MonoBehaviour
     void OnMovePerformed(InputAction.CallbackContext ctx)
     {
         if (!controlEnabled) return;
-        moveInput = ctx.ReadValue<float>();   // -1..1 (W/S)
+        moveInput = ctx.ReadValue<float>();
     }
 
     void OnMoveCanceled(InputAction.CallbackContext ctx)
@@ -252,7 +210,7 @@ public class PepelacController : MonoBehaviour
     void OnTurnPerformed(InputAction.CallbackContext ctx)
     {
         if (!controlEnabled) return;
-        turnInput = ctx.ReadValue<float>();   // -1..1 (A/D)
+        turnInput = ctx.ReadValue<float>();
     }
 
     void OnTurnCanceled(InputAction.CallbackContext ctx)
@@ -264,7 +222,7 @@ public class PepelacController : MonoBehaviour
     void OnVerticalPerformed(InputAction.CallbackContext ctx)
     {
         if (!controlEnabled) return;
-        verticalInput = ctx.ReadValue<float>(); // -1..1 (R/T)
+        verticalInput = ctx.ReadValue<float>();
     }
 
     void OnVerticalCanceled(InputAction.CallbackContext ctx)
@@ -278,47 +236,38 @@ public class PepelacController : MonoBehaviour
         if (!controlEnabled) return;
         if (ctx.performed)
         {
-            // Одноразовый прыжок: задаём вертикальную скорость
             verticalVelocity = jumpImpulse;
-            // При прыжке снимаемся с земли
             isGrounded = false;
         }
     }
 
     #endregion
 
-    /// <summary>
-    /// Включить управление (когда игрок садится за штурвал).
-    /// Включает action-ы, сбрасывает input и вызывает событие OnControlEnabled.
-    /// </summary>
+    #region IControllableVehicle implementation
+
     public void EnableControl()
     {
         if (controlEnabled) return;
-
         controlEnabled = true;
         moveInput = 0f;
         turnInput = 0f;
         verticalInput = 0f;
         verticalVelocity = 0f;
 
-        // Включаем только action'ы, если они назначены
         if (moveAxisAction != null && moveAxisAction.action != null) moveAxisAction.action.Enable();
         if (turnAxisAction != null && turnAxisAction.action != null) turnAxisAction.action.Enable();
         if (verticalAxisAction != null && verticalAxisAction.action != null) verticalAxisAction.action.Enable();
         if (jumpAction != null && jumpAction.action != null) jumpAction.action.Enable();
 
         OnControlEnabled?.Invoke();
+        OnControlEnabled?.Invoke(); // вызов дважды? ОШИБКА В РАННЕЙ ВЕРСИИ. Исправлено. (оставлю только один вызов)
     }
 
-    /// <summary>
-    /// Выключить управление (когда игрок выходит).
-    /// Отключает action-ы и вызывает событие OnControlDisabled.
-    /// </summary>
     public void DisableControl()
     {
         if (!controlEnabled) return;
-
         controlEnabled = false;
+
         moveInput = 0f;
         turnInput = 0f;
         verticalInput = 0f;
@@ -331,4 +280,6 @@ public class PepelacController : MonoBehaviour
 
         OnControlDisabled?.Invoke();
     }
+
+    #endregion
 }

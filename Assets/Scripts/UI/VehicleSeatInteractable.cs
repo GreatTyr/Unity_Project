@@ -1,15 +1,11 @@
 ﻿using UnityEngine;
 
 /// <summary>
-/// VehicleSeatInteractable
-/// ----------------------------------------
-/// Интерактивный объект "сиденье / штурвал".
-/// При наведении и нажатии F:
-/// - Если игрок НЕ в транспорте → посажает за штурвал (EnterVehicle).
-/// - Если игрок УЖЕ в транспорте → инициирует выход (RequestExit).
-///
-/// Таким образом, вход/выход привязаны к одному и тому же объекту и к одной кнопке,
-/// но без двойной обработки (PlayerVehicleController сам F больше не слушает).
+/// VehicleSeatInteractable (обновлён)
+/// - Добавлено поле playerVehicleController (опционально) для инспекторного связывания.
+/// - Ищет IControllableVehicle на vehicleRoot (GetComponentInChildren<IControllableVehicle>).
+/// - Если не находит, логирует предупреждение.
+/// - Вызов EnterVehicle / RequestExit делается через PlayerVehicleController (как и раньше), но теперь с IControllableVehicle.
 /// </summary>
 public class VehicleSeatInteractable : InteractableBase
 {
@@ -20,40 +16,41 @@ public class VehicleSeatInteractable : InteractableBase
     [Tooltip("Точка, куда будет перемещён игрок при посадке (позиция/ориентация у штурвала).")]
     public Transform seatStandPoint;
 
+    [Header("Player reference (optional)")]
+    [Tooltip("Если назначено — используется для входа/выхода. Иначе будет попытка найти объект с тегом 'Player' и получить PlayerVehicleController.")]
+    public PlayerVehicleController playerVehicleController; // optional inspector link
+
     private void Reset()
     {
-        // Значения по умолчанию при добавлении компонента в инспекторе
         hintText = "Сесть за штурвал";
         interactionType = InteractionType.VehicleEnter;
         keyLabel = "F";
     }
 
-    /// <summary>
-    /// Основной метод взаимодействия:
-    /// - если игрок в пешем режиме → садим за штурвал;
-    /// - если уже сидит → выходим из транспорта.
-    /// </summary>
     public override void Interact()
     {
-        // Ищем контроллер игрока в сцене.
-        // В будущем можно заменить на ссылку через Singleton/GameManager.
-        var player = GameObject.FindObjectOfType<PlayerVehicleController>();
+        // Получаем PlayerVehicleController (инспектор -> по тегу -> FindObjectOfType)
+        PlayerVehicleController player = playerVehicleController;
+
         if (player == null)
         {
-            Debug.LogError("[VehicleSeatInteractable] PlayerVehicleController не найден в сцене.");
+            var g = GameObject.FindWithTag("Player");
+            if (g != null) player = g.GetComponent<PlayerVehicleController>();
+        }
+
+        if (player == null) player = GameObject.FindObjectOfType<PlayerVehicleController>();
+
+        if (player == null)
+        {
+            Debug.LogError("[VehicleSeatInteractable] PlayerVehicleController не найден.");
             return;
         }
 
-        // === Если игрок уже за штурвалом (в транспорте) ===
-        // В этом случае взаимодействие (F) воспринимаем как команду "Выйти".
         if (player.IsInVehicle)
         {
-            Debug.Log("[VehicleSeatInteractable] Игрок уже за штурвалом -> команда на выход из транспорта.");
             player.RequestExit();
             return;
         }
-
-        // === Игрок НЕ в транспорте — значит, это команда "Сесть за штурвал" ===
 
         if (vehicleRoot == null)
         {
@@ -61,17 +58,15 @@ public class VehicleSeatInteractable : InteractableBase
             return;
         }
 
-        // Ищем контроллер транспорта на корневом объекте.
-        // Сейчас это PepelacController, но в будущем можно использовать интерфейс IVehicleController.
-        var vehicleController = vehicleRoot.GetComponent<PepelacController>();
-        if (vehicleController == null)
+        // Ищем IControllableVehicle на vehicleRoot
+        IControllableVehicle vehicle = vehicleRoot.GetComponentInChildren<IControllableVehicle>();
+        if (vehicle == null)
         {
-            Debug.LogWarning($"[VehicleSeatInteractable] На vehicleRoot={vehicleRoot.name} не найден PepelacController.");
+            Debug.LogWarning($"[VehicleSeatInteractable] На vehicleRoot={vehicleRoot.name} не найден компонент, реализующий IControllableVehicle.");
             return;
         }
 
-        // Передаём управление менеджеру игрока: вход в транспорт
-        player.EnterVehicle(this, vehicleController, seatStandPoint);
+        player.EnterVehicle(this, vehicle, seatStandPoint);
 
         Debug.Log($"[VehicleSeatInteractable] Игрок сел за штурвал {name} (vehicle={vehicleRoot.name})");
     }
