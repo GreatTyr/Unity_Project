@@ -1,25 +1,23 @@
-﻿using System;
+﻿// PepelacController.cs (обновлённая версия с поддержкой стрейфа по Q/E)
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
 /// PepelacController : MonoBehaviour, IControllableVehicle
-/// - Танковое управление + вертикальное движение.
-/// - Добавлена реализация интерфейса IControllableVehicle.
-/// - Ground-check: предотвращает накопление gravity и \"провал\" транспорта.
-/// - Движение по-прежнему кинематическое (через transform). Если понадобится физический режим — можно добавить ветку с Rigidbody в FixedUpdate.
-/// - События OnControlEnabled / OnControlDisabled вызываются согласно контракту интерфейса.
-/// 
-/// ВАЖНО:
-/// - По умолчанию rb == null и движение через transform (кинематический).
-/// - Настройки groundCheckOffset и groundCheckDistance подходящие для небольшой палубы.
+/// Добавлено:
+/// - Поддержка стрейфа (strafe) влево/вправо (перпендикулярно forward) по отдельному InputAction.
+/// - Новое поле strafeSpeed (м/с).
+/// - Ввод для стрейфа подключается/отключается вместе с остальными action'ами.
+/// - Стрейф интегрируется в кинематическое смещение (transform.position += delta).
+/// - Сохранена существующая модульность и контракт IControllableVehicle.
 /// </summary>
 [DisallowMultipleComponent]
 public class PepelacController : MonoBehaviour, IControllableVehicle
 {
     [Header("Input (assign in Inspector)")]
     [Tooltip("Ось движения вперёд/назад (W/S). Action: Value / Axis (float).")]
-    public InputActionReference moveAxisAction;      // -1..1
+    public InputActionReference moveAxisAction; // -1..1
 
     [Tooltip("Ось поворота влево/вправо (A/D). Action: Value / Axis (float).")]
     public InputActionReference turnAxisAction;      // -1..1
@@ -30,9 +28,17 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
     [Tooltip("Вертикальное движение (R/T). Action: Value / Axis (float).")]
     public InputActionReference verticalAxisAction;  // -1..1 (R/T)
 
+    [Header("Strafe (Q/E)")]
+    [Tooltip("Основа для стрейфа: Action типа Value/Vector2 или Value/Float. " +
+             "Ожидаем значение -1 (влево) .. 1 (вправо). Если у вас в InputSetup Q/E - используйте отдельную ось.")]
+    public InputActionReference strafeAxisAction;    // -1..1 (Q/E)
+
     [Header("Movement")]
     [Tooltip("Скорость движения вперёд/назад (м/с).")]
     public float forwardSpeed = 5f;
+
+    [Tooltip("Скорость стрейфа (м/с). По умолчанию равна forwardSpeed, но отдельно настраивается).")]
+    public float strafeSpeed = 5f;
 
     [Tooltip("Скорость поворота (град/с).")]
     public float turnSpeed = 90f;
@@ -65,6 +71,7 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
     private float moveInput = 0f;
     private float turnInput = 0f;
     private float verticalInput = 0f;
+    private float strafeInput = 0f; // -1..1: Q -> -1, E -> +1
     private bool controlEnabled = false;
     private float verticalVelocity = 0f; // м/с
     private bool isGrounded = false;
@@ -103,6 +110,13 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
         {
             jumpAction.action.performed += OnJumpPerformed;
         }
+
+        // Стрейф: если назначено, подписываемся на performed/canceled
+        if (strafeAxisAction != null && strafeAxisAction.action != null)
+        {
+            strafeAxisAction.action.performed += OnStrafePerformed;
+            strafeAxisAction.action.canceled += OnStrafeCanceled;
+        }
     }
 
     void OnDisable()
@@ -127,6 +141,12 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
             jumpAction.action.performed -= OnJumpPerformed;
         }
 
+        if (strafeAxisAction != null && strafeAxisAction.action != null)
+        {
+            strafeAxisAction.action.performed -= OnStrafePerformed;
+            strafeAxisAction.action.canceled -= OnStrafeCanceled;
+        }
+
         // Гарантируем, что управление выключено при выключении компонента
         DisableControl();
     }
@@ -148,7 +168,6 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
         Vector3 origin = transform.position + groundCheckOffset;
         RaycastHit hit;
         isGrounded = Physics.Raycast(origin, Vector3.down, out hit, groundCheckDistance, groundLayers, QueryTriggerInteraction.Ignore);
-        // Можно добавить проверку угла поверхности: Vector3.Angle(hit.normal, Vector3.up) < maxSlopeAngle
         if (isGrounded && verticalVelocity < 0f)
         {
             // Сбрасываем вертикальную скорость при контакте, чтобы избежать накопления падения
@@ -171,20 +190,26 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
 
     void TickMovement(float dt)
     {
-        // Поворот
+        // Поворот (танковое управление)
         float yawDelta = turnInput * turnSpeed * dt;
         transform.Rotate(0f, yawDelta, 0f);
 
-        // Горизонтальное перемещение (м/с)
-        Vector3 horizontalVelocity = transform.forward * (moveInput * forwardSpeed);
+        // Горизонтальная скорость вперед/назад (локальная forward)
+        Vector3 forwardVel = transform.forward * (moveInput * forwardSpeed);
+
+        // Боковая (стрейф) скорость (локальная right)
+        Vector3 rightVel = transform.right * (strafeInput * strafeSpeed);
 
         // Вертикальная составляющая от ручного управления (R/T)
         float verticalFromInput = verticalInput * verticalSpeed;
 
         float totalVerticalVel = verticalFromInput + verticalVelocity;
 
+        // Суммарный вектор скорости (м/с)
+        Vector3 totalVelocity = forwardVel + rightVel + Vector3.up * totalVerticalVel;
+
         // Смещение за кадр
-        Vector3 delta = horizontalVelocity * dt + Vector3.up * (totalVerticalVel * dt);
+        Vector3 delta = totalVelocity * dt;
 
         // Если на земле и движемся вниз — нулевой вертикальный дельта
         if (isGrounded && totalVerticalVel <= 0f) delta.y = 0f;
@@ -198,6 +223,7 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
     void OnMovePerformed(InputAction.CallbackContext ctx)
     {
         if (!controlEnabled) return;
+        // Ожидаем float (Value)
         moveInput = ctx.ReadValue<float>();
     }
 
@@ -231,6 +257,39 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
         verticalInput = 0f;
     }
 
+    void OnStrafePerformed(InputAction.CallbackContext ctx)
+    {
+        if (!controlEnabled) return;
+
+        // Поддерживаем разные типы значения: float (одна ось) или Vector2 (например, если кто-то использует composite)
+        try
+        {
+            if (ctx.control != null && ctx.control.valueType == typeof(Vector2))
+            {
+                Vector2 v = ctx.ReadValue<Vector2>();
+                // Берём горизонтальную составляющую (x): -1..1
+                strafeInput = Mathf.Clamp(v.x, -1f, 1f);
+            }
+            else
+            {
+                float f = ctx.ReadValue<float>();
+                strafeInput = Mathf.Clamp(f, -1f, 1f);
+            }
+        }
+        catch
+        {
+            // fallback
+            float f = ctx.ReadValue<float>();
+            strafeInput = Mathf.Clamp(f, -1f, 1f);
+        }
+    }
+
+    void OnStrafeCanceled(InputAction.CallbackContext ctx)
+    {
+        if (!controlEnabled) return;
+        strafeInput = 0f;
+    }
+
     void OnJumpPerformed(InputAction.CallbackContext ctx)
     {
         if (!controlEnabled) return;
@@ -252,15 +311,16 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
         moveInput = 0f;
         turnInput = 0f;
         verticalInput = 0f;
+        strafeInput = 0f;
         verticalVelocity = 0f;
 
         if (moveAxisAction != null && moveAxisAction.action != null) moveAxisAction.action.Enable();
         if (turnAxisAction != null && turnAxisAction.action != null) turnAxisAction.action.Enable();
         if (verticalAxisAction != null && verticalAxisAction.action != null) verticalAxisAction.action.Enable();
         if (jumpAction != null && jumpAction.action != null) jumpAction.action.Enable();
+        if (strafeAxisAction != null && strafeAxisAction.action != null) strafeAxisAction.action.Enable();
 
         OnControlEnabled?.Invoke();
-        OnControlEnabled?.Invoke(); // вызов дважды? ОШИБКА В РАННЕЙ ВЕРСИИ. Исправлено. (оставлю только один вызов)
     }
 
     public void DisableControl()
@@ -271,12 +331,14 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
         moveInput = 0f;
         turnInput = 0f;
         verticalInput = 0f;
+        strafeInput = 0f;
         verticalVelocity = 0f;
 
         if (moveAxisAction != null && moveAxisAction.action != null) moveAxisAction.action.Disable();
         if (turnAxisAction != null && turnAxisAction.action != null) turnAxisAction.action.Disable();
         if (verticalAxisAction != null && verticalAxisAction.action != null) verticalAxisAction.action.Disable();
         if (jumpAction != null && jumpAction.action != null) jumpAction.action.Disable();
+        if (strafeAxisAction != null && strafeAxisAction.action != null) strafeAxisAction.action.Disable();
 
         OnControlDisabled?.Invoke();
     }
