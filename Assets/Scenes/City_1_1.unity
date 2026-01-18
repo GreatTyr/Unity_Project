@@ -3812,12 +3812,16 @@ MonoBehaviour:
     m_ActionName: 'Vehicle/Jump[/Keyboard/space]'
   - m_PersistentCalls:
       m_Calls: []
-    m_ActionId: 5ce40e91-ed66-4912-970e-8792d913c3cd
-    m_ActionName: 'Vehicle/VerticalMove[/Keyboard/t,/Keyboard/r]'
-  - m_PersistentCalls:
-      m_Calls: []
     m_ActionId: e4d5eda4-3a24-4c3b-8a36-32ef4a765631
     m_ActionName: 'Vehicle/Strafe[/Keyboard/q,/Keyboard/e]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 0ac0902b-47a7-46a7-8432-9084bbf19c46
+    m_ActionName: 'Vehicle/Rise[/Keyboard/r,/Keyboard/t]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: c4cf6d55-71e7-4574-8284-006cd005b5ea
+    m_ActionName: 'Vehicle/Lower[/Keyboard/t]'
   m_NeverAutoSwitchControlSchemes: 0
   m_DefaultControlScheme: Keyboard&Mouse
   m_DefaultActionMap: 
@@ -3838,14 +3842,23 @@ MonoBehaviour:
   moveAxisAction: {fileID: 1073530940}
   turnAxisAction: {fileID: 1394535240}
   jumpAction: {fileID: 651899968}
-  verticalAxisAction: {fileID: 1808827671}
   strafeAxisAction: {fileID: 27556637}
+  riseAction: {fileID: 1961433099}
+  lowerAction: {fileID: 1849567391}
   forwardSpeed: 10
   strafeSpeed: 5
   turnSpeed: 55
   verticalSpeed: 5
   jumpImpulse: 5
   gravity: -5
+  riseSpeed: 2
+  lowerSpeed: 3
+  maxHoverOffset: 50
+  hoverSmoothTime: 0.12
+  jumpBreaksHoverDuration: 0.6
+  holdHoverPreventsGravity: 1
+  snapOnRelease: 0
+  useBaseGroundY: 1
   groundCheckOffset: {x: 0, y: -0.5, z: 0}
   groundCheckDistance: 0.6
   groundLayers:
@@ -6168,20 +6181,6 @@ Transform:
   - {fileID: 1629271957}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1808827671
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fc1515ab76e54f068e2f2207940fab32, type: 3}
-  m_Name: Vehicle/VerticalMove
-  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.InputActionReference
-  m_Asset: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
-  m_ActionId: 5ce40e91-ed66-4912-970e-8792d913c3cd
 --- !u!1 &1834168478
 GameObject:
   m_ObjectHideFlags: 0
@@ -6214,6 +6213,20 @@ Transform:
   - {fileID: 554067857}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1849567391
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc1515ab76e54f068e2f2207940fab32, type: 3}
+  m_Name: Vehicle/Lower
+  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.InputActionReference
+  m_Asset: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  m_ActionId: c4cf6d55-71e7-4574-8284-006cd005b5ea
 --- !u!1 &1864929877
 GameObject:
   m_ObjectHideFlags: 0
@@ -6598,6 +6611,20 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1920008769}
   m_CullTransparentMesh: 1
+--- !u!114 &1961433099
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc1515ab76e54f068e2f2207940fab32, type: 3}
+  m_Name: Vehicle/Rise
+  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.InputActionReference
+  m_Asset: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  m_ActionId: 0ac0902b-47a7-46a7-8432-9084bbf19c46
 --- !u!1 &1967686032
 GameObject:
   m_ObjectHideFlags: 0

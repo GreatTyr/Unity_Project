@@ -1483,15 +1483,6 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""initialStateCheck"": false
                 },
                 {
-                    ""name"": ""VerticalMove"",
-                    ""type"": ""Value"",
-                    ""id"": ""5ce40e91-ed66-4912-970e-8792d913c3cd"",
-                    ""expectedControlType"": ""Axis"",
-                    ""processors"": """",
-                    ""interactions"": """",
-                    ""initialStateCheck"": true
-                },
-                {
                     ""name"": ""Strafe"",
                     ""type"": ""Value"",
                     ""id"": ""e4d5eda4-3a24-4c3b-8a36-32ef4a765631"",
@@ -1499,6 +1490,24 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": true
+                },
+                {
+                    ""name"": ""Rise"",
+                    ""type"": ""Button"",
+                    ""id"": ""0ac0902b-47a7-46a7-8432-9084bbf19c46"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""Lower"",
+                    ""type"": ""Button"",
+                    ""id"": ""c4cf6d55-71e7-4574-8284-006cd005b5ea"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
                 }
             ],
             ""bindings"": [
@@ -1581,39 +1590,6 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                 },
                 {
                     ""name"": ""1D Axis"",
-                    ""id"": ""f87beb86-8e5b-4238-bf19-f5af9c0017ac"",
-                    ""path"": ""1DAxis"",
-                    ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": """",
-                    ""action"": ""VerticalMove"",
-                    ""isComposite"": true,
-                    ""isPartOfComposite"": false
-                },
-                {
-                    ""name"": ""negative"",
-                    ""id"": ""372a766e-80ce-4f25-a2d9-9a6da7ab7bc8"",
-                    ""path"": ""<Keyboard>/t"",
-                    ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": "";Keyboard&Mouse"",
-                    ""action"": ""VerticalMove"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": true
-                },
-                {
-                    ""name"": ""positive"",
-                    ""id"": ""764dc8a0-ee8e-4ff2-8300-6e895357a946"",
-                    ""path"": ""<Keyboard>/r"",
-                    ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": "";Keyboard&Mouse"",
-                    ""action"": ""VerticalMove"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": true
-                },
-                {
-                    ""name"": ""1D Axis"",
                     ""id"": ""efcd9b4b-9fe0-4707-b6c9-5aa7b6523dee"",
                     ""path"": ""1DAxis"",
                     ""interactions"": """",
@@ -1644,6 +1620,28 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""action"": ""Strafe"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": true
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""c9ef04d1-eba8-4e15-807c-c92d7697eb69"",
+                    ""path"": ""<Keyboard>/r"",
+                    ""interactions"": ""Hold"",
+                    ""processors"": """",
+                    ""groups"": "";Keyboard&Mouse"",
+                    ""action"": ""Rise"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""fbc81a1b-89e4-4d77-a98b-d39baea89d1f"",
+                    ""path"": ""<Keyboard>/t"",
+                    ""interactions"": ""Hold"",
+                    ""processors"": """",
+                    ""groups"": "";Keyboard&Mouse"",
+                    ""action"": ""Lower"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
                 }
             ]
         }
@@ -1752,8 +1750,9 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         m_Vehicle_Move = m_Vehicle.FindAction("Move", throwIfNotFound: true);
         m_Vehicle_Turn = m_Vehicle.FindAction("Turn", throwIfNotFound: true);
         m_Vehicle_Jump = m_Vehicle.FindAction("Jump", throwIfNotFound: true);
-        m_Vehicle_VerticalMove = m_Vehicle.FindAction("VerticalMove", throwIfNotFound: true);
         m_Vehicle_Strafe = m_Vehicle.FindAction("Strafe", throwIfNotFound: true);
+        m_Vehicle_Rise = m_Vehicle.FindAction("Rise", throwIfNotFound: true);
+        m_Vehicle_Lower = m_Vehicle.FindAction("Lower", throwIfNotFound: true);
     }
 
     ~@InputSystem_Actions()
@@ -2553,8 +2552,9 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
     private readonly InputAction m_Vehicle_Move;
     private readonly InputAction m_Vehicle_Turn;
     private readonly InputAction m_Vehicle_Jump;
-    private readonly InputAction m_Vehicle_VerticalMove;
     private readonly InputAction m_Vehicle_Strafe;
+    private readonly InputAction m_Vehicle_Rise;
+    private readonly InputAction m_Vehicle_Lower;
     /// <summary>
     /// Provides access to input actions defined in input action map "Vehicle".
     /// </summary>
@@ -2579,13 +2579,17 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         /// </summary>
         public InputAction @Jump => m_Wrapper.m_Vehicle_Jump;
         /// <summary>
-        /// Provides access to the underlying input action "Vehicle/VerticalMove".
-        /// </summary>
-        public InputAction @VerticalMove => m_Wrapper.m_Vehicle_VerticalMove;
-        /// <summary>
         /// Provides access to the underlying input action "Vehicle/Strafe".
         /// </summary>
         public InputAction @Strafe => m_Wrapper.m_Vehicle_Strafe;
+        /// <summary>
+        /// Provides access to the underlying input action "Vehicle/Rise".
+        /// </summary>
+        public InputAction @Rise => m_Wrapper.m_Vehicle_Rise;
+        /// <summary>
+        /// Provides access to the underlying input action "Vehicle/Lower".
+        /// </summary>
+        public InputAction @Lower => m_Wrapper.m_Vehicle_Lower;
         /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
@@ -2621,12 +2625,15 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
             @Jump.started += instance.OnJump;
             @Jump.performed += instance.OnJump;
             @Jump.canceled += instance.OnJump;
-            @VerticalMove.started += instance.OnVerticalMove;
-            @VerticalMove.performed += instance.OnVerticalMove;
-            @VerticalMove.canceled += instance.OnVerticalMove;
             @Strafe.started += instance.OnStrafe;
             @Strafe.performed += instance.OnStrafe;
             @Strafe.canceled += instance.OnStrafe;
+            @Rise.started += instance.OnRise;
+            @Rise.performed += instance.OnRise;
+            @Rise.canceled += instance.OnRise;
+            @Lower.started += instance.OnLower;
+            @Lower.performed += instance.OnLower;
+            @Lower.canceled += instance.OnLower;
         }
 
         /// <summary>
@@ -2647,12 +2654,15 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
             @Jump.started -= instance.OnJump;
             @Jump.performed -= instance.OnJump;
             @Jump.canceled -= instance.OnJump;
-            @VerticalMove.started -= instance.OnVerticalMove;
-            @VerticalMove.performed -= instance.OnVerticalMove;
-            @VerticalMove.canceled -= instance.OnVerticalMove;
             @Strafe.started -= instance.OnStrafe;
             @Strafe.performed -= instance.OnStrafe;
             @Strafe.canceled -= instance.OnStrafe;
+            @Rise.started -= instance.OnRise;
+            @Rise.performed -= instance.OnRise;
+            @Rise.canceled -= instance.OnRise;
+            @Lower.started -= instance.OnLower;
+            @Lower.performed -= instance.OnLower;
+            @Lower.canceled -= instance.OnLower;
         }
 
         /// <summary>
@@ -3002,18 +3012,25 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnJump(InputAction.CallbackContext context);
         /// <summary>
-        /// Method invoked when associated input action "VerticalMove" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
-        /// </summary>
-        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
-        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
-        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
-        void OnVerticalMove(InputAction.CallbackContext context);
-        /// <summary>
         /// Method invoked when associated input action "Strafe" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
         /// </summary>
         /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnStrafe(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "Rise" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnRise(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "Lower" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnLower(InputAction.CallbackContext context);
     }
 }
