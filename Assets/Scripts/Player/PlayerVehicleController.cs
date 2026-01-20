@@ -1,5 +1,6 @@
 ﻿using System;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 /// <summary>
 /// PlayerVehicleController (обновлён)
@@ -8,6 +9,8 @@ using UnityEngine;
 /// - CharacterController отключается один раз при посадке и включается один раз при выходе.
 /// - При входе playerRoot привязывается к vehicle.Root (player будет следовать за палубой).
 /// - События OnEnteredVehicle / OnExitedVehicle для подписчиков.
+/// - ДОПОЛНЕНО: поддержка глобального выхода по кнопке (exitVehicleAction),
+///   не требующего наведения на штурвал.
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(CharacterController))]
@@ -23,11 +26,15 @@ public class PlayerVehicleController : MonoBehaviour
     [Tooltip("Корневой объект игрока (обычно тот же объект, где CC/PlayerController).")]
     public Transform playerRoot;
 
+    [Header("Input")]
+    [Tooltip("Action для выхода из транспорта (например, та же F или другая клавиша).")]
+    public InputActionReference exitVehicleAction;
+
     [Header("Debug / State (read-only)")]
     [SerializeField] private bool isInVehicle = false;
     [SerializeField] private IControllableVehicle currentVehicle;        // контроллер транспорта (IControllableVehicle)
-    [SerializeField] private VehicleSeatInteractable currentSeat;     // сиденье/штурвал
-    [SerializeField] private Transform currentSeatStandPoint;         // точка стояния у штурвала
+    [SerializeField] private VehicleSeatInteractable currentSeat;        // сиденье/штурвал
+    [SerializeField] private Transform currentSeatStandPoint;            // точка стояния у штурвала
 
     // Сохранённые данные до посадки
     private Vector3 storedPlayerPosition;
@@ -50,6 +57,24 @@ public class PlayerVehicleController : MonoBehaviour
             playerRoot = this.transform;
     }
 
+    private void OnEnable()
+    {
+        if (exitVehicleAction != null && exitVehicleAction.action != null)
+        {
+            exitVehicleAction.action.performed += OnExitVehiclePerformed;
+            exitVehicleAction.action.Enable();
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (exitVehicleAction != null && exitVehicleAction.action != null)
+        {
+            exitVehicleAction.action.performed -= OnExitVehiclePerformed;
+            exitVehicleAction.action.Disable();
+        }
+    }
+
     void Update()
     {
         if (isInVehicle && currentSeatStandPoint != null)
@@ -62,10 +87,27 @@ public class PlayerVehicleController : MonoBehaviour
 
     public bool IsInVehicle => isInVehicle;
 
+    /// <summary>
+    /// Внешний запрос выхода (например, от VehicleSeatInteractable).
+    /// </summary>
     public void RequestExit()
     {
         if (!isInVehicle) return;
         ExitVehicle();
+    }
+
+    /// <summary>
+    /// Обработчик нажатия кнопки выхода из транспорта.
+    /// Работает глобально: не требуется наводиться на штурвал.
+    /// </summary>
+    private void OnExitVehiclePerformed(InputAction.CallbackContext ctx)
+    {
+        if (!ctx.performed) return;
+
+        if (isInVehicle)
+        {
+            ExitVehicle();
+        }
     }
 
     /// <summary>
@@ -121,7 +163,9 @@ public class PlayerVehicleController : MonoBehaviour
 
         OnEnteredVehicle?.Invoke(vehicle);
 
-        InteractionHintUI.Instance?.SetVisible(true, "[F]", "Выйти из транспорта");
+        // ВАЖНО: никаких подсказок про выход здесь не показываем.
+        // Логику подсказки привяжем к глобальному exitVehicleAction или к другому UI.
+        InteractionHintUI.Instance?.SetVisible(false);
     }
 
     /// <summary>
@@ -157,6 +201,7 @@ public class PlayerVehicleController : MonoBehaviour
 
         OnExitedVehicle?.Invoke();
 
+        // После выхода можно снова показывать подсказки, но пускай это решает look-based система.
         InteractionHintUI.Instance?.SetVisible(false);
     }
 }

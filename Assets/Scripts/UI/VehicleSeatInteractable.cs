@@ -6,6 +6,7 @@
 /// - Ищет IControllableVehicle на vehicleRoot (GetComponentInChildren<IControllableVehicle>).
 /// - Если не находит, логирует предупреждение.
 /// - Вызов EnterVehicle / RequestExit делается через PlayerVehicleController (как и раньше), но теперь с IControllableVehicle.
+/// - ДОПОЛНЕНО: если игрок уже в транспорте, штурвал не подсвечивается и не показывает подсказку.
 /// </summary>
 public class VehicleSeatInteractable : InteractableBase
 {
@@ -27,9 +28,11 @@ public class VehicleSeatInteractable : InteractableBase
         keyLabel = "F";
     }
 
-    public override void Interact()
+    /// <summary>
+    /// Утилита: получить PlayerVehicleController (из инспектора / по тегу / FindObjectOfType).
+    /// </summary>
+    private PlayerVehicleController ResolvePlayer()
     {
-        // Получаем PlayerVehicleController (инспектор -> по тегу -> FindObjectOfType)
         PlayerVehicleController player = playerVehicleController;
 
         if (player == null)
@@ -38,14 +41,22 @@ public class VehicleSeatInteractable : InteractableBase
             if (g != null) player = g.GetComponent<PlayerVehicleController>();
         }
 
-        if (player == null) player = GameObject.FindObjectOfType<PlayerVehicleController>();
+        if (player == null)
+            player = GameObject.FindObjectOfType<PlayerVehicleController>();
 
+        return player;
+    }
+
+    public override void Interact()
+    {
+        var player = ResolvePlayer();
         if (player == null)
         {
             Debug.LogError("[VehicleSeatInteractable] PlayerVehicleController не найден.");
             return;
         }
 
+        // Если игрок уже в транспорте — просто выйти
         if (player.IsInVehicle)
         {
             player.RequestExit();
@@ -69,5 +80,33 @@ public class VehicleSeatInteractable : InteractableBase
         player.EnterVehicle(this, vehicle, seatStandPoint);
 
         Debug.Log($"[VehicleSeatInteractable] Игрок сел за штурвал {name} (vehicle={vehicleRoot.name})");
+    }
+
+    // --- Переопределяем hover-поведение, чтобы не мешать, когда игрок уже внутри транспорта ---
+
+    public override void OnHoverEnter()
+    {
+        var player = ResolvePlayer();
+
+        // Если игрок уже сидит в транспорте — НЕ подсвечиваем штурвал и НЕ показываем подсказку
+        if (player != null && player.IsInVehicle)
+        {
+            return;
+        }
+
+        base.OnHoverEnter();
+    }
+
+    public override void OnHoverExit()
+    {
+        var player = ResolvePlayer();
+
+        // Если игрок уже сидит в транспорте — просто выходим без подсветки
+        if (player != null && player.IsInVehicle)
+        {
+            return;
+        }
+
+        base.OnHoverExit();
     }
 }

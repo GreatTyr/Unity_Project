@@ -1,37 +1,12 @@
-﻿// PepelacController.cs
-// Обновлённая версия с поддержкой:
-// - стрейфа (Q/E) (если заданы соответствующие action'ы)
-// - hover высоты относительно поверхности (baseGroundY + offset)
-// - rise (R) / lower (T) как Hold actions (отдельные action'ы)
-// - прыжок временно прерывает фиксацию hover (jumpBreaksHoverDuration)
-// - плавное снижение/подъём и опция snapOnRelease для мгновенной фиксации при отпускании
-// - обработка случаев, когда rise/lower сделаны как отдельные Button actions (рекомендуется)
-// Версия ориентирована на Unity 6000.2, C#.
-//
-// Интеграция:
-// - В Input System создайте два Action (Type = Button): "Rise" (binding R, interaction = Hold) и "Lower" (binding T, interaction = Hold).
-// - Привяжите их в инспекторе PepelacController.riseAction и PepelacController.lowerAction соответственно.
-// - Остальные действия: moveAxisAction (W/S), turnAxisAction (A/D), strafeAxisAction (Q/E), jumpAction (Space).
-//
-// Поведение:
-// - При удержании Rise (R) targetHoverOffset увеличивается; при отпускании — значение фиксируется, и аппарат остаётся на высоте.
-// - При удержании Lower (T) targetHoverOffset уменьшается; при отпускании — значение фиксируется.
-// - Прыжок (jumpAction) задаёт vertical impulse и временно (jumpBreaksHoverDuration) снимает фиксацию hover, чтобы прыжок был видим.
-// - Если snapOnRelease == true, то при отпускании rise/lower позиция Y устанавливается мгновенно в целевую; иначе происходит плавное сглаживание (hoverSmoothTime).
-//
-// Замечания:
-// - Если раньше у вас был verticalAxis (R/T в виде одного axis/composite) — удалите его, иначе он будет конфликтовать.
-// - Код рассчитан на кинематическое перемещение через transform.position; если вы используете Rigidbody-физику, рекомендуется адаптировать (возможен переключатель rb.isKinematic).
-//
-
-using System;
+﻿using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 [DisallowMultipleComponent]
+[RequireComponent(typeof(Rigidbody))]
 public class PepelacController : MonoBehaviour, IControllableVehicle
 {
-    [Header("Input (assign in Inspector)")]
+    [Header("Input (назначить в Инспекторе)")]
     [Tooltip("Ось движения вперед/назад (W/S). Action: Value (float).")]
     public InputActionReference moveAxisAction;
 
@@ -51,68 +26,119 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
     [Tooltip("Кнопка удержания для понижения целевой высоты (например T). Тип: Button, interaction Hold.")]
     public InputActionReference lowerAction;
 
-    [Header("Movement")]
-    public float forwardSpeed = 5f;
-    public float strafeSpeed = 5f;
+    [Header("Горизонтальное движение (плоскость XZ)")]
+    [Tooltip("Максимальная скорость вперёд/назад (м/с).")]
+    public float forwardSpeed = 8f;
+
+    [Tooltip("Максимальная скорость стрейфа (м/с).")]
+    public float strafeSpeed = 6f;
+
+    [Tooltip("Максимальное горизонтальное ускорение (м/с²). Ограничивает силу разгона.")]
+    public float maxHorizontalAcceleration = 20f;
+
+    [Header("Поворот (танковый стиль)")]
+    [Tooltip("Скорость поворота (град/с) при единичном turnInput.")]
     public float turnSpeed = 90f;
 
-    [Header("Vertical / Jump")]
-    public float verticalSpeed = 3f;    // legacy vertical axis speed (if used)
+    [Tooltip("Скорость сглаживания поворота (0 = мгновенно). Применяется к MoveRotation.")]
+    public float rotationSlerpSpeed = 10f;
+
+    [Tooltip("Блокировать вращение по X/Z, чтобы Pepelac не заваливался на бок.")]
+    public bool freezeTiltAxes = true;
+
+    [Header("Вертикаль / Прыжок")]
+    [Tooltip("Сила прыжка (в пересчёте на изменение скорости вверх, м/с). Применяется как VelocityChange.")]
     public float jumpImpulse = 5f;
+
+    [Tooltip("Гравитация (обычно отрицательное значение). Используется только в fallback-режиме без Rigidbody.")]
     public float gravity = -9.81f;
 
-    [Header("Hover Height Settings")]
-    [Tooltip("Скорость набора высоты при удержании rise (м/с).")]
+    [Header("Hover (удержание высоты над поверхностью)")]
+    [Tooltip("Скорость набора высоты при удержании Rise (м/с).")]
     public float riseSpeed = 2f;
 
-    [Tooltip("Скорость уменьшения высоты при удержании lower (м/с).")]
+    [Tooltip("Скорость уменьшения высоты при удержании Lower (м/с).")]
     public float lowerSpeed = 3f;
 
     [Tooltip("Максимальная относительная высота над поверхностью (м).")]
     public float maxHoverOffset = 50f;
 
-    [Tooltip("Плавность интерполяции фактической Y позиции к целевой (в секундах). 0 = мгновенно.")]
-    public float hoverSmoothTime = 0.12f;
+    [Tooltip("Коэффициент пропорционального звена (P) вертикального PD-контроллера.")]
+    public float verticalSpringKp = 300f;
+
+    [Tooltip("Коэффициент дифференциального звена (D) вертикального PD-контроллера.")]
+    public float verticalSpringKd = 40f;
+
+    [Tooltip("Максимальная вертикальная сила (Ньютон), которую может приложить hover-контроллер.")]
+    public float maxVerticalForce = 5000f;
 
     [Tooltip("Длительность временного отключения фиксации hover после прыжка (сек).")]
     public float jumpBreaksHoverDuration = 0.6f;
 
-    [Tooltip("Если true — когда hoverOffset > 0, гравитация при удержании будет отменяться (Pepelac 'висит').")]
+    [Tooltip("Если true — когда hover активен, вертикальный PD-контроллер отменяет провал от гравитации.")]
     public bool holdHoverPreventsGravity = true;
 
-    [Tooltip("Если true — при отпускании rise/lower позиция Y будет установлена мгновенно в целевой (без сглаживания).")]
+    [Tooltip("Если true — при отпускании rise/lower будет использоваться усиленный вертикальный PD для быстрого 'прищёлкивания' к целевой высоте.")]
     public bool snapOnRelease = false;
+
+    [Tooltip("Множитель усиления PD на короткое время после отпускания rise/lower (для snap эффекта).")]
+    public float snapForceMultiplier = 3f;
+
+    [Tooltip("Длительность усиленного PD после отпускания rise/lower (сек).")]
+    public float snapDuration = 0.15f;
 
     [Tooltip("Использовать базовую высоту поверхности под Pepelac как origin (рекомендуется=true).")]
     public bool useBaseGroundY = true;
 
-    [Header("Ground Check")]
+    [Header("Проверка земли")]
+    [Tooltip("Смещение origin для raycast вниз от текущей позиции (локальный offset).")]
     public Vector3 groundCheckOffset = new Vector3(0f, -0.5f, 0f);
+
+    [Tooltip("Дистанция raycast вниз для проверки земли.")]
     public float groundCheckDistance = 0.6f;
+
+    [Tooltip("Слои, считающиеся землёй.")]
     public LayerMask groundLayers = ~0;
 
-    [Header("Physics / Kinematics")]
-    [Tooltip("Опциональный Rigidbody (если нужно физическое поведение). Текущее движение реализуется кинематически через transform.")]
+    [Header("Физика / Режим")]
+    [Tooltip("Если true — используем Rigidbody для движения. Если false или rb=null — fallback на transform-движение.")]
+    public bool useRigidbody = true;
+
+    [Tooltip("Опциональный Rigidbody (если нужно физическое поведение). Если не назначен, будет взят с этого объекта.")]
     public Rigidbody rb;
 
-    // Internal state
+    [Tooltip("Смещение центра масс относительно локального центра объекта.")]
+    public Vector3 centerOfMassOffset = Vector3.zero;
+
+    // -----------------------------
+    // Внутренние поля ввода
+    // -----------------------------
     private float moveInput = 0f;
     private float turnInput = 0f;
     private float strafeInput = 0f;
-    private float legacyVerticalInput = 0f; // fallback if using old axis
+
+    // Старый "вертикальный" ввод оставим только для fallback-режима
+    private float legacyVerticalInput = 0f;
+
+    // Флаги управления
     private bool controlEnabled = false;
 
-    // Hover internals
-    private float baseGroundY = 0f; // world Y поверхности под Pepelac (определяется raycast)
-    private float targetHoverOffset = 0f; // relative meters above baseGroundY (>=0)
-    private float currentVerticalVelocity = 0f; // для gravity/jump, м/с
+    // Состояние hover / вертикали
+    private float baseGroundY = 0f;          // Y поверхности под Pepelac
+    private float targetHoverOffset = 0f;    // Относительная высота над baseGroundY
     private bool isGrounded = false;
-    private float hoverVelocityRef = 0f; // для SmoothDamp
-    private float hoverLockUntil = 0f; // Time.time пока фиксация hover отключена (например после прыжка)
+    private float hoverLockUntil = 0f;       // Time.time, до которого hover заблокирован (после прыжка)
 
-    // Input flags for rise/lower
+    // Флаги rise/lower
     private bool risePressed = false;
     private bool lowerPressed = false;
+
+    // Для fallback-режима (без Rigidbody)
+    private float currentVerticalVelocity = 0f;
+    private float hoverVelocityRef = 0f;
+
+    // Snap таймер (усиленный PD после отпускания rise/lower)
+    private float snapBoostUntil = 0f;
 
     // IControllableVehicle
     public bool IsControlEnabled => controlEnabled;
@@ -120,18 +146,41 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
     public event Action OnControlEnabled;
     public event Action OnControlDisabled;
 
-    void Awake()
+    // =========================
+    // Жизненный цикл
+    // =========================
+    private void Awake()
     {
-        if (rb == null) rb = GetComponent<Rigidbody>();
+        if (rb == null)
+            rb = GetComponent<Rigidbody>();
 
-        // Инициализируем baseGroundY текущей поверхностью под объектом (или просто текущим Y)
+        if (rb == null)
+        {
+            Debug.LogWarning("[PepelacController] Rigidbody не найден, будет использован fallback-режим через transform.");
+            useRigidbody = false;
+        }
+
+        if (rb != null)
+        {
+            // Настраиваем центр масс
+            if (centerOfMassOffset != Vector3.zero)
+                rb.centerOfMass += centerOfMassOffset;
+
+            // Блокируем вращение по X/Z, чтобы не заваливался, если опция включена
+            if (freezeTiltAxes)
+            {
+                rb.constraints |= RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
+            }
+        }
+
+        // Инициализируем базовую высоту
         baseGroundY = QuerySurfaceYUnder(transform.position, fallbackToCurrentY: true);
-        targetHoverOffset = 0f; // по умолчанию на земле
+        targetHoverOffset = 0f;
     }
 
-    void OnEnable()
+    private void OnEnable()
     {
-        // Подписка на callbacks (action'ы включаются в EnableControl)
+        // Подписка на InputSystem-коллбеки (action'ы включаются/выключаются в EnableControl/DisableControl)
         if (moveAxisAction?.action != null)
         {
             moveAxisAction.action.performed += OnMovePerformed;
@@ -164,7 +213,7 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
         }
     }
 
-    void OnDisable()
+    private void OnDisable()
     {
         if (moveAxisAction?.action != null)
         {
@@ -197,34 +246,49 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
             lowerAction.action.canceled -= OnLowerCanceled;
         }
 
+        // При выключении компонента гарантированно отключаем управление
         DisableControl();
     }
 
-    void Update()
+    private void Update()
     {
         if (!controlEnabled) return;
 
-        float dt = Time.deltaTime;
-
+        // В Update обновляем только информацию о земле и целевые параметры hover.
+        // Прямое изменение позиций/скоростей для физики — в FixedUpdate.
         UpdateGrounded();
-        HandleHoverInputAndPhysics(dt);
-        TickMovement(dt);
+        HandleHoverInput(Time.deltaTime);
     }
 
-    // -----------------------
-    // Ground / surface queries
-    // -----------------------
-    void UpdateGrounded()
+    private void FixedUpdate()
+    {
+        if (!controlEnabled) return;
+
+        if (useRigidbody && rb != null && rb.isKinematic == false)
+        {
+            TickPhysicsMovement(Time.fixedDeltaTime);
+        }
+        else
+        {
+            // Fallback на старый transform-режим, если нет Rigidbody
+            TickKinematicMovement(Time.fixedDeltaTime);
+        }
+    }
+
+    // =========================
+    // Обработка земли
+    // =========================
+    private void UpdateGrounded()
     {
         Vector3 origin = transform.position + groundCheckOffset;
         RaycastHit hit;
         isGrounded = Physics.Raycast(origin, Vector3.down, out hit, groundCheckDistance, groundLayers, QueryTriggerInteraction.Ignore);
     }
 
-    float QuerySurfaceYUnder(Vector3 worldPos, bool fallbackToCurrentY = false)
+    private float QuerySurfaceYUnder(Vector3 worldPos, bool fallbackToCurrentY = false)
     {
         RaycastHit hit;
-        Vector3 origin = worldPos + Vector3.up * 0.5f; // немного выше для стабильности
+        Vector3 origin = worldPos + Vector3.up * 0.5f; // чуть выше текущей позиции
         if (Physics.Raycast(origin, Vector3.down, out hit, 200f, groundLayers, QueryTriggerInteraction.Ignore))
         {
             return hit.point.y;
@@ -232,26 +296,29 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
         return fallbackToCurrentY ? worldPos.y : 0f;
     }
 
-    // -----------------------
-    // Hover & gravity logic
-    // -----------------------
-    void HandleHoverInputAndPhysics(float dt)
+    // =========================
+    // Hover & ввод по высоте
+    // =========================
+    /// <summary>
+    /// Обработка ввода rise/lower и обновление целевого targetHoverOffset.
+    /// Физическое удержание высоты делается в FixedUpdate.
+    /// </summary>
+    private void HandleHoverInput(float dt)
     {
-        // Обновляем baseGroundY периодически (полезно если земля движется)
+        // Обновляем базовую поверхность под Pepelac
         if (useBaseGroundY)
         {
             baseGroundY = QuerySurfaceYUnder(transform.position, fallbackToCurrentY: true);
         }
 
-        // Управление targetHoverOffset:
-        // Если назначены riseAction/lowerAction — используем их; иначе можно добавить fallback к legacyVerticalInput
+        // Вариант с legacyVerticalInput оставляем как fallback, но он редко нужен
         bool isRising = risePressed || (riseAction?.action == null && legacyVerticalInput > 0.1f);
         bool isLowering = lowerPressed || (lowerAction?.action == null && legacyVerticalInput < -0.1f);
 
-        // Если сейчас hover временно разблокирован (после прыжка), и время не истекло — игнорируем фиксацию.
+        // hover заблокирован (например, после прыжка)?
         bool hoverTemporarilyBlocked = Time.time < hoverLockUntil;
 
-        // Изменяем целевой offset пока держат кнопку
+        // Изменяем целевой offset только от ввода
         if (isRising)
         {
             targetHoverOffset += riseSpeed * dt;
@@ -263,59 +330,148 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
             if (targetHoverOffset < 0f) targetHoverOffset = 0f;
         }
 
+        // Если hover заблокирован (после прыжка), мы всё равно храним targetHoverOffset,
+        // но вертикальное удержание не будет применяться в FixedUpdate, пока не истечёт hoverLockUntil.
+    }
+
+    // =========================
+    // Движение через Rigidbody
+    // =========================
+    private void TickPhysicsMovement(float dt)
+    {
+        if (rb == null) return;
+
+        // --------- Поворот (танковый) ---------
+        // Вычисляем желаемый поворот на этот шаг
+        float yawDelta = turnInput * turnSpeed * dt;
+        Quaternion currentRot = rb.rotation;
+        Quaternion deltaRot = Quaternion.Euler(0f, yawDelta, 0f);
+        Quaternion targetRot = deltaRot * currentRot;
+
+        if (rotationSlerpSpeed <= 0f)
+        {
+            rb.MoveRotation(targetRot);
+        }
+        else
+        {
+            Quaternion slerped = Quaternion.Slerp(currentRot, targetRot, rotationSlerpSpeed * dt);
+            rb.MoveRotation(slerped);
+        }
+
+        // --------- Горизонтальная скорость ---------
+        // Желаемая локальная скорость (по осям Forward/Right)
+        float desiredForward = moveInput * forwardSpeed;
+        float desiredStrafe = strafeInput * strafeSpeed;
+
+        // Текущая мировая скорость
+        Vector3 velocity = rb.linearVelocity;
+
+        // Проекция в локальное пространство по горизонтали
+        Vector3 localVel = transform.InverseTransformDirection(velocity);
+        float currentForward = localVel.z;
+        float currentStrafe = localVel.x;
+
+        // Считаем требуемое изменение скорости (deltaV) и ограничиваем ускорение
+        float deltaForward = desiredForward - currentForward;
+        float deltaStrafe = desiredStrafe - currentStrafe;
+
+        // Максимальное изменение скорости за шаг по модулю: a_max * dt
+        float maxDeltaSpeed = maxHorizontalAcceleration * dt;
+
+        deltaForward = Mathf.Clamp(deltaForward, -maxDeltaSpeed, maxDeltaSpeed);
+        deltaStrafe = Mathf.Clamp(deltaStrafe, -maxDeltaSpeed, maxDeltaSpeed);
+
+        // Преобразуем deltaV в силу: F = m * deltaV / dt
+        Vector3 deltaVelLocal = new Vector3(deltaStrafe, 0f, deltaForward);
+        Vector3 requiredAccelLocal = deltaVelLocal / Mathf.Max(dt, 0.0001f);
+        Vector3 requiredForceLocal = requiredAccelLocal * rb.mass;
+
+        // Применяем силу в локальных координатах
+        rb.AddRelativeForce(requiredForceLocal, ForceMode.Force);
+
+        // --------- Вертикаль / Hover ---------
+        ApplyVerticalPhysics(dt);
+    }
+
+    /// <summary>
+    /// Вертикальная физика: прыжок + hover (PD-контроллер по высоте).
+    /// </summary>
+    private void ApplyVerticalPhysics(float dt)
+    {
+        if (rb == null) return;
+
+        bool hoverTemporarilyBlocked = Time.time < hoverLockUntil;
         bool wantHover = targetHoverOffset > 0f;
 
         if (holdHoverPreventsGravity && wantHover && !hoverTemporarilyBlocked)
         {
-            // Фиксируем высоту: цель world Y = baseGroundY + targetHoverOffset
             float targetY = baseGroundY + targetHoverOffset;
+            float currentY = rb.position.y;
+            float error = targetY - currentY;
 
-            if (snapOnRelease)
+            // Текущая вертикальная скорость
+            float velY = rb.linearVelocity.y;
+
+            // Базовые коэффициенты PD
+            float kp = verticalSpringKp;
+            float kd = verticalSpringKd;
+
+            // Если включён snapOnRelease и мы находимся в окне snapDuration после отпускания — усиливаем PD
+            if (snapOnRelease && Time.time < snapBoostUntil)
             {
-                // Если включен snapOnRelease — ставим позицию мгновенно
-                Vector3 pos = transform.position;
-                pos.y = targetY;
-                transform.position = pos;
-                currentVerticalVelocity = 0f;
-                hoverVelocityRef = 0f;
+                kp *= snapForceMultiplier;
+                kd *= snapForceMultiplier;
             }
-            else
-            {
-                // Плавное приближение к целевой высоте (SmoothDamp)
-                if (hoverSmoothTime <= 0f)
-                {
-                    Vector3 pos = transform.position;
-                    pos.y = targetY;
-                    transform.position = pos;
-                    currentVerticalVelocity = 0f;
-                    hoverVelocityRef = 0f;
-                }
-                else
-                {
-                    float newY = Mathf.SmoothDamp(transform.position.y, targetY, ref hoverVelocityRef, hoverSmoothTime, Mathf.Infinity, dt);
 
-                    // Если кнопки сейчас не нажаты (мы только что отпустили), и разница почти 0 — snap и обнулить velocityRef
-                    if (!risePressed && !lowerPressed)
-                    {
-                        if (Mathf.Abs(newY - targetY) < 0.001f)
-                        {
-                            newY = targetY;
-                            hoverVelocityRef = 0f;
-                        }
-                    }
+            // PD-сила: F = kp * error - kd * velY
+            float forceY = kp * error - kd * velY;
 
-                    Vector3 pos = transform.position;
-                    pos.y = newY;
-                    transform.position = pos;
+            // Ограничиваем силу
+            forceY = Mathf.Clamp(forceY, -maxVerticalForce, maxVerticalForce);
 
-                    if (!risePressed && !lowerPressed)
-                        currentVerticalVelocity = 0f;
-                }
-            }
+            // Применяем вертикальную силу
+            rb.AddForce(Vector3.up * forceY, ForceMode.Force);
         }
         else
         {
-            // Hover неактивен -> применяем гравитацию и вертикальное управление
+            // Hover неактивен или заблокирован — rely on нормальную гравитацию Rigidbody.
+            // Т.к. гравитацией управляет сама физика (rb.useGravity), дополнительных действий не нужно.
+            // Прыжок уже задаётся в OnJumpPerformed через AddForce(…, VelocityChange).
+        }
+    }
+
+    // =========================
+    // Fallback (transform) для случаев без Rigidbody
+    // =========================
+    private void TickKinematicMovement(float dt)
+    {
+        // Поворот
+        float yawDelta = turnInput * turnSpeed * dt;
+        transform.Rotate(0f, yawDelta, 0f);
+
+        // Горизонтальное движение
+        Vector3 forwardVel = transform.forward * (moveInput * forwardSpeed);
+        Vector3 rightVel = transform.right * (strafeInput * strafeSpeed);
+
+        // Hover / гравитация (старая логика, упрощённая)
+        bool hoverTemporarilyBlocked = Time.time < hoverLockUntil;
+        bool wantHover = targetHoverOffset > 0f;
+        float verticalVel = 0f;
+
+        if (holdHoverPreventsGravity && wantHover && !hoverTemporarilyBlocked)
+        {
+            // Простое позиционирование по высоте
+            float targetY = baseGroundY + targetHoverOffset;
+
+            // Без сглаживания, чтобы не раздувать код — можно добавить SmoothDamp при желании
+            Vector3 pos = transform.position;
+            pos.y = targetY;
+            transform.position = pos;
+            currentVerticalVelocity = 0f;
+        }
+        else
+        {
+            // Применяем гравитацию
             if (isGrounded)
             {
                 if (currentVerticalVelocity < 0f) currentVerticalVelocity = 0f;
@@ -324,57 +480,49 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
             {
                 currentVerticalVelocity += gravity * dt;
             }
-
-            // legacy vertical input (редко используется сейчас) - добавляем вертикальное ручное управление
-            currentVerticalVelocity += legacyVerticalInput * verticalSpeed * dt;
-        }
-    }
-
-    // -----------------------
-    // Horizontal movement / application
-    // -----------------------
-    void TickMovement(float dt)
-    {
-        // Поворот
-        float yawDelta = turnInput * turnSpeed * dt;
-        transform.Rotate(0f, yawDelta, 0f);
-
-        // Горизонтальные скорости
-        Vector3 forwardVel = transform.forward * (moveInput * forwardSpeed);
-        Vector3 rightVel = transform.right * (strafeInput * strafeSpeed);
-
-        // Вертикальная составляющая: если hover активен и держится - вертикаль уже применена в HandleHover (мы не складываем)
-        float verticalVel = 0f;
-        bool hoverTemporarilyBlocked = Time.time < hoverLockUntil;
-        bool wantHover = targetHoverOffset > 0f;
-        if (!(holdHoverPreventsGravity && wantHover && !hoverTemporarilyBlocked))
-        {
             verticalVel = currentVerticalVelocity;
-        }
-        else
-        {
-            verticalVel = 0f;
         }
 
         Vector3 totalVel = forwardVel + rightVel + Vector3.up * verticalVel;
         Vector3 delta = totalVel * dt;
 
-        // Если стоим на земле и вниз движение не требуется - не двигаем вниз
         if (isGrounded && verticalVel <= 0f) delta.y = 0f;
 
         transform.position += delta;
     }
 
-    // -----------------------
-    // Input callbacks
-    // -----------------------
-    void OnMovePerformed(InputAction.CallbackContext ctx) { if (!controlEnabled) return; moveInput = ctx.ReadValue<float>(); }
-    void OnMoveCanceled(InputAction.CallbackContext ctx) { if (!controlEnabled) return; moveInput = 0f; }
-    void OnTurnPerformed(InputAction.CallbackContext ctx) { if (!controlEnabled) return; turnInput = ctx.ReadValue<float>(); }
-    void OnTurnCanceled(InputAction.CallbackContext ctx) { if (!controlEnabled) return; turnInput = 0f; }
-    void OnStrafePerformed(InputAction.CallbackContext ctx)
+    // =========================
+    // Обработчики ввода
+    // =========================
+    private void OnMovePerformed(InputAction.CallbackContext ctx)
     {
         if (!controlEnabled) return;
+        moveInput = ctx.ReadValue<float>();
+    }
+
+    private void OnMoveCanceled(InputAction.CallbackContext ctx)
+    {
+        if (!controlEnabled) return;
+        moveInput = 0f;
+    }
+
+    private void OnTurnPerformed(InputAction.CallbackContext ctx)
+    {
+        if (!controlEnabled) return;
+        turnInput = ctx.ReadValue<float>();
+    }
+
+    private void OnTurnCanceled(InputAction.CallbackContext ctx)
+    {
+        if (!controlEnabled) return;
+        turnInput = 0f;
+    }
+
+    private void OnStrafePerformed(InputAction.CallbackContext ctx)
+    {
+        if (!controlEnabled) return;
+
+        // Поддерживаем вариант, когда ось стрейфа задаётся как Vector2 (например, левый стик)
         if (ctx.control != null && ctx.control.valueType == typeof(Vector2))
         {
             Vector2 v = ctx.ReadValue<Vector2>();
@@ -385,26 +533,40 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
             strafeInput = ctx.ReadValue<float>();
         }
     }
-    void OnStrafeCanceled(InputAction.CallbackContext ctx) { if (!controlEnabled) return; strafeInput = 0f; }
 
-    // Jump: при прыжке временно разблокируем фиксацию hover (чтобы vertical velocity применился)
-    void OnJumpPerformed(InputAction.CallbackContext ctx)
+    private void OnStrafeCanceled(InputAction.CallbackContext ctx)
     {
         if (!controlEnabled) return;
-        if (ctx.performed)
-        {
-            currentVerticalVelocity = jumpImpulse;
-            // временно отключаем фиксацию hover (позволим подпрыгнуть)
-            hoverLockUntil = Time.time + jumpBreaksHoverDuration;
-        }
+        strafeInput = 0f;
     }
 
-    // Rise / Lower callbacks (explicit)
-    void OnRisePerformed(InputAction.CallbackContext ctx)
+    /// <summary>
+    /// Прыжок: задаём вертикальный импульс и временно разблокируем hover.
+    /// </summary>
+    private void OnJumpPerformed(InputAction.CallbackContext ctx)
     {
         if (!controlEnabled) return;
-        // Если Action реализован как Button -> performed при нажатии, canceled при отпускании.
-        // Поддержим также случай, когда action настроен как Value (float):
+        if (!ctx.performed) return;
+
+        if (useRigidbody && rb != null)
+        {
+            // Добавляем мгновенное изменение вертикальной скорости
+            rb.AddForce(Vector3.up * jumpImpulse, ForceMode.VelocityChange);
+        }
+        else
+        {
+            // Fallback — просто задаём вертикальную скорость
+            currentVerticalVelocity = jumpImpulse;
+        }
+
+        // Временно отключаем фиксацию hover
+        hoverLockUntil = Time.time + jumpBreaksHoverDuration;
+    }
+
+    // --- Rise / Lower ---
+    private void OnRisePerformed(InputAction.CallbackContext ctx)
+    {
+        if (!controlEnabled) return;
         if (ctx.control != null && ctx.control.valueType == typeof(float))
         {
             float v = ctx.ReadValue<float>();
@@ -416,29 +578,26 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
         }
     }
 
-    void OnRiseCanceled(InputAction.CallbackContext ctx)
+    private void OnRiseCanceled(InputAction.CallbackContext ctx)
     {
         if (!controlEnabled) return;
         risePressed = false;
 
-        // При отпускании фиксируем текущую высоту как целевую offset, чтобы не было продолжения движения.
+        // Фиксируем текущую высоту как целевой offset
         float currentY = transform.position.y;
         targetHoverOffset = Mathf.Clamp(currentY - baseGroundY, 0f, maxHoverOffset);
 
-        // Сбрасываем вертикальные инерции, чтобы не продолжать движение после отпускания
         currentVerticalVelocity = 0f;
         hoverVelocityRef = 0f;
 
-        // Если включен snapOnRelease — моментально выставляем позицию (дополнительно)
+        // Включаем временный boost для PD-контроллера, чтобы быстро "прищёлкнуть" к целевой высоте
         if (snapOnRelease)
         {
-            Vector3 pos = transform.position;
-            pos.y = baseGroundY + targetHoverOffset;
-            transform.position = pos;
+            snapBoostUntil = Time.time + snapDuration;
         }
     }
 
-    void OnLowerPerformed(InputAction.CallbackContext ctx)
+    private void OnLowerPerformed(InputAction.CallbackContext ctx)
     {
         if (!controlEnabled) return;
         if (ctx.control != null && ctx.control.valueType == typeof(float))
@@ -452,7 +611,7 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
         }
     }
 
-    void OnLowerCanceled(InputAction.CallbackContext ctx)
+    private void OnLowerCanceled(InputAction.CallbackContext ctx)
     {
         if (!controlEnabled) return;
         lowerPressed = false;
@@ -465,19 +624,17 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
 
         if (snapOnRelease)
         {
-            Vector3 pos = transform.position;
-            pos.y = baseGroundY + targetHoverOffset;
-            transform.position = pos;
+            snapBoostUntil = Time.time + snapDuration;
         }
     }
 
-    // Fallback: если вы используете legacy vertical axis, внешне можно назначить обработчики подобно:
+    // Fallback-хуки для старого verticalAxis (если где-то используется)
     public void OnLegacyVerticalPerformed(float value) { legacyVerticalInput = value; }
     public void OnLegacyVerticalCanceled() { legacyVerticalInput = 0f; }
 
-    // -----------------------
+    // =========================
     // IControllableVehicle
-    // -----------------------
+    // =========================
     public void EnableControl()
     {
         if (controlEnabled) return;
@@ -487,19 +644,25 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
         legacyVerticalInput = 0f;
         currentVerticalVelocity = 0f;
         hoverLockUntil = 0f;
+        snapBoostUntil = 0f;
 
-        // обновим базовую поверхность при входе
         baseGroundY = QuerySurfaceYUnder(transform.position, fallbackToCurrentY: true);
-
         if (targetHoverOffset < 0f) targetHoverOffset = 0f;
 
-        // Включаем action'ы
+        // Включаем Input Actions
         moveAxisAction?.action?.Enable();
         turnAxisAction?.action?.Enable();
         strafeAxisAction?.action?.Enable();
         jumpAction?.action?.Enable();
         riseAction?.action?.Enable();
         lowerAction?.action?.Enable();
+
+        // Убеждаемся, что Rigidbody активен
+        if (useRigidbody && rb != null)
+        {
+            rb.isKinematic = false;
+            rb.useGravity = true;
+        }
 
         OnControlEnabled?.Invoke();
     }
@@ -521,6 +684,11 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
         currentVerticalVelocity = 0f;
         risePressed = lowerPressed = false;
         hoverLockUntil = 0f;
+        snapBoostUntil = 0f;
+
+        // По желанию можно делать rb.isKinematic = true здесь,
+        // но пока оставим транспорт физически "живым", чтобы он продолжал двигаться по инерции.
+        // Если нужно "заморозить" транспорт при выходе, можно добавить отдельный флаг и обработать его.
 
         OnControlDisabled?.Invoke();
     }

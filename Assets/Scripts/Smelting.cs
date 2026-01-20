@@ -1,23 +1,24 @@
 using System;
+using System.Text;
 using UnityEngine;
 
 #if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
 using UnityEngine.InputSystem;
 #endif
 
+#pragma warning disable IDE0090
 public class Smelting : MonoBehaviour
 {
     private bool windowOpen = false;
-    private Rect windowRect = new(50, 50, 936, 555);
+    private Rect windowRect = new Rect(50, 50, 936, 555);
 
     // Inputs
     public float furnaceCapacity = 100f;
     public int furnaceTier = 1;
     public int smelterEfficiency = 100;
-    public int metalTier = 1;
+    public int metalTier = 1; // will be clamped to furnaceTier
     public float metalAmount = 50f;
     public bool usePolymers = false;
-    public float polymerSharePercent = 0f;
     public bool useNanites = false;
 
     // Mitigation
@@ -47,7 +48,9 @@ public class Smelting : MonoBehaviour
     public int freePoints = 0;
     private int baseFreePoints = 0;
 
-    private const float MAX_POLYMER_SHARE = 20f;
+    private const float POLYMER_SHARE_IF_USED = 0.20f; // 20% of metal mass
+    private const float NANITE_SHARE = 0.10f; // 10% of total mass when enabled
+
     private const float MAX_RESIST_BASE = 45f;
     private const float RESIST_STEP = 0.1f;
     private const float MIN_RESIST = -200f;
@@ -55,9 +58,19 @@ public class Smelting : MonoBehaviour
 
     private bool isDirty = true;
 
+    // Editable code input field
+    private string codeInputField = "";
+
     void Start()
     {
         RecalculateBaseFreePoints();
+
+        // Ensure tiers validity
+        if (metalTier > furnaceTier) metalTier = furnaceTier;
+        if (metalTier < 1) metalTier = 1;
+
+        // By default set metalAmount to maximum possible given current toggles and furnaceCapacity
+        metalAmount = ComputeMaxMetalForCapacity(furnaceCapacity, usePolymers, useNanites);
         Recalculate();
     }
 
@@ -90,21 +103,52 @@ public class Smelting : MonoBehaviour
         GUI.DragWindow(new Rect(0, 0, 10000, 20));
         GUILayout.BeginVertical();
 
+        // Code input field + Apply button (above capacity/tier/efficiency)
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("Код для вставки:", GUILayout.Width(110));
+        codeInputField = GUILayout.TextField(codeInputField, GUILayout.Width(windowRect.width - 260));
+        if (GUILayout.Button("Применить код", GUILayout.Width(120)))
+        {
+            bool ok = ParseAlloyCode(codeInputField.Trim());
+            if (!ok)
+            {
+                Debug.LogWarning("Неправильный код");
+            }
+            else
+            {
+                isDirty = true;
+                Recalculate();
+            }
+        }
+        GUILayout.EndHorizontal();
+
+        GUILayout.Space(6);
+
         GUILayout.BeginHorizontal();
 
-        // Left column
+        // Left column for other controls moved one line down
         GUILayout.BeginVertical(GUILayout.Width(windowRect.width * 0.5f - 10));
 
         GUILayout.BeginHorizontal();
         GUILayout.Label("Емкость плавильни (кг):", GUILayout.Width(200));
         float newCapacity = FloatFieldClampInline(furnaceCapacity, 0f, 100000f, GUILayout.Width(140));
-        if (!Mathf.Approximately(newCapacity, furnaceCapacity)) { furnaceCapacity = newCapacity; isDirty = true; }
+        if (!Mathf.Approximately(newCapacity, furnaceCapacity))
+        {
+            furnaceCapacity = newCapacity;
+            ClampMetalToCapacity();
+            isDirty = true;
+        }
         GUILayout.EndHorizontal();
 
         GUILayout.BeginHorizontal();
         GUILayout.Label("Тир плавильни:", GUILayout.Width(200));
         int newFurnaceTier = Mathf.Clamp(Mathf.RoundToInt(GUILayout.HorizontalSlider(furnaceTier, 1, 10, GUILayout.Width(120))), 1, 10);
-        if (newFurnaceTier != furnaceTier) { furnaceTier = newFurnaceTier; isDirty = true; }
+        if (newFurnaceTier != furnaceTier)
+        {
+            furnaceTier = newFurnaceTier;
+            if (metalTier > furnaceTier) metalTier = furnaceTier;
+            isDirty = true;
+        }
         GUILayout.Label($"{furnaceTier}", GUILayout.Width(40));
         GUILayout.EndHorizontal();
 
@@ -122,48 +166,39 @@ public class Smelting : MonoBehaviour
         GUILayout.BeginHorizontal();
         GUILayout.Label("Кол-во металла (кг):", GUILayout.Width(200));
         float newMetalAmount = FloatFieldClampInline(metalAmount, 0f, 100000f, GUILayout.Width(140));
-        if (!Mathf.Approximately(newMetalAmount, metalAmount)) { metalAmount = newMetalAmount; isDirty = true; }
-        GUILayout.EndHorizontal();
-
-        GUILayout.BeginHorizontal();
-        GUILayout.Label("Тир металла:", GUILayout.Width(200));
-        int newMetalTier = Mathf.Clamp(Mathf.RoundToInt(GUILayout.HorizontalSlider(metalTier, 1, 10, GUILayout.Width(120))), 1, 10);
-        if (newMetalTier != metalTier) { metalTier = newMetalTier; isDirty = true; }
-        GUILayout.Label($"{metalTier}", GUILayout.Width(40));
-        GUILayout.EndHorizontal();
-
-        GUILayout.BeginHorizontal();
-        bool newUsePol = GUILayout.Toggle(usePolymers, "Использовать полимеры", GUILayout.Width(200));
-        if (newUsePol != usePolymers)
+        if (!Mathf.Approximately(newMetalAmount, metalAmount))
         {
-            usePolymers = newUsePol;
-            if (!usePolymers)
-            {
-                energyAbsorb = 0; energyResist = 0f;
-                chemicalAbsorb = 0; chemicalResist = 0f;
-            }
+            metalAmount = newMetalAmount;
+            ClampMetalToCapacity();
             isDirty = true;
         }
         GUILayout.EndHorizontal();
 
         GUILayout.BeginHorizontal();
-        GUILayout.Label("Доля полимеров (%):", GUILayout.Width(200));
-        EditorDisableBegin(!usePolymers);
-        float newPoly = GUILayout.HorizontalSlider(polymerSharePercent, 0f, MAX_POLYMER_SHARE, GUILayout.Width(120));
-        if (!usePolymers) newPoly = polymerSharePercent;
-        if (!Mathf.Approximately(newPoly, polymerSharePercent)) { polymerSharePercent = newPoly; isDirty = true; }
-        GUILayout.Label($"{polymerSharePercent:F1}%", GUILayout.Width(40));
-        EditorDisableEnd();
+        GUILayout.Label("Тир металла:", GUILayout.Width(200));
+        int newMetalTier = Mathf.Clamp(Mathf.RoundToInt(GUILayout.HorizontalSlider(metalTier, 1, furnaceTier, GUILayout.Width(120))), 1, furnaceTier);
+        if (newMetalTier != metalTier) { metalTier = newMetalTier; isDirty = true; }
+        GUILayout.Label($"{metalTier}", GUILayout.Width(40));
         GUILayout.EndHorizontal();
 
         GUILayout.BeginHorizontal();
-        bool newUseNano = GUILayout.Toggle(useNanites, "Использовать наниты", GUILayout.Width(200));
+        bool newUsePol = GUILayout.Toggle(usePolymers, "Использовать полимеры (20% от металла)", GUILayout.Width(300));
+        if (newUsePol != usePolymers)
+        {
+            usePolymers = newUsePol;
+            ClampMetalToCapacity();
+            isDirty = true;
+        }
+        GUILayout.EndHorizontal();
+
+        GUILayout.BeginHorizontal();
+        bool newUseNano = GUILayout.Toggle(useNanites, "Использовать наниты (10% от суммарной массы)", GUILayout.Width(300));
         if (newUseNano != useNanites)
         {
             useNanites = newUseNano;
+            ClampMetalToCapacity();
             if (!useNanites)
             {
-                // сбрасываем любые отрицательные значения при отключенных нанитах
                 if (kineticResist < 0f) kineticResist = 0f;
                 if (thermalResist < 0f) thermalResist = 0f;
                 if (energyResist < 0f) energyResist = 0f;
@@ -221,10 +256,10 @@ public class Smelting : MonoBehaviour
         // Right group
         GUILayout.BeginVertical("box", GUILayout.Width(windowRect.width * 0.5f - 10));
 
-        // Энергетика - блокируем визуально и логически, если usePolymers == false
+        // Energy (locked if polymers not used)
         GUILayout.BeginHorizontal();
         GUILayout.Label("Поглощение энергетического урона:", GUILayout.Width(220));
-        bool energyControlsEnabled = usePolymers; // полностью завязаны на usePolymers
+        bool energyControlsEnabled = usePolymers;
         if (!energyControlsEnabled) EditorDisableBegin(true);
         int newEAbs = IntFieldWithButtonsConditionalUI(energyAbsorb, ref energyResist, energyControlsEnabled);
         if (!energyControlsEnabled) EditorDisableEnd();
@@ -241,10 +276,10 @@ public class Smelting : MonoBehaviour
 
         GUILayout.Space(4);
 
-        // Химия - аналогично
+        // Chemical (locked if polymers not used)
         GUILayout.BeginHorizontal();
         GUILayout.Label("Поглощение химического урона:", GUILayout.Width(220));
-        bool chemControlsEnabled = usePolymers; // полностью завязаны на usePolymers
+        bool chemControlsEnabled = usePolymers;
         if (!chemControlsEnabled) EditorDisableBegin(true);
         int newCAbs = IntFieldWithButtonsConditionalUI(chemicalAbsorb, ref chemicalResist, chemControlsEnabled);
         if (!chemControlsEnabled) EditorDisableEnd();
@@ -269,7 +304,15 @@ public class Smelting : MonoBehaviour
         GUILayout.BeginHorizontal("box");
 
         GUILayout.BeginVertical(GUILayout.Width(windowRect.width * 0.6f - 10));
-        GUILayout.Label($"Код сплава: {alloyCode}");
+        // Code label and copy button on same row
+        GUILayout.BeginHorizontal();
+        GUILayout.Label($"Код сплава: {alloyCode}", GUILayout.Width(windowRect.width * 0.6f - 140));
+        if (GUILayout.Button("Копировать код", GUILayout.Width(120)))
+        {
+            GUIUtility.systemCopyBuffer = alloyCode ?? string.Empty;
+        }
+        GUILayout.EndHorizontal();
+
         GUILayout.Label($"Количество получаемого сплава (кг): {alloyAmount:F2}");
         GUILayout.Label($"Количество затрачиваемого металла: {usedMetalAmount:F2}");
         GUILayout.Label($"Количество затрачиваемых полимеров: {usedPolymerAmount:F2}");
@@ -279,7 +322,6 @@ public class Smelting : MonoBehaviour
         GUILayout.BeginVertical(GUILayout.Width(windowRect.width * 0.4f - 10));
         GUILayout.FlexibleSpace();
 
-        // Надписи про тиры смещены левее (даем дополнительный отступ слева)
         GUILayout.BeginHorizontal();
         GUILayout.Space(10);
         GUILayout.Label($"Тир затрачиваемого металла: {usedMetalTier}");
@@ -314,8 +356,11 @@ public class Smelting : MonoBehaviour
         if (GUILayout.Button("Сброс", GUILayout.Height(34)))
         {
             ResetExceptFurnace();
+            metalAmount = ComputeMaxMetalForCapacity(furnaceCapacity, usePolymers, useNanites);
+            if (metalTier > furnaceTier) metalTier = furnaceTier;
             isDirty = true;
         }
+
         GUILayout.EndHorizontal();
 
         GUILayout.EndVertical();
@@ -356,7 +401,6 @@ public class Smelting : MonoBehaviour
     {
         GUILayout.BeginHorizontal();
 
-        // '-' disabled when current == 0 or when overall control disabled
         bool minusEnabled = enabled && current > 0;
         if (!minusEnabled) EditorDisableBegin(true);
         if (GUILayout.Button("-", GUILayout.Width(24)) && minusEnabled)
@@ -372,7 +416,6 @@ public class Smelting : MonoBehaviour
             if (current > 0 && correspondingResist < 0f) current = 0;
         }
 
-        // '+' button: disabled when corresponding resist < 0 (absorb must be 0 then) or control disabled
         bool plusEnabled = enabled && correspondingResist >= 0f;
         if (!plusEnabled) EditorDisableBegin(true);
         if (GUILayout.Button("+", GUILayout.Width(24)) && plusEnabled)
@@ -386,7 +429,6 @@ public class Smelting : MonoBehaviour
         return current;
     }
 
-    // Updated resist method (removed local freePoints increments and unused locals)
     private float FloatFieldWithButtonsConditionalUI_WithNanoAndFree(float current, ref int correspondingAbsorb, bool enabled = true)
     {
         GUILayout.BeginHorizontal();
@@ -404,7 +446,6 @@ public class Smelting : MonoBehaviour
             next = Mathf.Max(next, MIN_RESIST);
 
             current = next;
-            // Recalculate will handle freePoints changes
         }
         if (!minusEnabled) EditorDisableEnd();
 
@@ -418,7 +459,6 @@ public class Smelting : MonoBehaviour
             if (parsed > maxResist) parsed = maxResist;
 
             current = parsed;
-            // Recalculate will handle freePoints changes
         }
 
         int beforeCost = Mathf.FloorToInt(Mathf.Abs(current) / RESIST_STEP);
@@ -430,7 +470,6 @@ public class Smelting : MonoBehaviour
         if (GUILayout.Button("+", GUILayout.Width(24)) && plusEnabled)
         {
             current = Mathf.Min(current + RESIST_STEP, MAX_RESIST_BASE + 5f * metalTier);
-            // Recalculate will handle freePoints changes
         }
         if (!plusEnabled) EditorDisableEnd();
 
@@ -452,7 +491,6 @@ public class Smelting : MonoBehaviour
         RecalculateBaseFreePoints();
         int pool = baseFreePoints;
 
-        // Ensure negative resists are ignored if nanites disabled BEFORE computing refund
         if (!useNanites)
         {
             if (kineticResist < 0f) kineticResist = 0f;
@@ -461,7 +499,6 @@ public class Smelting : MonoBehaviour
             if (chemicalResist < 0f) chemicalResist = 0f;
         }
 
-        // Enforce absorb vs negative resist rule (can't have absorb >0 while resist<0)
         if (kineticAbsorb > 0 && kineticResist < 0f) kineticResist = 0f;
         if (thermalAbsorb > 0 && thermalResist < 0f) thermalResist = 0f;
         if (energyAbsorb > 0 && energyResist < 0f) energyResist = 0f;
@@ -479,11 +516,9 @@ public class Smelting : MonoBehaviour
                    + ComputeRefundPointsForNegative(energyResist)
                    + ComputeRefundPointsForNegative(chemicalResist);
 
-        // Allow netResCost to be negative: negative means extra points beyond pool
         int netResCostSigned = costRes - refund;
         int totalCostSigned = totalAbsorb + netResCostSigned;
 
-        // If over pool, try to reduce absorbs first and then positive resists proportionaly
         if (totalCostSigned > pool)
         {
             int over = totalCostSigned - pool;
@@ -499,7 +534,6 @@ public class Smelting : MonoBehaviour
                 ReducePositiveResists(over * RESIST_STEP);
             }
 
-            // Recalculate after reductions
             totalAbsorb = kineticAbsorb + thermalAbsorb + energyAbsorb + chemicalAbsorb;
             costRes = Mathf.FloorToInt(Mathf.Abs(Mathf.Max(0f, kineticResist)) / RESIST_STEP)
                     + Mathf.FloorToInt(Mathf.Abs(Mathf.Max(0f, thermalResist)) / RESIST_STEP)
@@ -515,27 +549,26 @@ public class Smelting : MonoBehaviour
             totalCostSigned = totalAbsorb + netResCostSigned;
         }
 
-        // Compute final freePoints. Now freePoints can be greater than pool if netResCostSigned < 0
         int computedFree = pool - totalCostSigned;
         if (computedFree < 0) computedFree = 0;
         freePoints = computedFree;
 
-        // Compute used masses/tiers for display (now updated continuously)
         float polymersMass = 0f;
-        if (usePolymers) polymersMass = (polymerSharePercent / 100f) * metalAmount;
-        usedNaniteAmount = useNanites ? 0.01f * (metalAmount + polymersMass) : 0f;
+        if (usePolymers) polymersMass = POLYMER_SHARE_IF_USED * metalAmount;
+        usedNaniteAmount = useNanites ? NANITE_SHARE * (metalAmount + polymersMass) : 0f;
         usedMetalAmount = metalAmount;
         usedPolymerAmount = polymersMass;
         usedMetalTier = metalTier;
         usedPolymerTier = usePolymers ? metalTier : 0;
         usedNaniteTier = useNanites ? metalTier : 0;
 
-        // Compute alloy amount continuously (same formula as TryCraft)
         float baseMass = 0.5f * usedMetalAmount + 0.5f * usedPolymerAmount;
         float furnaceBonus = 0.05f * furnaceTier;
         float metalTierPenalty = 0.01f * metalTier;
         float multiplier = 1f + furnaceBonus - metalTierPenalty;
         alloyAmount = baseMass * multiplier;
+
+        BuildAlloyCode();
     }
 
     private void ReduceAbsorbs(int toReduce)
@@ -565,27 +598,80 @@ public class Smelting : MonoBehaviour
         chemicalResist = Mathf.Max(0f, chemicalResist - totalPercent * (c / sum));
     }
 
-    // For each 0.1% negative resist returns 1 point
+    // Compute refund points for negative resist using tiered steps:
+    // 0 .. -50%   => 1 point per 0.2%
+    // -50 .. -100 => 1 point per 0.33%
+    // -100 .. -150=> 1 per 0.5%
+    // -150 .. -200=> 1 per 1%
     private int ComputeRefundPointsForNegative(float resist)
     {
         if (resist >= 0f) return 0;
-        int steps = Mathf.FloorToInt(Mathf.Abs(resist) / RESIST_STEP);
-        return steps;
+
+        float r = -resist; // positive magnitude in percent
+        int points = 0;
+
+        const float t1 = 50f;
+        const float t2 = 100f;
+        const float t3 = 150f;
+        const float t4 = 200f;
+
+        const float s1 = 0.2f;
+        const float s2 = 0.333f;
+        const float s3 = 0.5f;
+        const float s4 = 1.0f;
+
+        float seg;
+
+        seg = Mathf.Min(r, t1);
+        if (seg > 0f) points += Mathf.FloorToInt(seg / s1);
+
+        if (r > t1)
+        {
+            seg = Mathf.Min(r, t2) - t1;
+            if (seg > 0f) points += Mathf.FloorToInt(seg / s2);
+        }
+
+        if (r > t2)
+        {
+            seg = Mathf.Min(r, t3) - t2;
+            if (seg > 0f) points += Mathf.FloorToInt(seg / s3);
+        }
+
+        if (r > t3)
+        {
+            seg = Mathf.Min(r, t4) - t3;
+            if (seg > 0f) points += Mathf.FloorToInt(seg / s4);
+        }
+
+        return points;
     }
 
     private void TryCraft()
     {
-        // Keep TryCraft for possible additional behaviour (animations, consumption, etc.)
-        // But main numeric computations already done in Recalculate()
         if (usedMetalAmount + usedPolymerAmount + usedNaniteAmount > furnaceCapacity)
         {
             Debug.LogWarning("Total used mass exceeds furnace capacity.");
             return;
         }
 
-        // Example: lock in alloyCode or actually consume resources here if desired.
-        alloyCode = ""; // could compute code here
+        alloyCode = BuildAlloyCodeString();
         isDirty = true;
+    }
+
+    private float ComputeMaxMetalForCapacity(float capacity, bool polymersEnabled, bool nanitesEnabled)
+    {
+        float factor = 1f;
+        if (polymersEnabled) factor *= (1f + POLYMER_SHARE_IF_USED);
+        if (nanitesEnabled) factor *= (1f + NANITE_SHARE);
+        if (factor <= 0f) return 0f;
+        return capacity / factor;
+    }
+
+    private void ClampMetalToCapacity()
+    {
+        float maxMetal = ComputeMaxMetalForCapacity(furnaceCapacity, usePolymers, useNanites);
+        if (metalAmount > maxMetal) metalAmount = maxMetal;
+        if (metalAmount < 0f) metalAmount = 0f;
     }
 
     private void ResetExceptFurnace()
@@ -593,7 +679,6 @@ public class Smelting : MonoBehaviour
         metalTier = 1;
         metalAmount = 0f;
         usePolymers = false;
-        polymerSharePercent = 0f;
         useNanites = false;
 
         kineticAbsorb = 0; kineticResist = 0f;
@@ -610,6 +695,204 @@ public class Smelting : MonoBehaviour
         usedNaniteTier = 0;
         usedNaniteAmount = 0f;
 
+        metalAmount = ComputeMaxMetalForCapacity(furnaceCapacity, usePolymers, useNanites);
+
         isDirty = true;
     }
+
+    private void BuildAlloyCode()
+    {
+        alloyCode = BuildAlloyCodeString();
+    }
+
+    private string BuildAlloyCodeString()
+    {
+        StringBuilder sb = new StringBuilder();
+
+        // Part 1: metal tier
+        sb.Append(metalTier);
+
+        // Part 2 & 3: P and N flags immediately after tier
+        if (usePolymers) sb.Append('P');
+        if (useNanites) sb.Append('N');
+
+        sb.Append('-');
+
+        // Kinetic
+        sb.Append('K');
+        sb.Append(kineticAbsorb);
+        sb.Append('/');
+        sb.Append(FormatResist(kineticResist));
+
+        sb.Append('-');
+
+        // Thermal
+        sb.Append('T');
+        sb.Append(thermalAbsorb);
+        sb.Append('/');
+        sb.Append(FormatResist(thermalResist));
+
+        sb.Append('-');
+
+        // Energy
+        sb.Append('E');
+        sb.Append(energyAbsorb);
+        sb.Append('/');
+        sb.Append(FormatResist(energyResist));
+
+        sb.Append('-');
+
+        // Chemical
+        sb.Append('C');
+        sb.Append(chemicalAbsorb);
+        sb.Append('/');
+        sb.Append(FormatResist(chemicalResist));
+
+        return sb.ToString();
+    }
+
+    private static string FormatResist(float resist)
+    {
+        int scaled = Mathf.RoundToInt(resist * 10f);
+        if (scaled >= 0)
+        {
+            return scaled.ToString("D3");
+        }
+        else
+        {
+            int absVal = Math.Abs(scaled);
+            return "m" + absVal.ToString("D3");
+        }
+    }
+
+    // Parse alloy code and apply to current fields. Returns true if success, false if invalid.
+    // Format:
+    // <metalTier>[P][N]-K<absorb>/<resist>-T<absorb>/<resist>-E<absorb>/<resist>-C<absorb>/<resist>
+    private bool ParseAlloyCode(string code)
+    {
+        if (string.IsNullOrEmpty(code)) return false;
+
+        try
+        {
+            int idx = 0;
+            int len = code.Length;
+
+            // metal tier
+            if (idx >= len || !char.IsDigit(code[idx])) return false;
+            int start = idx;
+            while (idx < len && char.IsDigit(code[idx])) idx++;
+            string tierStr = code.Substring(start, idx - start);
+            if (!int.TryParse(tierStr, out int parsedMetalTier)) return false;
+            if (parsedMetalTier < 1) return false;
+
+            bool parsedP = false;
+            bool parsedN = false;
+            while (idx < len && (code[idx] == 'P' || code[idx] == 'N'))
+            {
+                if (code[idx] == 'P') parsedP = true;
+                if (code[idx] == 'N') parsedN = true;
+                idx++;
+            }
+
+            if (idx >= len || code[idx] != '-') return false;
+            idx++;
+
+            bool ParseSegment(char expectedLetter, out int outAbsorb, out float outResist)
+            {
+                outAbsorb = 0;
+                outResist = 0f;
+                if (idx >= len || code[idx] != expectedLetter) return false;
+                idx++;
+
+                if (idx >= len || !char.IsDigit(code[idx])) return false;
+                int s = idx;
+                while (idx < len && char.IsDigit(code[idx])) idx++;
+                string absStr = code.Substring(s, idx - s);
+                if (!int.TryParse(absStr, out outAbsorb)) return false;
+
+                if (idx >= len || code[idx] != '/') return false;
+                idx++;
+
+                if (idx >= len) return false;
+                if (code[idx] == 'm')
+                {
+                    // negative: expect exactly 3 digits after 'm'
+                    idx++;
+                    if (idx + 3 > len) return false;
+                    string num = code.Substring(idx, 3);
+                    if (!IsAllDigits(num)) return false;
+                    idx += 3;
+                    if (!int.TryParse(num, out int val)) return false;
+                    outResist = -(val / 10f);
+                }
+                else
+                {
+                    // positive: expect exactly 3 digits
+                    if (idx + 3 > len) return false;
+                    string num = code.Substring(idx, 3);
+                    if (!IsAllDigits(num)) return false;
+                    idx += 3;
+                    if (!int.TryParse(num, out int val)) return false;
+                    outResist = val / 10f;
+                }
+
+                return true;
+            }
+
+            if (!ParseSegment('K', out int kAbs, out float kRes)) return false;
+            if (idx >= len || code[idx] != '-') return false;
+            idx++;
+
+            if (!ParseSegment('T', out int tAbs, out float tRes)) return false;
+            if (idx >= len || code[idx] != '-') return false;
+            idx++;
+
+            if (!ParseSegment('E', out int eAbs, out float eRes)) return false;
+            if (idx >= len || code[idx] != '-') return false;
+            idx++;
+
+            if (!ParseSegment('C', out int cAbs, out float cRes)) return false;
+
+            if (idx != len) return false;
+
+            // Validate ranges
+            float maxResAllowed = MAX_RESIST_BASE + 5f * parsedMetalTier;
+            if (kAbs < 0 || tAbs < 0 || eAbs < 0 || cAbs < 0) return false;
+            if (kRes > maxResAllowed || tRes > maxResAllowed || eRes > maxResAllowed || cRes > maxResAllowed) return false;
+            if (kRes < MIN_RESIST || tRes < MIN_RESIST || eRes < MIN_RESIST || cRes < MIN_RESIST) return false;
+            if ((kAbs > 0 && kRes < 0f) || (tAbs > 0 && tRes < 0f) || (eAbs > 0 && eRes < 0f) || (cAbs > 0 && cRes < 0f)) return false;
+
+            // Apply parsed values
+            metalTier = parsedMetalTier;
+            usePolymers = parsedP;
+            useNanites = parsedN;
+
+            kineticAbsorb = kAbs; kineticResist = kRes;
+            thermalAbsorb = tAbs; thermalResist = tRes;
+            energyAbsorb = eAbs; energyResist = eRes;
+            chemicalAbsorb = cAbs; chemicalResist = cRes;
+
+            if (metalTier > furnaceTier) metalTier = furnaceTier;
+            if (metalTier < 1) metalTier = 1;
+
+            ClampMetalToCapacity();
+
+            BuildAlloyCode();
+            codeInputField = alloyCode;
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsAllDigits(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return false;
+        foreach (char c in s) if (!char.IsDigit(c)) return false;
+        return true;
+    }
 }
+#pragma warning restore IDE0090
