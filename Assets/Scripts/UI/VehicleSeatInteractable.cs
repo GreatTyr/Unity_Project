@@ -1,12 +1,10 @@
 ﻿using UnityEngine;
 
 /// <summary>
-/// VehicleSeatInteractable (обновлён)
-/// - Добавлено поле playerVehicleController (опционально) для инспекторного связывания.
-/// - Ищет IControllableVehicle на vehicleRoot (GetComponentInChildren<IControllableVehicle>).
-/// - Если не находит, логирует предупреждение.
-/// - Вызов EnterVehicle / RequestExit делается через PlayerVehicleController (как и раньше), но теперь с IControllableVehicle.
-/// - ДОПОЛНЕНО: если игрок уже в транспорте, штурвал не подсвечивается и не показывает подсказку.
+/// VehicleSeatInteractable — интерактив для посадки/выхода из транспорта через штурвал.
+/// - Работает через PlayerVehicleController и IControllableVehicle.
+/// - Если игрок уже в транспорте, hover по штурвалу не подсвечивает объект
+///   и не показывает подсказку (чтобы не мешать пилотированию).
 /// </summary>
 public class VehicleSeatInteractable : InteractableBase
 {
@@ -19,7 +17,7 @@ public class VehicleSeatInteractable : InteractableBase
 
     [Header("Player reference (optional)")]
     [Tooltip("Если назначено — используется для входа/выхода. Иначе будет попытка найти объект с тегом 'Player' и получить PlayerVehicleController.")]
-    public PlayerVehicleController playerVehicleController; // optional inspector link
+    public PlayerVehicleController playerVehicleController; // опциональная ссылка из инспектора
 
     private void Reset()
     {
@@ -29,7 +27,7 @@ public class VehicleSeatInteractable : InteractableBase
     }
 
     /// <summary>
-    /// Утилита: получить PlayerVehicleController (из инспектора / по тегу / FindObjectOfType).
+    /// Получить PlayerVehicleController (из инспектора / по тегу / через FindObjectOfType).
     /// </summary>
     private PlayerVehicleController ResolvePlayer()
     {
@@ -56,7 +54,7 @@ public class VehicleSeatInteractable : InteractableBase
             return;
         }
 
-        // Если игрок уже в транспорте — просто выйти
+        // Если игрок уже в транспорте — трактуем Interact как запрос выхода.
         if (player.IsInVehicle)
         {
             player.RequestExit();
@@ -82,26 +80,38 @@ public class VehicleSeatInteractable : InteractableBase
         Debug.Log($"[VehicleSeatInteractable] Игрок сел за штурвал {name} (vehicle={vehicleRoot.name})");
     }
 
-    // --- Переопределяем hover-поведение, чтобы не мешать, когда игрок уже внутри транспорта ---
+    // --------------------------
+    // Поведение при наведении
+    // --------------------------
 
+    /// <summary>
+    /// При наведении на штурвал:
+    /// - если игрок НЕ в транспорте -> ведём себя как обычный интерактив (подсветка).
+    /// - если игрок УЖЕ в транспорте -> игнорируем hover (никакого свечения).
+    /// Подсказку по тексту показывает PlayerLookInteractor.
+    /// </summary>
     public override void OnHoverEnter()
     {
         var player = ResolvePlayer();
 
-        // Если игрок уже сидит в транспорте — НЕ подсвечиваем штурвал и НЕ показываем подсказку
         if (player != null && player.IsInVehicle)
         {
+            // Игрок уже пилотирует транспорт -> при наведении на штурвал
+            // не подсвечиваем объект и не трогаем UI-подсказки.
             return;
         }
 
         base.OnHoverEnter();
     }
 
+    /// <summary>
+    /// Аналогично OnHoverEnter: при уходе курсора со штурвала,
+    /// если игрок в транспорте — ничего не делаем.
+    /// </summary>
     public override void OnHoverExit()
     {
         var player = ResolvePlayer();
 
-        // Если игрок уже сидит в транспорте — просто выходим без подсветки
         if (player != null && player.IsInVehicle)
         {
             return;

@@ -812,6 +812,7 @@ MonoBehaviour:
     option2Label: "\u041E\u0442\u043C\u0435\u043D\u0430"
     sceneNameSecondary: 
     vehicleRoot: {fileID: 0}
+  ignoreWhileInVehicle: 0
 --- !u!1 &287330560
 GameObject:
   m_ObjectHideFlags: 0
@@ -3214,6 +3215,7 @@ MonoBehaviour:
     option2Label: "\u041E\u0442\u043C\u0435\u043D\u0430"
     sceneNameSecondary: 
     vehicleRoot: {fileID: 0}
+  ignoreWhileInVehicle: 0
 --- !u!114 &709776951
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3413,6 +3415,7 @@ MonoBehaviour:
     option2Label: 
     sceneNameSecondary: 
     vehicleRoot: {fileID: 1080166585}
+  ignoreWhileInVehicle: 1
 --- !u!114 &723248764
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4796,6 +4799,7 @@ MonoBehaviour:
     option2Label: 
     sceneNameSecondary: 
     vehicleRoot: {fileID: 0}
+  ignoreWhileInVehicle: 0
 --- !u!1 &1251348460
 GameObject:
   m_ObjectHideFlags: 0
@@ -5382,6 +5386,7 @@ MonoBehaviour:
   - CharacterController
   ignoreTags: []
   interactAction: {fileID: 125597045}
+  playerVehicleController: {fileID: 1371907994}
   debugRay: 0
 --- !u!114 &1371907994
 MonoBehaviour:
@@ -6147,6 +6152,7 @@ MonoBehaviour:
     option2Label: "\u041E\u0442\u043C\u0435\u043D\u0430"
     sceneNameSecondary: 
     vehicleRoot: {fileID: 0}
+  ignoreWhileInVehicle: 0
 --- !u!1 &1700972256
 GameObject:
   m_ObjectHideFlags: 0
@@ -6764,6 +6770,7 @@ MonoBehaviour:
     option2Label: "\u041E\u0442\u043C\u0435\u043D\u0430"
     sceneNameSecondary: 
     vehicleRoot: {fileID: 0}
+  ignoreWhileInVehicle: 0
 --- !u!1 &1903180954
 GameObject:
   m_ObjectHideFlags: 0

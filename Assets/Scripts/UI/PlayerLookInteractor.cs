@@ -3,10 +3,12 @@ using UnityEngine.InputSystem;
 
 /// <summary>
 /// PlayerLookInteractor (with radius + fallback)
-/// - Первичный проход: SphereCastAll (если aimRadius>0) или RaycastAll.
-/// - Если не найден интерактивный объект, выполняется fallback: RaycastAll начиная из origin + forward * fallbackForward (короче максимальной дальности),
-///   что помогает обнаружить цель «за» игроком, если он небольшая помеха.
-/// - Пропускает коллайдеры игрока (по слою Player или по компонентам), сортирует хиты по distance и выбирает первый Interactable.
+/// - Луч/сфера от камеры для поиска интерактивных объектов.
+/// - Поддержка SphereCastAll (aimRadius) и fallback-луча вперёд.
+/// - Игнорирует игрока по слою/компонентам/тегам.
+/// - Дополнение: если игрок сидит в транспорте (через PlayerVehicleController),
+///   штурвал (VehicleSeatInteractable) и InteractableActionHost c ignoreWhileInVehicle
+///   не считаются целями наведения (не дают подсказку и подсветку).
 /// </summary>
 [DisallowMultipleComponent]
 public class PlayerLookInteractor : MonoBehaviour
@@ -14,23 +16,36 @@ public class PlayerLookInteractor : MonoBehaviour
     [Header("Raycast")]
     public Camera mainCamera;
     public float maxDistance = 4.0f;
+
     [Tooltip("Если > 0 — выполняется SphereCastAll с данным радиусом (прощение прицела).")]
     public float aimRadius = 0.12f;
+
+    [Tooltip("Смещение origin вперёд от камеры, чтобы луч начинался не в самой камере.")]
     public float originForwardOffset = 0.06f;
-    [Tooltip("Если primary не сработал — делаем fallback-луч с origin смещённым вперёд на этот множитель (в метрах)")]
+
+    [Tooltip("Если primary не сработал — делаем fallback-луч с origin, смещённым вперёд на это расстояние (м).")]
     public float fallbackForward = 0.6f;
 
-    [Tooltip("Слой игрока, который нужно игнорировать (оставь -1, если не используешь)")]
+    [Tooltip("Слой игрока, который нужно игнорировать (оставь 0, если не используешь).")]
     public LayerMask ignoreLayer = 0;
-    [Tooltip("Слой маска для поиска интерактивных объектов (по умолчанию все)")]
+
+    [Tooltip("Слой маска для поиска интерактивных объектов (по умолчанию все).")]
     public LayerMask layerMask = ~0;
 
     [Header("Ignore")]
+    [Tooltip("Имена типов компонентов, которые следует игнорировать при хиттесте (например, PlayerController, CharacterController).")]
     public string[] ignoreComponentTypeNames = new string[] { "PlayerController", "CharacterController" };
+
+    [Tooltip("Теги, которые нужно игнорировать.")]
     public string[] ignoreTags = new string[0];
 
     [Header("Input")]
+    [Tooltip("Действие для активации интерактивного объекта (например, F).")]
     public InputActionReference interactAction;
+
+    [Header("Player / Vehicle")]
+    [Tooltip("Опционально: ссылка на PlayerVehicleController, чтобы знать, сидит ли игрок в транспорте.")]
+    public PlayerVehicleController playerVehicleController;
 
     [Header("Debug")]
     public bool debugRay = false;
@@ -41,11 +56,22 @@ public class PlayerLookInteractor : MonoBehaviour
     void Awake()
     {
         if (mainCamera == null) mainCamera = Camera.main;
-        // Если указан ignoreLayer, исключаем его из layerMask на время кастов (опционально)
+
+        // Если указан ignoreLayer, исключаем его из layerMask на время кастов
         if (ignoreLayer.value != 0)
         {
-            // layerMask without ignoreLayer
             layerMask &= ~ignoreLayer;
+        }
+
+        // Пытаемся найти PlayerVehicleController, если не задан в инспекторе
+        if (playerVehicleController == null)
+        {
+            var go = GameObject.FindWithTag("Player");
+            if (go != null)
+                playerVehicleController = go.GetComponent<PlayerVehicleController>();
+
+            if (playerVehicleController == null)
+                playerVehicleController = FindObjectOfType<PlayerVehicleController>();
         }
     }
 
@@ -72,6 +98,9 @@ public class PlayerLookInteractor : MonoBehaviour
         UpdateLookTarget();
     }
 
+    /// <summary>
+    /// Обновление текущей цели, на которую смотрит игрок.
+    /// </summary>
     void UpdateLookTarget()
     {
         lastTarget = currentTarget;
@@ -84,10 +113,10 @@ public class PlayerLookInteractor : MonoBehaviour
 
         if (debugRay) Debug.DrawRay(origin, dir * maxDistance, Color.green);
 
-        // Primary pass: sphere or ray
+        // Основной проход: sphere или ray
         bool found = TryFindInteractable(origin, dir, maxDistance, aimRadius, out Interactable foundInteractable);
 
-        // Fallback: если не найдено и fallbackForward>0 — попробуем вторым проходом origin смещённым вперёд
+        // Fallback: если не найдено и fallbackForward > 0 — пробуем ещё раз с origin, смещённым вперёд
         if (!found && fallbackForward > 0f)
         {
             Vector3 fallbackOrigin = origin + dir * fallbackForward;
@@ -100,7 +129,7 @@ public class PlayerLookInteractor : MonoBehaviour
         else
             currentTarget = null;
 
-        // Handle enter/exit
+        // Обработка смены цели (enter/exit)
         if (lastTarget != currentTarget)
         {
             if (lastTarget != null)
@@ -118,11 +147,18 @@ public class PlayerLookInteractor : MonoBehaviour
                 var baseComp = (currentTarget as MonoBehaviour)?.GetComponent<InteractableBase>();
                 string key = baseComp != null ? baseComp.keyLabel : "F";
                 string hint = baseComp != null ? baseComp.hintText : "Взаимодействие";
+
                 InteractionHintUI.Instance?.SetVisible(true, $"[{key}] {hint}");
             }
         }
     }
 
+    /// <summary>
+    /// Пытается найти первый подходящий Interactable по лучу/сфере.
+    /// ВАЖНО: учитывает состояние PlayerVehicleController.IsInVehicle и игнорирует штурвал
+    /// (VehicleSeatInteractable) и InteractableActionHost с ignoreWhileInVehicle == true
+    /// во время пилотирования.
+    /// </summary>
     bool TryFindInteractable(Vector3 origin, Vector3 dir, float distance, float radius, out Interactable result)
     {
         result = null;
@@ -140,11 +176,11 @@ public class PlayerLookInteractor : MonoBehaviour
         {
             if (h.collider == null) continue;
 
-            // skip if collider is on ignoreLayer
+            // Пропуск по игнорируемому слою
             if (ignoreLayer.value != 0 && ((1 << h.collider.gameObject.layer) & ignoreLayer) != 0)
                 continue;
 
-            // skip by tag
+            // Пропуск по тегам
             bool skip = false;
             if (ignoreTags != null && ignoreTags.Length > 0)
             {
@@ -152,18 +188,20 @@ public class PlayerLookInteractor : MonoBehaviour
                 {
                     if (!string.IsNullOrEmpty(t) && h.collider.CompareTag(t))
                     {
-                        skip = true; break;
+                        skip = true;
+                        break;
                     }
                 }
             }
             if (skip) continue;
 
-            // skip by component type names
+            // Пропуск по типам компонентов
             if (ignoreComponentTypeNames != null && ignoreComponentTypeNames.Length > 0)
             {
                 foreach (var typeName in ignoreComponentTypeNames)
                 {
                     if (string.IsNullOrEmpty(typeName)) continue;
+
                     var type = System.Type.GetType(typeName);
                     if (type != null)
                     {
@@ -179,7 +217,7 @@ public class PlayerLookInteractor : MonoBehaviour
             }
             if (skip) continue;
 
-            // try find Interactable
+            // Ищем Interactable
             Interactable found = null;
             var mbCandidate = h.collider.GetComponentInParent<MonoBehaviour>();
             if (mbCandidate is Interactable) found = mbCandidate as Interactable;
@@ -191,6 +229,30 @@ public class PlayerLookInteractor : MonoBehaviour
 
             if (found != null)
             {
+                // --- Дополнительный фильтр для режима пилотирования ---
+                if (playerVehicleController != null && playerVehicleController.IsInVehicle)
+                {
+                    var mb = (found as MonoBehaviour);
+                    if (mb != null)
+                    {
+                        // Если это штурвал (VehicleSeatInteractable) — игнорируем его, пока игрок в транспорте
+                        var seat = mb.GetComponent<VehicleSeatInteractable>();
+                        if (seat != null)
+                        {
+                            // Пропускаем этот хит и ищем следующего кандидата
+                            continue;
+                        }
+
+                        // Если это InteractableActionHost и включен ignoreWhileInVehicle — тоже игнорируем
+                        var host = mb.GetComponent<InteractableActionHost>();
+                        if (host != null && host.ignoreWhileInVehicle)
+                        {
+                            continue;
+                        }
+                    }
+                }
+
+                // Если не отфильтровано — принимаем как текущую цель
                 result = found;
                 return true;
             }
@@ -201,6 +263,8 @@ public class PlayerLookInteractor : MonoBehaviour
 
     void OnInteractPerformed(InputAction.CallbackContext ctx)
     {
+        if (!ctx.performed) return;
+
         if (currentTarget != null)
         {
             currentTarget.Interact();

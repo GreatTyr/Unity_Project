@@ -14,11 +14,11 @@ using UnityEngine.SceneManagement;
 /// - реализованы базовые действия: LoadScene, TeleportLocal, OpenMenu, EnterVehicle, CustomCallback.
 /// - задержки (delayBefore) и асинхронная загрузка сцен поддерживаются.
 /// - CustomCallback может быть назначен в рантайме (action.customCallback = ()=>{ ... } ).
-///
-/// Применение:
-/// - Добавь компонент на интерактивный объект (или замени старые Interactable*).
-/// - Заполни список actions через инспектор.
-/// - PlayerInteractionManager вызывает Interact() как раньше и всё сработает.
+/// 
+/// Дополнение:
+/// - флаг ignoreWhileInVehicle позволяет игнорировать hover (подсветку/подсказку),
+///   если игрок сейчас сидит в транспорте (PlayerVehicleController.IsInVehicle == true).
+///   Удобно, когда этот хост висит на штурвале.
 /// </summary>
 [RequireComponent(typeof(Collider))]
 public class InteractableActionHost : InteractableBase
@@ -34,6 +34,58 @@ public class InteractableActionHost : InteractableBase
 
     [Tooltip("Список действий, которые можно выполнить при Interact()")]
     public List<ActionEntry> actions = new List<ActionEntry>();
+
+    [Header("Vehicle / Hover поведение")]
+    [Tooltip("Если true — когда игрок сидит в транспорте (PlayerVehicleController.IsInVehicle), " +
+             "hover по этому объекту будет игнорироваться (без подсветки и подсказки). " +
+             "Включи это на штурвале, если на нём висит этот ActionHost.")]
+    public bool ignoreWhileInVehicle = false;
+
+    /// <summary>
+    /// Находит PlayerVehicleController в сцене (по тегу 'Player' или через FindObjectOfType).
+    /// </summary>
+    private PlayerVehicleController ResolvePlayerVehicleController()
+    {
+        var go = GameObject.FindWithTag("Player");
+        if (go != null)
+        {
+            var pvc = go.GetComponent<PlayerVehicleController>();
+            if (pvc != null) return pvc;
+        }
+
+        return GameObject.FindObjectOfType<PlayerVehicleController>();
+    }
+
+    public override void OnHoverEnter()
+    {
+        if (ignoreWhileInVehicle)
+        {
+            var pvc = ResolvePlayerVehicleController();
+            if (pvc != null && pvc.IsInVehicle)
+            {
+                // Игрок в транспорте — игнорируем hover для этого интерактива.
+                return;
+            }
+        }
+
+        base.OnHoverEnter();
+    }
+
+    public override void OnHoverExit()
+    {
+        if (ignoreWhileInVehicle)
+        {
+            var pvc = ResolvePlayerVehicleController();
+            if (pvc != null && pvc.IsInVehicle)
+            {
+                // Аналогично OnHoverEnter — при уходе курсора, если игрок в транспорте,
+                // не трогаем подсветку (она и так не включалась).
+                return;
+            }
+        }
+
+        base.OnHoverExit();
+    }
 
     /// <summary>
     /// Выполнить действие по индексу (из внешнего кода).
@@ -91,7 +143,7 @@ public class InteractableActionHost : InteractableBase
                     Debug.LogWarning($"[InteractableActionHost] TeleportLocal missing teleportTarget on {name}");
                     yield break;
                 }
-                var mover = FindObjectOfType<PlayerMover>();
+                var mover = UnityEngine.Object.FindObjectOfType<PlayerMover>();
                 if (mover != null)
                 {
                     mover.TeleportTo(a.teleportTarget.position);
@@ -115,7 +167,7 @@ public class InteractableActionHost : InteractableBase
                 // option 1 — teleport local if provided, else sceneName, else no-op
                 if (a.teleportTarget != null)
                     opt1 = () => {
-                        var m = FindObjectOfType<PlayerMover>();
+                        var m = UnityEngine.Object.FindObjectOfType<PlayerMover>();
                         if (m != null) m.TeleportTo(a.teleportTarget.position);
                     };
                 else if (!string.IsNullOrEmpty(a.sceneName))
@@ -148,7 +200,6 @@ public class InteractableActionHost : InteractableBase
                 }
 
                 // Простейшее поведение: ищем компонент VehicleSeatInteractable на этом объекте
-                // или вызываем интерфейс IVehicle (если будет реализован)
                 var seat = a.vehicleRoot.GetComponentInChildren<VehicleSeatInteractable>();
                 if (seat != null)
                 {
@@ -157,7 +208,6 @@ public class InteractableActionHost : InteractableBase
                 }
                 else
                 {
-                    // В будущем: реализовать IVehicle и передачу управления
                     Debug.Log($"[InteractableActionHost] EnterVehicle requested for {a.vehicleRoot.name}, but VehicleSeatInteractable not found. Implement IVehicle for full behavior.");
                 }
                 break;
@@ -194,9 +244,6 @@ public class InteractableActionHost : InteractableBase
     }
 }
 
-/// <summary>
-/// Типы действий — расширяй по мере необходимости.
-/// </summary>
 [Serializable]
 public enum ActionType
 {
@@ -208,10 +255,6 @@ public enum ActionType
     CustomCallback
 }
 
-/// <summary>
-/// ActionEntry — serializable запись для одного действия.
-/// Добавляй сюда поля, которые понадобятся новым типам.
-/// </summary>
 [Serializable]
 public class ActionEntry
 {
