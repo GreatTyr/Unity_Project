@@ -145,10 +145,12 @@ public class PlayerLookInteractor : MonoBehaviour
                 CrosshairUI.Instance?.SetHover(true);
 
                 var baseComp = (currentTarget as MonoBehaviour)?.GetComponent<InteractableBase>();
-                string key = baseComp != null ? baseComp.keyLabel : "F";
-                string hint = baseComp != null ? baseComp.hintText : "Взаимодействие";
+                string key = baseComp != null && !string.IsNullOrEmpty(baseComp.keyLabel) ? baseComp.keyLabel : "F";
+                string hint = baseComp != null && !string.IsNullOrEmpty(baseComp.hintText) ? baseComp.hintText : "Взаимодействие";
 
-                InteractionHintUI.Instance?.SetVisible(true, $"[{key}] {hint}");
+                // Используем современный API InteractionHintUI: key и текст отдельно.
+                // UI сам отрендерит [F] и раскладку.
+                InteractionHintUI.Instance?.SetVisible(true, key, hint);
             }
         }
     }

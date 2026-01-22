@@ -1323,6 +1323,15 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""ToggleCursor"",
+                    ""type"": ""Button"",
+                    ""id"": ""c89b8869-d496-4f59-a185-31a640254b25"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": ""Press"",
+                    ""initialStateCheck"": false
                 }
             ],
             ""bindings"": [
@@ -1466,6 +1475,17 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""groups"": "";Keyboard&Mouse"",
                     ""action"": ""ExitVehicle"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""81a878c2-7a20-4013-9e2a-724433be3944"",
+                    ""path"": ""<Keyboard>/tab"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": "";Keyboard&Mouse"",
+                    ""action"": ""ToggleCursor"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 }
@@ -1766,6 +1786,7 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         m_Player_Sprint = m_Player.FindAction("Sprint", throwIfNotFound: true);
         m_Player_Interact = m_Player.FindAction("Interact", throwIfNotFound: true);
         m_Player_ExitVehicle = m_Player.FindAction("ExitVehicle", throwIfNotFound: true);
+        m_Player_ToggleCursor = m_Player.FindAction("ToggleCursor", throwIfNotFound: true);
         // Vehicle
         m_Vehicle = asset.FindActionMap("Vehicle", throwIfNotFound: true);
         m_Vehicle_Move = m_Vehicle.FindAction("Move", throwIfNotFound: true);
@@ -2446,6 +2467,7 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
     private readonly InputAction m_Player_Sprint;
     private readonly InputAction m_Player_Interact;
     private readonly InputAction m_Player_ExitVehicle;
+    private readonly InputAction m_Player_ToggleCursor;
     /// <summary>
     /// Provides access to input actions defined in input action map "Player".
     /// </summary>
@@ -2477,6 +2499,10 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         /// Provides access to the underlying input action "Player/ExitVehicle".
         /// </summary>
         public InputAction @ExitVehicle => m_Wrapper.m_Player_ExitVehicle;
+        /// <summary>
+        /// Provides access to the underlying input action "Player/ToggleCursor".
+        /// </summary>
+        public InputAction @ToggleCursor => m_Wrapper.m_Player_ToggleCursor;
         /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
@@ -2518,6 +2544,9 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
             @ExitVehicle.started += instance.OnExitVehicle;
             @ExitVehicle.performed += instance.OnExitVehicle;
             @ExitVehicle.canceled += instance.OnExitVehicle;
+            @ToggleCursor.started += instance.OnToggleCursor;
+            @ToggleCursor.performed += instance.OnToggleCursor;
+            @ToggleCursor.canceled += instance.OnToggleCursor;
         }
 
         /// <summary>
@@ -2544,6 +2573,9 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
             @ExitVehicle.started -= instance.OnExitVehicle;
             @ExitVehicle.performed -= instance.OnExitVehicle;
             @ExitVehicle.canceled -= instance.OnExitVehicle;
+            @ToggleCursor.started -= instance.OnToggleCursor;
+            @ToggleCursor.performed -= instance.OnToggleCursor;
+            @ToggleCursor.canceled -= instance.OnToggleCursor;
         }
 
         /// <summary>
@@ -3021,6 +3053,13 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnExitVehicle(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "ToggleCursor" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnToggleCursor(InputAction.CallbackContext context);
     }
     /// <summary>
     /// Interface to implement callback methods for all input action callbacks associated with input actions defined by "Vehicle" which allows adding and removing callbacks.

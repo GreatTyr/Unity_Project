@@ -122,12 +122,10 @@ public class PlayerController : MonoBehaviour
 
     void Start()
     {
-        if (lockCursorOnStart)
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
+        // Курсором управляет CursorManager
         smoothYaw = transform.eulerAngles.y;
+    
+    
     }
 
     void Update()
