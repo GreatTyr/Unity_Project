@@ -2,17 +2,18 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
-/// CursorManager
-/// - Единая точка управления курсором ОС и режимом "игра / UI".
-/// - В геймплее: курсор скрыт и залочен, прицел (CrosshairUI) включен.
-/// - В UI-режиме: курсор видим и разблокирован, прицел скрыт.
-/// - Поддерживает глобальный toggle по кнопке (например, Tab).
-///
-/// Интеграция:
-/// - Повесь этот скрипт на отдельный GameObject (например, "Systems") или на UI-Canvas.
-/// - В инспекторе назначь InputActionReference на toggleCursorAction (кнопка Tab).
-/// - В местах, где открывается полноэкранный UI (инвентарь, меню, world map),
-///   вызывай CursorManager.Instance.EnterUIMode() / EnterGameplayMode().
+/// CursorManager (сценовый)
+/// - В каждой сцене свой экземпляр.
+/// - Управляет курсором и прицелом в рамках ТЕКУЩЕЙ сцены.
+/// - Слушает toggleCursorAction (например, Tab) в этой сцене.
+/// 
+/// Использование:
+/// - Повесить на объект (UIManager/Systems) в каждой сцене, где нужен Tab.
+/// - В Inspector:
+///   - toggleCursorAction -> InputActionReference на ToggleCursor (Tab).
+///   - startInGameplayMode:
+///       true  для геймплейной сцены (курсор скрыт по умолчанию),
+///       false для WorldMap (курсор виден по умолчанию).
 /// </summary>
 [DisallowMultipleComponent]
 public class CursorManager : MonoBehaviour
@@ -24,22 +25,30 @@ public class CursorManager : MonoBehaviour
     public InputActionReference toggleCursorAction;
 
     [Header("Initial state")]
-    [Tooltip("Запустить игру сразу в геймплейном режиме (курсор скрыт, прицел включен).")]
+    [Tooltip("Если true — при старте сцены сразу включится геймплейный режим (курсор скрыт). " +
+             "Если false — сразу UI-режим (курсор виден).")]
     public bool startInGameplayMode = true;
 
-    // Текущее состояние
+    /// <summary>
+    /// true  = gameplay (курсор скрыт, прицел включен),
+    /// false = UI       (курсор виден, прицел выключен).
+    /// </summary>
     public bool IsInGameplayMode { get; private set; } = true;
 
     void Awake()
     {
+        // Локальный Singleton на сцену: если вдруг два в одной сцене — уничтожаем второй.
         if (Instance != null && Instance != this)
         {
+            Debug.Log($"[CursorManager] Duplicate instance in scene on {name}, destroying this.");
             Destroy(gameObject);
             return;
         }
+
         Instance = this;
 
-        // Устанавливаем начальный режим
+        Debug.Log($"[CursorManager] Awake on {name}. startInGameplayMode={startInGameplayMode}");
+
         if (startInGameplayMode)
             EnterGameplayMode();
         else
@@ -48,27 +57,40 @@ public class CursorManager : MonoBehaviour
 
     void OnEnable()
     {
+        Debug.Log("[CursorManager] OnEnable (scene-local)");
+
         if (toggleCursorAction != null && toggleCursorAction.action != null)
         {
             toggleCursorAction.action.performed += OnToggleCursorPerformed;
             toggleCursorAction.action.Enable();
+            Debug.Log($"[CursorManager] toggleCursorAction enabled: {toggleCursorAction.action.name}");
+        }
+        else
+        {
+            Debug.LogWarning("[CursorManager] toggleCursorAction is null or action is null in OnEnable");
         }
     }
 
     void OnDisable()
     {
+        Debug.Log("[CursorManager] OnDisable (scene-local)");
+
         if (toggleCursorAction != null && toggleCursorAction.action != null)
         {
             toggleCursorAction.action.performed -= OnToggleCursorPerformed;
             toggleCursorAction.action.Disable();
+            Debug.Log($"[CursorManager] toggleCursorAction disabled: {toggleCursorAction.action.name}");
         }
+
+        if (Instance == this)
+            Instance = null;
     }
 
     void OnToggleCursorPerformed(InputAction.CallbackContext ctx)
     {
         if (!ctx.performed) return;
+        Debug.Log("[CursorManager] OnToggleCursorPerformed (scene-local)");
 
-        // Простое переключение между режимами
         if (IsInGameplayMode)
             EnterUIMode();
         else
@@ -76,38 +98,31 @@ public class CursorManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Войти в геймплейный режим:
-    /// - Курсор скрыт и заблокирован.
-    /// - Прицел (CrosshairUI) виден.
-    /// - Взаимодействие идёт через look-based систему.
+    /// Геймплейный режим: курсор скрыт и залочен, прицел включён.
     /// </summary>
     public void EnterGameplayMode()
     {
         IsInGameplayMode = true;
+        Debug.Log("[CursorManager] EnterGameplayMode");
 
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
-        // Прицел включаем (если есть)
         CrosshairUI.Instance?.SetVisible(true);
     }
 
     /// <summary>
-    /// Войти в UI-режим:
-    /// - Курсор видим и разблокирован.
-    /// - Прицел скрыт.
-    /// - Используется для меню, инвентаря, world map и т.п.
+    /// UI-режим: курсор виден и свободен, прицел/подсказка выключены.
     /// </summary>
     public void EnterUIMode()
     {
         IsInGameplayMode = false;
+        Debug.Log("[CursorManager] EnterUIMode");
 
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
-        // Прицел выключаем (если есть)
         CrosshairUI.Instance?.SetVisible(false);
-        // Подсказку можно тоже скрыть, если она мешает UI
         InteractionHintUI.Instance?.SetVisible(false);
     }
 }
