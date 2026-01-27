@@ -71,9 +71,9 @@ public class PlayerController : MonoBehaviour
     void Awake()
     {
         cc = GetComponent<CharacterController>();
-        animator = GetComponentInChildren<Animator>();
+        animator = GetComponent<Animator>(); // только с этого объекта
         if (animator == null)
-            Debug.LogWarning("[PlayerController] Animator not found on this GameObject or its children.");
+            Debug.LogWarning("[PlayerController] Animator not found on Player.");
     }
 
     void OnEnable()

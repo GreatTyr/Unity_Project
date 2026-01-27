@@ -3,14 +3,12 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
-/// PlayerVehicleController (обновлён)
-/// - Работает с IControllableVehicle (а не напрямую с PepelacController).
-/// - EnterVehicle / ExitVehicle используют контракт интерфейса.
-/// - CharacterController отключается один раз при посадке и включается один раз при выходе.
-/// - При входе playerRoot привязывается к vehicle.Root (player будет следовать за палубой).
-/// - События OnEnteredVehicle / OnExitedVehicle для подписчиков.
-/// - ДОПОЛНЕНО: поддержка глобального выхода по кнопке (exitVehicleAction),
-///   не требующего наведения на штурвал.
+/// PlayerVehicleController
+/// Управляет посадкой/выходом игрока в транспорт через IControllableVehicle.
+/// - Отключает пеший контроллер и CharacterController при посадке.
+/// - Привязывает playerRoot к Root транспорта.
+/// - Обрабатывает глобальный выход из транспорта по exitVehicleAction.
+/// - События OnEnteredVehicle / OnExitedVehicle для подписчиков (камера, UI).
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(CharacterController))]
@@ -27,8 +25,12 @@ public class PlayerVehicleController : MonoBehaviour
     public Transform playerRoot;
 
     [Header("Input")]
-    [Tooltip("Action для выхода из транспорта (например, та же F или другая клавиша).")]
+    [Tooltip("Action для выхода из транспорта (например, F или отдельная клавиша).")]
     public InputActionReference exitVehicleAction;
+
+    [Header("Exit settings")]
+    [Tooltip("Минимальное время после посадки, в течение которого нажатие выхода игнорируется (защита от мгновенного двойного срабатывания).")]
+    public float exitGraceTime = 0.2f;   // НОВОЕ ПОЛЕ
 
     [Header("Debug / State (read-only)")]
     [SerializeField] private bool isInVehicle = false;
@@ -40,6 +42,9 @@ public class PlayerVehicleController : MonoBehaviour
     private Vector3 storedPlayerPosition;
     private Quaternion storedPlayerRotation;
     private Transform originalParent;
+
+    // Время последней посадки в транспорт (для грейс-периода)
+    private float lastEnterTime = -999f; // НОВОЕ ПОЛЕ
 
     // События
     public event Action<IControllableVehicle> OnEnteredVehicle;
@@ -85,6 +90,9 @@ public class PlayerVehicleController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// true, если игрок сейчас находится в транспорте.
+    /// </summary>
     public bool IsInVehicle => isInVehicle;
 
     /// <summary>
@@ -97,21 +105,26 @@ public class PlayerVehicleController : MonoBehaviour
     }
 
     /// <summary>
-    /// Обработчик нажатия кнопки выхода из транспорта.
+    /// Обработчик нажатия кнопки выхода из транспорта (exitVehicleAction).
     /// Работает глобально: не требуется наводиться на штурвал.
     /// </summary>
     private void OnExitVehiclePerformed(InputAction.CallbackContext ctx)
     {
         if (!ctx.performed) return;
+        if (!isInVehicle) return;
 
-        if (isInVehicle)
-        {
-            ExitVehicle();
-        }
+        // Грейс-период: игнорируем нажатие, если прошло меньше exitGraceTime
+        // с момента посадки. Это защищает от ситуации, когда та же кнопка
+        // используется и для входа, и для выхода, и событие срабатывает дважды.
+        if (Time.time - lastEnterTime < exitGraceTime)
+            return;
+
+        ExitVehicle();
     }
 
     /// <summary>
     /// EnterVehicle: принимает VehicleSeatInteractable, IControllableVehicle и точку стояния.
+    /// Вызывается штурвалом (VehicleSeatInteractable.Interact).
     /// </summary>
     public void EnterVehicle(VehicleSeatInteractable seat, IControllableVehicle vehicle, Transform seatStandPoint)
     {
@@ -120,7 +133,6 @@ public class PlayerVehicleController : MonoBehaviour
             Debug.LogWarning("[PlayerVehicleController] Попытка EnterVehicle, когда уже в транспорте.");
             return;
         }
-
         if (vehicle == null)
         {
             Debug.LogError("[PlayerVehicleController] EnterVehicle: vehicle == null.");
@@ -156,15 +168,15 @@ public class PlayerVehicleController : MonoBehaviour
 
         // 4) Включаем управление транспортом через интерфейс
         vehicle.EnableControl();
-
         isInVehicle = true;
 
-        Debug.Log($"[PlayerVehicleController] Вход в транспорт (IControllableVehicle) playerRoot теперь ребёнок {playerRoot.parent?.name}");
+        // Запоминаем время посадки для грейс-периода выхода
+        lastEnterTime = Time.time; // НОВАЯ СТРОКА
 
+        Debug.Log($"[PlayerVehicleController] Вход в транспорт (IControllableVehicle) playerRoot теперь ребёнок {playerRoot.parent?.name}");
         OnEnteredVehicle?.Invoke(vehicle);
 
-        // ВАЖНО: никаких подсказок про выход здесь не показываем.
-        // Логику подсказки привяжем к глобальному exitVehicleAction или к другому UI.
+        // При входе скрываем подсказки — их будет показывать отдельный UI (если нужен).
         InteractionHintUI.Instance?.SetVisible(false);
     }
 
@@ -201,7 +213,7 @@ public class PlayerVehicleController : MonoBehaviour
 
         OnExitedVehicle?.Invoke();
 
-        // После выхода можно снова показывать подсказки, но пускай это решает look-based система.
+        // После выхода подсказки решает показывать look-based система.
         InteractionHintUI.Instance?.SetVisible(false);
     }
 }
