@@ -437,7 +437,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 169181470}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4b3d0d8bede2a26499442e9f26281764, type: 3}
   m_Name: 
@@ -3332,7 +3332,7 @@ MonoBehaviour:
   highlightLight: {fileID: 0}
   vehicleRoot: {fileID: 1080166585}
   seatStandPoint: {fileID: 1864929878}
-  playerVehicleController: {fileID: 0}
+  playerVehicleController: {fileID: 1371907994}
 --- !u!114 &723248763
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3768,24 +3768,39 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9ed460297c775d7409fe74c4c38787bd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PepelacMain
-  Speed: 0
-  Inertia: 0
-  MaxSpeed: 0
-  Acceleration: 0
-  MaxSpeedBack: 0
-  AccelerationBack: 0
-  MaxSpeedStrafe: 0
-  AccelerationStrafe: 0
-  RotationSpeed: 0
-  TotalMass: 0
-  Carryweight: 0
-  MaxCarryweight: 0
-  Energy: 0
-  MaxEnergy: 0
-  EnergyConsumption: 0
-  Fuel: 0
-  MaxFuel: 0
-  FuelConsumption: 0
+  forwardSpeed: 20
+  strafeSpeed: 6
+  maxHorizontalAcceleration: 20
+  turnSpeed: 90
+  rotationSlerpSpeed: 10
+  jumpImpulse: 5
+  gravity: -9.81
+  riseSpeed: 2
+  lowerSpeed: 3
+  maxHoverOffset: 50
+  verticalSpringKp: 300
+  verticalSpringKd: 40
+  maxVerticalForce: 5000
+  jumpBreaksHoverDuration: 0.6
+  holdHoverPreventsGravity: 1
+  snapOnRelease: 0
+  snapForceMultiplier: 3
+  snapDuration: 0.15
+  useBaseGroundY: 1
+  baseMass: 1000
+  useRigidbody: 1
+  freezeTiltAxes: 1
+  centerOfMassOffset: {x: 0, y: 0, z: 0}
+  maxCarryWeight: 500
+  maxFuel: 100
+  fuelConsumptionBase: 0.1
+  fuelConsumptionThrustMultiplier: 0.5
+  maxEnergy: 100
+  energyConsumptionPerShot: 5
+  currentFuel: 0
+  currentEnergy: 0
+  currentCarryWeight: 0
+  currentTotalMass: 0
 --- !u!114 &1080166587
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3832,40 +3847,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e26317cac9e7f1745ab5a07af491276c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PepelacController
+  main: {fileID: 1080166586}
   moveAxisAction: {fileID: 1073530940}
   turnAxisAction: {fileID: 1394535240}
   jumpAction: {fileID: 651899968}
   strafeAxisAction: {fileID: 27556637}
   riseAction: {fileID: 1961433099}
   lowerAction: {fileID: 1849567391}
-  forwardSpeed: 10
-  strafeSpeed: 5
-  maxHorizontalAcceleration: 20
-  turnSpeed: 55
-  rotationSlerpSpeed: 555
-  freezeTiltAxes: 1
-  jumpImpulse: 5
-  gravity: -5
-  riseSpeed: 2
-  lowerSpeed: 3
-  maxHoverOffset: 50
-  verticalSpringKp: 170
-  verticalSpringKd: 96
-  maxVerticalForce: 5000
-  jumpBreaksHoverDuration: 0.6
-  holdHoverPreventsGravity: 1
-  snapOnRelease: 0
-  snapForceMultiplier: 3
-  snapDuration: 0.15
-  useBaseGroundY: 1
   groundCheckOffset: {x: 0, y: -0.5, z: 0}
   groundCheckDistance: 0.6
   groundLayers:
     serializedVersion: 2
     m_Bits: 4294967295
-  useRigidbody: 1
-  rb: {fileID: 0}
-  centerOfMassOffset: {x: 0, y: 0, z: 0}
+  rb: {fileID: 1080166591}
 --- !u!4 &1080166589
 Transform:
   m_ObjectHideFlags: 0
@@ -4600,117 +4594,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1371907978}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1238549110
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1238549111}
-  - component: {fileID: 1238549114}
-  - component: {fileID: 1238549113}
-  - component: {fileID: 1238549112}
-  m_Layer: 0
-  m_Name: Generator
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1238549111
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1238549110}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -1.307, y: 0.301, z: -0.875}
-  m_LocalScale: {x: 0.5, y: 0.5, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1729860439}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!65 &1238549112
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1238549110}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
-  m_Center: {x: 0, y: 0, z: 0}
---- !u!23 &1238549113
-MeshRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1238549110}
-  m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
-  m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
-  m_MotionVectors: 1
-  m_LightProbeUsage: 1
-  m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 2
-  m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
-  m_ForceMeshLod: -1
-  m_MeshLodSelectionBias: 0
-  m_RenderingLayerMask: 1
-  m_RendererPriority: 0
-  m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
-  m_StaticBatchInfo:
-    firstSubMesh: 0
-    subMeshCount: 0
-  m_StaticBatchRoot: {fileID: 0}
-  m_ProbeAnchor: {fileID: 0}
-  m_LightProbeVolumeOverride: {fileID: 0}
-  m_ScaleInLightmap: 1
-  m_ReceiveGI: 1
-  m_PreserveUVs: 0
-  m_IgnoreNormalsForChartDetection: 0
-  m_ImportantGI: 0
-  m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
-  m_MinimumChartSize: 4
-  m_AutoUVMaxDistance: 0.5
-  m_AutoUVMaxAngle: 89
-  m_LightmapParameters: {fileID: 0}
-  m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: 0
-  m_AdditionalVertexStreams: {fileID: 0}
---- !u!33 &1238549114
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1238549110}
-  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!1 &1240852628
 GameObject:
   m_ObjectHideFlags: 0
@@ -4986,7 +4869,7 @@ MonoBehaviour:
   highlightLight: {fileID: 0}
   vehicleRoot: {fileID: 1729860433}
   seatStandPoint: {fileID: 364523676}
-  playerVehicleController: {fileID: 0}
+  playerVehicleController: {fileID: 1371907994}
 --- !u!65 &1243910445
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -5088,6 +4971,7 @@ GameObject:
   - component: {fileID: 1371907992}
   - component: {fileID: 1371907993}
   - component: {fileID: 1371907994}
+  - component: {fileID: 1371907995}
   m_Layer: 3
   m_Name: Player
   m_TagString: Untagged
@@ -5317,7 +5201,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4d2f6a0d278f2494089a9550692e3c9d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMover
-  cc: {fileID: 0}
+  cc: {fileID: 1371907983}
   moveSpeed: 3
   useSmoothMove: 0
 --- !u!114 &1371907993
@@ -5370,6 +5254,33 @@ MonoBehaviour:
   isInVehicle: 0
   currentSeat: {fileID: 0}
   currentSeatStandPoint: {fileID: 0}
+--- !u!54 &1371907995
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1371907977}
+  serializedVersion: 5
+  m_Mass: 20
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
 --- !u!114 &1376496703
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6539,24 +6450,39 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9ed460297c775d7409fe74c4c38787bd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PepelacMain
-  Speed: 0
-  Inertia: 0
-  MaxSpeed: 0
-  Acceleration: 0
-  MaxSpeedBack: 0
-  AccelerationBack: 0
-  MaxSpeedStrafe: 0
-  AccelerationStrafe: 0
-  RotationSpeed: 0
-  TotalMass: 0
-  Carryweight: 0
-  MaxCarryweight: 0
-  Energy: 0
-  MaxEnergy: 0
-  EnergyConsumption: 0
-  Fuel: 0
-  MaxFuel: 0
-  FuelConsumption: 0
+  forwardSpeed: 8
+  strafeSpeed: 6
+  maxHorizontalAcceleration: 20
+  turnSpeed: 90
+  rotationSlerpSpeed: 10
+  jumpImpulse: 5
+  gravity: -9.81
+  riseSpeed: 2
+  lowerSpeed: 3
+  maxHoverOffset: 50
+  verticalSpringKp: 300
+  verticalSpringKd: 40
+  maxVerticalForce: 5000
+  jumpBreaksHoverDuration: 0.6
+  holdHoverPreventsGravity: 1
+  snapOnRelease: 0
+  snapForceMultiplier: 3
+  snapDuration: 0.15
+  useBaseGroundY: 1
+  baseMass: 1000
+  useRigidbody: 1
+  freezeTiltAxes: 1
+  centerOfMassOffset: {x: 0, y: 0, z: 0}
+  maxCarryWeight: 500
+  maxFuel: 100
+  fuelConsumptionBase: 0.1
+  fuelConsumptionThrustMultiplier: 0.5
+  maxEnergy: 100
+  energyConsumptionPerShot: 5
+  currentFuel: 0
+  currentEnergy: 0
+  currentCarryWeight: 0
+  currentTotalMass: 0
 --- !u!114 &1729860437
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6603,40 +6529,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e26317cac9e7f1745ab5a07af491276c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PepelacController
+  main: {fileID: 1729860436}
   moveAxisAction: {fileID: 1073530940}
   turnAxisAction: {fileID: 1394535240}
   jumpAction: {fileID: 651899968}
   strafeAxisAction: {fileID: 27556637}
   riseAction: {fileID: 1961433099}
   lowerAction: {fileID: 1849567391}
-  forwardSpeed: 10
-  strafeSpeed: 5
-  maxHorizontalAcceleration: 20
-  turnSpeed: 55
-  rotationSlerpSpeed: 555
-  freezeTiltAxes: 1
-  jumpImpulse: 5
-  gravity: -5
-  riseSpeed: 2
-  lowerSpeed: 3
-  maxHoverOffset: 50
-  verticalSpringKp: 170
-  verticalSpringKd: 96
-  maxVerticalForce: 5000
-  jumpBreaksHoverDuration: 0.6
-  holdHoverPreventsGravity: 1
-  snapOnRelease: 0
-  snapForceMultiplier: 3
-  snapDuration: 0.15
-  useBaseGroundY: 1
   groundCheckOffset: {x: 0, y: -0.5, z: 0}
   groundCheckDistance: 0.6
   groundLayers:
     serializedVersion: 2
     m_Bits: 4294967295
-  useRigidbody: 1
-  rb: {fileID: 0}
-  centerOfMassOffset: {x: 0, y: 0, z: 0}
+  rb: {fileID: 1729860435}
 --- !u!4 &1729860439
 Transform:
   m_ObjectHideFlags: 0
@@ -6653,7 +6558,6 @@ Transform:
   - {fileID: 1126603201}
   - {fileID: 626106767}
   - {fileID: 1490692663}
-  - {fileID: 1238549111}
   - {fileID: 1919436402}
   - {fileID: 2063654614}
   - {fileID: 1582954515}
@@ -8453,6 +8357,75 @@ Transform:
   - {fileID: 709776945}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &2898125122329536950
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 2486232351008835865, guid: 6aa0df3af505c1f47bffca72a0a1b378, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2486232351008835865, guid: 6aa0df3af505c1f47bffca72a0a1b378, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2486232351008835865, guid: 6aa0df3af505c1f47bffca72a0a1b378, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 0.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2486232351008835865, guid: 6aa0df3af505c1f47bffca72a0a1b378, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -16.199
+      objectReference: {fileID: 0}
+    - target: {fileID: 2486232351008835865, guid: 6aa0df3af505c1f47bffca72a0a1b378, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.44
+      objectReference: {fileID: 0}
+    - target: {fileID: 2486232351008835865, guid: 6aa0df3af505c1f47bffca72a0a1b378, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -10.49
+      objectReference: {fileID: 0}
+    - target: {fileID: 2486232351008835865, guid: 6aa0df3af505c1f47bffca72a0a1b378, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2486232351008835865, guid: 6aa0df3af505c1f47bffca72a0a1b378, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2486232351008835865, guid: 6aa0df3af505c1f47bffca72a0a1b378, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2486232351008835865, guid: 6aa0df3af505c1f47bffca72a0a1b378, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2486232351008835865, guid: 6aa0df3af505c1f47bffca72a0a1b378, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2486232351008835865, guid: 6aa0df3af505c1f47bffca72a0a1b378, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2486232351008835865, guid: 6aa0df3af505c1f47bffca72a0a1b378, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6393381515148589205, guid: 6aa0df3af505c1f47bffca72a0a1b378, type: 3}
+      propertyPath: m_Name
+      value: Generator
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 6aa0df3af505c1f47bffca72a0a1b378, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -8474,3 +8447,4 @@ SceneRoots:
   - {fileID: 1781709815}
   - {fileID: 1700972260}
   - {fileID: 1834168479}
+  - {fileID: 2898125122329536950}

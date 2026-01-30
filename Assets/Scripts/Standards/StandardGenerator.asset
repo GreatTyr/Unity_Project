@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f13b6e31ef4380479b1b89e7a6737e0, type: 3}
+  m_Name: StandardGenerator
+  m_EditorClassIdentifier: Assembly-CSharp::StandardGenerator
+  TypeKey: Generator
+  Entries:
+  - {fileID: 6393381515148589205, guid: 6aa0df3af505c1f47bffca72a0a1b378, type: 3}
+  EntryDatas: []
