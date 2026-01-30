@@ -21,6 +21,9 @@ public class PlayerVehicleController : MonoBehaviour
     [Tooltip("CharacterController игрока.")]
     public CharacterController characterController;
 
+    [Tooltip("Animator игрока.")]
+    [SerializeField] private Animator playerAnimator;
+
     [Tooltip("Корневой объект игрока (обычно тот же объект, где CC/PlayerController).")]
     public Transform playerRoot;
 
@@ -30,7 +33,7 @@ public class PlayerVehicleController : MonoBehaviour
 
     [Header("Exit settings")]
     [Tooltip("Минимальное время после посадки, в течение которого нажатие выхода игнорируется (защита от мгновенного двойного срабатывания).")]
-    public float exitGraceTime = 0.2f;   // НОВОЕ ПОЛЕ
+    public float exitGraceTime = 0.2f;
 
     [Header("Debug / State (read-only)")]
     [SerializeField] private bool isInVehicle = false;
@@ -44,7 +47,7 @@ public class PlayerVehicleController : MonoBehaviour
     private Transform originalParent;
 
     // Время последней посадки в транспорт (для грейс-периода)
-    private float lastEnterTime = -999f; // НОВОЕ ПОЛЕ
+    private float lastEnterTime = -999f;
 
     // События
     public event Action<IControllableVehicle> OnEnteredVehicle;
@@ -60,6 +63,9 @@ public class PlayerVehicleController : MonoBehaviour
 
         if (playerRoot == null)
             playerRoot = this.transform;
+
+        if (playerAnimator == null)
+            playerAnimator = GetComponentInChildren<Animator>();
     }
 
     private void OnEnable()
@@ -82,12 +88,12 @@ public class PlayerVehicleController : MonoBehaviour
 
     void Update()
     {
-        if (isInVehicle && currentSeatStandPoint != null)
-        {
-            // Держим игрока строго в точке, соответствующей seatStandPoint (в мировых координатах)
-            playerRoot.position = currentSeatStandPoint.position;
-            playerRoot.rotation = currentSeatStandPoint.rotation;
-        }
+        // Жёсткое позиционирование за штурвалом отключили,
+        // так как playerRoot уже является дочерним vehicle.Root
+        // и двигается физикой вместе с Pepelac.
+        //
+        // Если позже понадобится мягкая подтяжка к currentSeatStandPoint,
+        // можно добавить это в LateUpdate через Lerp/Slerp.
     }
 
     /// <summary>
@@ -148,6 +154,20 @@ public class PlayerVehicleController : MonoBehaviour
         storedPlayerPosition = playerRoot.position;
         storedPlayerRotation = playerRoot.rotation;
 
+        // Найдём Animator (если не задан в инспекторе)
+        if (playerAnimator == null)
+            playerAnimator = playerRoot.GetComponentInChildren<Animator>();
+
+        if (playerAnimator != null)
+        {
+            // Отключаем root motion, чтобы анимация не тащила модельку за штурвалом
+            playerAnimator.applyRootMotion = false;
+
+            // Обнуляем параметр скорости (если он используется в контроллере анимаций)
+            // Если параметра "Speed" нет, SetFloat просто не повредит.
+            playerAnimator.SetFloat("Speed", 0f);
+        }
+
         // 1) Перемещаем к seatStandPoint
         if (seatStandPoint != null)
         {
@@ -171,7 +191,7 @@ public class PlayerVehicleController : MonoBehaviour
         isInVehicle = true;
 
         // Запоминаем время посадки для грейс-периода выхода
-        lastEnterTime = Time.time; // НОВАЯ СТРОКА
+        lastEnterTime = Time.time;
 
         Debug.Log($"[PlayerVehicleController] Вход в транспорт (IControllableVehicle) playerRoot теперь ребёнок {playerRoot.parent?.name}");
         OnEnteredVehicle?.Invoke(vehicle);
@@ -202,9 +222,14 @@ public class PlayerVehicleController : MonoBehaviour
         // 3) Включаем управление персонажем и CharacterController
         if (playerController != null)
             playerController.enabled = true;
-
         if (characterController != null && !characterController.enabled)
             characterController.enabled = true;
+
+        // Возвращаем root motion для пешего режима (если он используется)
+        if (playerAnimator != null)
+        {
+            playerAnimator.applyRootMotion = true;
+        }
 
         isInVehicle = false;
         currentVehicle = null;

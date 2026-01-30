@@ -3770,24 +3770,24 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PepelacMain
   forwardSpeed: 20
   strafeSpeed: 6
-  maxHorizontalAcceleration: 20
-  turnSpeed: 90
-  rotationSlerpSpeed: 10
+  maxHorizontalAcceleration: 41.1
+  turnSpeed: 120
+  rotationSlerpSpeed: 20
   jumpImpulse: 5
   gravity: -9.81
-  riseSpeed: 2
-  lowerSpeed: 3
+  riseSpeed: 8
+  lowerSpeed: 9
   maxHoverOffset: 50
-  verticalSpringKp: 300
-  verticalSpringKd: 40
-  maxVerticalForce: 5000
+  verticalSpringKp: 2000
+  verticalSpringKd: 200
+  maxVerticalForce: 100000
   jumpBreaksHoverDuration: 0.6
   holdHoverPreventsGravity: 1
-  snapOnRelease: 0
+  snapOnRelease: 1
   snapForceMultiplier: 3
   snapDuration: 0.15
-  useBaseGroundY: 1
-  baseMass: 1000
+  useBaseGroundY: 0
+  baseMass: 100
   useRigidbody: 1
   freezeTiltAxes: 1
   centerOfMassOffset: {x: 0, y: 0, z: 0}
@@ -3859,6 +3859,7 @@ MonoBehaviour:
   groundLayers:
     serializedVersion: 2
     m_Bits: 4294967295
+  debugHover: 0
   rb: {fileID: 1080166591}
 --- !u!4 &1080166589
 Transform:
@@ -4971,7 +4972,6 @@ GameObject:
   - component: {fileID: 1371907992}
   - component: {fileID: 1371907993}
   - component: {fileID: 1371907994}
-  - component: {fileID: 1371907995}
   m_Layer: 3
   m_Name: Player
   m_TagString: Untagged
@@ -5248,39 +5248,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerVehicleController
   playerController: {fileID: 1371907986}
   characterController: {fileID: 1371907983}
+  playerAnimator: {fileID: 1371907989}
   playerRoot: {fileID: 1371907978}
   exitVehicleAction: {fileID: 440706840}
   exitGraceTime: 0.2
   isInVehicle: 0
   currentSeat: {fileID: 0}
   currentSeatStandPoint: {fileID: 0}
---- !u!54 &1371907995
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1371907977}
-  serializedVersion: 5
-  m_Mass: 20
-  m_LinearDamping: 0
-  m_AngularDamping: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
-  m_InertiaTensor: {x: 1, y: 1, z: 1}
-  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ImplicitCom: 1
-  m_ImplicitTensor: 1
-  m_UseGravity: 1
-  m_IsKinematic: 0
-  m_Interpolate: 0
-  m_Constraints: 0
-  m_CollisionDetection: 0
 --- !u!114 &1376496703
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6541,6 +6515,7 @@ MonoBehaviour:
   groundLayers:
     serializedVersion: 2
     m_Bits: 4294967295
+  debugHover: 0
   rb: {fileID: 1729860435}
 --- !u!4 &1729860439
 Transform:

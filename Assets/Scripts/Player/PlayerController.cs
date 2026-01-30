@@ -273,4 +273,13 @@ public class PlayerController : MonoBehaviour
 
         return targetYaw;
     }
+
+    public void ForceStop()
+    {
+        moveAction?.action?.Disable();
+        sprintAction?.action?.Disable();
+        // сбросить внутренний moveInput / анимацию, если нужно
+        moveAction?.action?.Enable();
+        sprintAction?.action?.Enable();
+    }
 }
