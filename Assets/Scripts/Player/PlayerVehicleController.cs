@@ -1,12 +1,14 @@
 ﻿using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using Unity.Cinemachine;
 
 /// <summary>
 /// PlayerVehicleController
 /// Управляет посадкой/выходом игрока в транспорт через IControllableVehicle.
 /// - Отключает пеший контроллер и CharacterController при посадке.
 /// - Привязывает playerRoot к Root транспорта.
+/// - Переключает Cinemachine-камеры (игрок <-> Pepelac).
 /// - Обрабатывает глобальный выход из транспорта по exitVehicleAction.
 /// - События OnEnteredVehicle / OnExitedVehicle для подписчиков (камера, UI).
 /// </summary>
@@ -14,6 +16,13 @@ using UnityEngine.InputSystem;
 [RequireComponent(typeof(CharacterController))]
 public class PlayerVehicleController : MonoBehaviour
 {
+    [Header("Cameras")]
+    [Tooltip("Cinemachine FreeLook / Virtual Camera для пешего режима")]
+    public CinemachineVirtualCameraBase playerCamera;
+
+    [Tooltip("Cinemachine FreeLook / Virtual Camera для Pepelac")]
+    public CinemachineVirtualCameraBase pepelacCamera;
+
     [Header("References")]
     [Tooltip("Основной контроллер игрока (ходьба/бег/прыжок). Отключается при посадке.")]
     public PlayerController playerController;
@@ -88,12 +97,9 @@ public class PlayerVehicleController : MonoBehaviour
 
     void Update()
     {
-        // Жёсткое позиционирование за штурвалом отключили,
-        // так как playerRoot уже является дочерним vehicle.Root
-        // и двигается физикой вместе с Pepelac.
-        //
-        // Если позже понадобится мягкая подтяжка к currentSeatStandPoint,
-        // можно добавить это в LateUpdate через Lerp/Slerp.
+        // Жёсткое позиционирование за штурвалом отключено.
+        // PlayerRoot как дочерний объект транспорта двигается вместе с ним.
+        // При необходимости можно сделать мягкую подтяжку к currentSeatStandPoint в LateUpdate.
     }
 
     /// <summary>
@@ -164,7 +170,6 @@ public class PlayerVehicleController : MonoBehaviour
             playerAnimator.applyRootMotion = false;
 
             // Обнуляем параметр скорости (если он используется в контроллере анимаций)
-            // Если параметра "Speed" нет, SetFloat просто не повредит.
             playerAnimator.SetFloat("Speed", 0f);
         }
 
@@ -192,6 +197,9 @@ public class PlayerVehicleController : MonoBehaviour
 
         // Запоминаем время посадки для грейс-периода выхода
         lastEnterTime = Time.time;
+
+        // --- Переключаем камеры: включаем Pepelac-камеру ---
+        SwitchToPepelacCamera();
 
         Debug.Log($"[PlayerVehicleController] Вход в транспорт (IControllableVehicle) playerRoot теперь ребёнок {playerRoot.parent?.name}");
         OnEnteredVehicle?.Invoke(vehicle);
@@ -236,9 +244,55 @@ public class PlayerVehicleController : MonoBehaviour
         currentSeat = null;
         currentSeatStandPoint = null;
 
+        // --- Переключаем камеры: включаем камеру игрока ---
+        SwitchToPlayerCamera();
+
         OnExitedVehicle?.Invoke();
 
         // После выхода подсказки решает показывать look-based система.
         InteractionHintUI.Instance?.SetVisible(false);
+    }
+
+    // =========================
+    // Переключение Cinemachine-камер
+    // =========================
+
+    private void SwitchToPepelacCamera()
+    {
+        if (pepelacCamera != null)
+            pepelacCamera.Priority = 20;   // выше приоритет → активнее
+
+        if (playerCamera != null)
+            playerCamera.Priority = 10;    // ниже
+    }
+
+    private void SwitchToPlayerCamera()
+    {
+        if (playerCamera != null)
+            playerCamera.Priority = 20;
+
+        if (pepelacCamera != null)
+            pepelacCamera.Priority = 10;
+    }
+    void LateUpdate()
+    {
+        if (isInVehicle && currentSeatStandPoint != null)
+        {
+            // Коэффициенты сглаживания (подбери по ощущениям)
+            float posLerpSpeed = 20f; // чем больше, тем жёстче "прилипает"
+            float rotLerpSpeed = 20f;
+
+            // Позиция — плавно тянем игрока к seatStandPoint
+            playerRoot.position = Vector3.Lerp(
+                playerRoot.position,
+                currentSeatStandPoint.position,
+                posLerpSpeed * Time.deltaTime);
+
+            // Поворот — тоже плавно
+            playerRoot.rotation = Quaternion.Slerp(
+                playerRoot.rotation,
+                currentSeatStandPoint.rotation,
+                rotLerpSpeed * Time.deltaTime);
+        }
     }
 }
