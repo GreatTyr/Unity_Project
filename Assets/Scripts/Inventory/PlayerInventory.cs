@@ -4,18 +4,18 @@ using UnityEngine;
 namespace UnityProject.Inventory
 {
     /// <summary>
-    /// PlayerInventory — владелец инвентаря игрока.
+    /// PlayerInventory пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ.
     /// </summary>
     public class PlayerInventory : MonoBehaviour, IInventoryOwner
     {
         [Header("Main Inventory (Grid)")]
-        [Tooltip("Ширина основного рюкзака (в клетках).")]
+        [Tooltip("пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ).")]
         [SerializeField] private int mainWidth = 8;
-        [Tooltip("Высота основного рюкзака (в клетках).")]
+        [Tooltip("пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ).")]
         [SerializeField] private int mainHeight = 6;
 
         [Header("Equipment Slots")]
-        [Tooltip("Список типов слотов экипировки, которые есть у игрока.")]
+        [Tooltip("пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ.")]
         [SerializeField]
         private List<EquipmentSlotType> equipmentSlotTypes =
             new List<EquipmentSlotType>
@@ -29,7 +29,7 @@ namespace UnityProject.Inventory
             };
 
         [Header("Hotbar")]
-        [Tooltip("Количество быстрых слотов (1..N).")]
+        [Tooltip("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (1..N).")]
         [SerializeField] private int hotbarSize = 4;
 
         [SerializeField] private InventoryGrid mainInventory;
@@ -52,11 +52,143 @@ namespace UnityProject.Inventory
                 hotbar = new Hotbar(hotbarSize);
         }
 
+        #region High-level operations API
+
         /// <summary>
-        /// Попробовать добавить предмет игроку.
-        /// 1) если предмет стакаемый — сначала попытаться влить его в существующие стеки;
-        /// 2) остаток — положить как отдельные экземпляры в сетку.
-        /// Вернёт фактически добавленное количество (по quantity).
+        /// ?????????? ??????????? ???????? ?????? ???????? ????? ?????????.
+        /// ????????????, ????????, ??? drag&amp;drop ? UI.
+        /// </summary>
+        public InventoryOperationResult TryMoveItemInMainGrid(
+            InventoryItem item,
+            int targetX,
+            int targetY,
+            bool rotated)
+        {
+            if (mainInventory == null)
+            {
+                return InventoryOperationResult.Fail(
+                    InventoryOperationError.InvalidTarget,
+                    "[PlayerInventory] TryMoveItemInMainGrid: mainInventory == null");
+            }
+
+            return mainInventory.TryMoveItemSafely(item, targetX, targetY, rotated);
+        }
+
+        /// <summary>
+        /// ?????????? ???????? ??????? ?? ???????? ????? ? ????????? ?????????-???????.
+        /// ?? ?????? ????? ????????? ?????????? ?????????? ???? ? ?????,
+        /// ????? ???????? ??????? ??????????? ??????.
+        /// </summary>
+        public InventoryOperationResult TryPlaceIntoContainer(
+            InventoryItem itemToPlace,
+            InventoryItem containerItem)
+        {
+            if (itemToPlace == null || containerItem == null)
+            {
+                return InventoryOperationResult.Fail(
+                    InventoryOperationError.InvalidSource,
+                    "[PlayerInventory] TryPlaceIntoContainer: itemToPlace ??? containerItem == null");
+            }
+
+            if (containerItem.definition == null || !containerItem.definition.isContainer)
+            {
+                return InventoryOperationResult.Fail(
+                    InventoryOperationError.NotAContainer,
+                    "[PlayerInventory] TryPlaceIntoContainer: ??????? ??????? ?? ???????? ???????????.");
+            }
+
+            // ????????? ?????????? ?????? ??????????? (????? ???????? ?????).
+            if (itemToPlace.definition != null && itemToPlace.definition.isContainer)
+            {
+                return InventoryOperationResult.Fail(
+                    InventoryOperationError.NestedContainersNotAllowed,
+                    "[PlayerInventory] TryPlaceIntoContainer: ????????? ?????????? ???? ?? ??????????????.");
+            }
+
+            if (containerItem.nestedContainer == null)
+            {
+                return InventoryOperationResult.Fail(
+                    InventoryOperationError.InvalidTarget,
+                    "[PlayerInventory] TryPlaceIntoContainer: nestedContainer == null ? ??????????.");
+            }
+
+            // ??????? ??????? ?? ???????? ????? ? ??????? ???????? ? ?????????.
+            mainInventory?.RemoveItem(itemToPlace);
+
+            bool placed = containerItem.nestedContainer.TryAddItemToFirstAvailable(itemToPlace);
+            if (!placed)
+            {
+                // ???? ?? ??????? ??????????, ???????? ??????? ??????? ???????.
+                bool returnedBack = mainInventory != null &&
+                                    mainInventory.TryAddItemToFirstAvailable(itemToPlace);
+
+                var error = returnedBack
+                    ? InventoryOperationError.ContainerFull
+                    : InventoryOperationError.NoSpace;
+
+                return InventoryOperationResult.Fail(
+                    error,
+                    "[PlayerInventory] TryPlaceIntoContainer: ?? ??????? ?????????? ??????? ? ??????????.");
+            }
+
+            return InventoryOperationResult.Ok();
+        }
+
+        /// <summary>
+        /// ?????????? ??????? ??????? ?? ?????????? ?????????? ? ???????? ?????.
+        /// </summary>
+        public InventoryOperationResult TryRemoveFromContainer(
+            InventoryItem itemFromContainer,
+            InventoryItem containerItem)
+        {
+            if (itemFromContainer == null || containerItem == null)
+            {
+                return InventoryOperationResult.Fail(
+                    InventoryOperationError.InvalidSource,
+                    "[PlayerInventory] TryRemoveFromContainer: itemFromContainer ??? containerItem == null");
+            }
+
+            if (containerItem.nestedContainer == null)
+            {
+                return InventoryOperationResult.Fail(
+                    InventoryOperationError.InvalidSource,
+                    "[PlayerInventory] TryRemoveFromContainer: nestedContainer == null ? ??????????.");
+            }
+
+            // ??????? ?? ????????? ?????
+            containerItem.nestedContainer.RemoveItem(itemFromContainer);
+
+            if (mainInventory == null)
+            {
+                return InventoryOperationResult.Fail(
+                    InventoryOperationError.InvalidTarget,
+                    "[PlayerInventory] TryRemoveFromContainer: mainInventory == null");
+            }
+
+            bool placed = mainInventory.TryAddItemToFirstAvailable(itemFromContainer);
+            if (!placed)
+            {
+                // ???????? ??????? ??????? ??????? ? ????????? ?? ?????? ????????????.
+                bool returnedBack = containerItem.nestedContainer.TryAddItemToFirstAvailable(itemFromContainer);
+                var error = returnedBack
+                    ? InventoryOperationError.NoSpace
+                    : InventoryOperationError.Unknown;
+
+                return InventoryOperationResult.Fail(
+                    error,
+                    "[PlayerInventory] TryRemoveFromContainer: ??? ????? ? ???????? ?????.");
+            }
+
+            return InventoryOperationResult.Ok();
+        }
+
+        #endregion
+
+        /// <summary>
+        /// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ.
+        /// 1) пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ;
+        /// 2) пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ.
+        /// пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅ quantity).
         /// </summary>
         public int AddItem(ItemDefinition def, int quantity)
         {
@@ -100,14 +232,14 @@ namespace UnityProject.Inventory
         }
 
         /// <summary>
-        /// Попробовать надеть предмет из инвентаря в заданный слот экипировки.
-        /// Если в слоте был предмет — он возвращается в инвентарь (если есть место).
+        /// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
+        /// пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ).
         /// </summary>
         public bool TryEquipItem(InventoryItem item, EquipmentSlotType targetSlot)
         {
             if (item == null || item.definition == null)
             {
-                Debug.LogWarning("[PlayerInventory] TryEquipItem: item или definition == null");
+                Debug.LogWarning("[PlayerInventory] TryEquipItem: item пїЅпїЅпїЅ definition == null");
                 return false;
             }
 
@@ -117,41 +249,41 @@ namespace UnityProject.Inventory
 
             if (!equipment.CanEquip(item, targetSlot))
             {
-                Debug.LogWarning("[PlayerInventory] CanEquip вернул false");
+                Debug.LogWarning("[PlayerInventory] CanEquip пїЅпїЅпїЅпїЅпїЅпїЅ false");
                 return false;
             }
 
             if (!equipment.TryEquip(item, targetSlot, out InventoryItem previous))
             {
-                Debug.LogWarning("[PlayerInventory] EquipmentSlots.TryEquip вернул false");
+                Debug.LogWarning("[PlayerInventory] EquipmentSlots.TryEquip пїЅпїЅпїЅпїЅпїЅпїЅ false");
                 return false;
             }
 
-            // Убираем надетый предмет из сетки (он теперь "в слоте")
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ (пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ "пїЅ пїЅпїЅпїЅпїЅпїЅ")
             mainInventory.RemoveItem(item);
 
-            // Если что-то было надето до этого — пытаемся вернуть в сетку
+            // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ-пїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ
             if (previous != null && previous.definition != null)
             {
-                Debug.Log($"[PlayerInventory] В слоте {targetSlot} уже был {previous.definition.displayName}, " +
-                          "пытаемся вернуть в инвентарь");
+                Debug.Log($"[PlayerInventory] пїЅ пїЅпїЅпїЅпїЅпїЅ {targetSlot} пїЅпїЅпїЅ пїЅпїЅпїЅ {previous.definition.displayName}, " +
+                          "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ");
 
                 bool placed = mainInventory.TryAddItemToFirstAvailable(previous);
                 if (!placed)
                 {
-                    Debug.LogWarning($"[PlayerInventory] Нет места, чтобы вернуть {previous.definition.displayName} в инвентарь.");
+                    Debug.LogWarning($"[PlayerInventory] пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ {previous.definition.displayName} пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.");
                 }
             }
             else
             {
-                Debug.Log($"[PlayerInventory] Слот {targetSlot} был пуст, previous == null или без definition");
+                Debug.Log($"[PlayerInventory] пїЅпїЅпїЅпїЅ {targetSlot} пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ, previous == null пїЅпїЅпїЅ пїЅпїЅпїЅ definition");
             }
 
             return true;
         }
 
         /// <summary>
-        /// Снять предмет из указанного слота экипировки и положить обратно в инвентарь.
+        /// пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
         /// </summary>
         public bool TryUnequipItem(EquipmentSlotType slotType)
         {
@@ -163,7 +295,7 @@ namespace UnityProject.Inventory
             bool placed = mainInventory.TryAddItemToFirstAvailable(previous);
             if (!placed)
             {
-                Debug.LogWarning("[PlayerInventory] Нет места для предмета после снятия экипировки.");
+                Debug.LogWarning("[PlayerInventory] пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.");
                 return false;
             }
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -28,6 +28,49 @@ namespace UnityProject.Inventory
             this.width = Mathf.Max(1, width);
             this.height = Mathf.Max(1, height);
             items = new List<InventoryItem>();
+        }
+
+        /// <summary>
+        /// Попытаться переместить уже существующий предмет внутри данной сетки.
+        /// Безопасная операция:
+        /// - проверяет границы и пересечения;
+        /// - если размещение невозможно, возвращает предмет на старое место.
+        /// </summary>
+        public InventoryOperationResult TryMoveItemSafely(
+            InventoryItem item,
+            int targetX,
+            int targetY,
+            bool rotated)
+        {
+            if (item == null || !items.Contains(item))
+            {
+                return InventoryOperationResult.Fail(
+                    InventoryOperationError.ItemNotFound,
+                    "[InventoryGrid] TryMoveItemSafely: item == null или не принадлежит этой сетке.");
+            }
+
+            // Запоминаем исходное положение, чтобы можно было откатить.
+            int oldX = item.x;
+            int oldY = item.y;
+            bool oldRotated = item.rotated;
+
+            // Временно убираем предмет из списка, чтобы он не пересекался сам с собой.
+            items.Remove(item);
+
+            bool canPlace = CanPlaceItem(item, targetX, targetY, rotated);
+            if (!canPlace)
+            {
+                // Откат к старому состоянию.
+                TryAddItem(item, oldX, oldY, oldRotated);
+
+                return InventoryOperationResult.Fail(
+                    InventoryOperationError.NoSpace,
+                    "[InventoryGrid] TryMoveItemSafely: нет свободного места для предмета в целевой позиции.");
+            }
+
+            // Размещаем в новой позиции.
+            TryAddItem(item, targetX, targetY, rotated);
+            return InventoryOperationResult.Ok();
         }
 
         public bool CanPlaceItem(InventoryItem item, int x, int y, bool rotated)

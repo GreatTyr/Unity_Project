@@ -32,7 +32,7 @@ namespace UnityProject.Inventory
 
             if (playerInventory == null)
             {
-                Debug.LogWarning("[InventoryGridView] PlayerInventory не найден.");
+                Debug.LogWarning("[InventoryGridView] PlayerInventory ?? ??????.");
             }
         }
 
@@ -84,56 +84,56 @@ namespace UnityProject.Inventory
         }
 
         /// <summary>
-        /// ¬ызываетс€ ItemIconView при окончании drag.
-        /// screenPosition Ч мирова€ позици€ иконки или screenPoint.
+        /// ?????????? drag-??????????? ?????? ????????.
+        /// ????? ?? ????????? ??????? ?????? ? ???????? ???????
+        /// ? ???????????? ??????????? ? ???? ?????? (PlayerInventory).
         /// </summary>
         public void OnItemDragEnd(InventoryItem item, Vector3 iconWorldPosition)
         {
-            if (playerInventory == null || playerInventory.MainInventory == null) return;
+            if (playerInventory == null || playerInventory.MainInventory == null)
+            {
+                Refresh();
+                return;
+            }
+
             var grid = playerInventory.MainInventory;
 
-            // ѕереводим мировую позицию в локальную в пространстве rectTransform
+            // ????????? ??????? ?????? ?? ????/?????? ? ????????? ?????????? RectTransform.
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 rectTransform,
                 RectTransformUtility.WorldToScreenPoint(null, iconWorldPosition),
                 null,
                 out Vector2 localPoint);
 
-            // —мещаем локальную точку относительно origin (левый верх)
-            // rectTransform.pivot может быть не (0,1), но мы ставим anchor/pivot у иконок в (0.5, 0.5)
-            // ƒл€ простоты считаем, что rectTransform.anchor/pivot остаютс€ по умолчанию (0.5,0.5),
-            // смещение поправим через sizeDelta/2.
+            // ???????? ? ??????? ????????? ? ??????? ? ????? ?????? ???? ??????????????.
             Vector2 halfSize = rectTransform.sizeDelta * 0.5f;
             float localX = localPoint.x + halfSize.x;
             float localY = localPoint.y + halfSize.y;
 
-            // ¬ычитаем padding
+            // ????????? padding.
             float contentX = localX - padding.x;
-            float contentY = localY + padding.y; // padding.y отрицательный
+            float contentY = localY + padding.y; // padding.y ?????????????
 
             int targetX = Mathf.FloorToInt(contentX / cellSize);
-            int targetY = Mathf.FloorToInt(-contentY / cellSize); // y вниз
+            int targetY = Mathf.FloorToInt(-contentY / cellSize); // ??? Y ?????????????
 
-            // ѕровер€ем границы
+            // ???? ?????? ????? ?? ??????? ????? ? ?????? ?????????????? ??????? ?????????.
             if (targetX < 0 || targetY < 0 || targetX >= grid.Width || targetY >= grid.Height)
             {
-                // ¬ышли за пределы Ч просто перерисуем и вернЄм иконку на прежнее место
                 Refresh();
                 return;
             }
 
-            // ѕробуем переместить предмет в новую позицию
-            // ¬ажно: временно убираем предмет из списка, чтобы он не пересекал сам себ€
-            grid.RemoveItem(item);
-            bool canPlace = grid.CanPlaceItem(item, targetX, targetY, item.rotated);
-            if (canPlace)
+            // ???????? ???????? ? PlayerInventory, ??????? ????????? ? ????????????.
+            InventoryOperationResult result = playerInventory.TryMoveItemInMainGrid(
+                item,
+                targetX,
+                targetY,
+                item.rotated);
+
+            if (!result.Success)
             {
-                grid.TryAddItem(item, targetX, targetY, item.rotated);
-            }
-            else
-            {
-                // возвращаем на старую позицию
-                grid.TryAddItem(item, item.x, item.y, item.rotated);
+                Debug.LogWarning($"[InventoryGridView] OnItemDragEnd: ??????????? ?? ???????: {result}");
             }
 
             Refresh();

@@ -3,8 +3,8 @@ using UnityEngine.InputSystem;
 
 /// <summary>
 /// CameraOnWorldMap
-/// Объединяет: Follow (только когда target движется), WASD, Zoom, Rotation.
-/// Изменение: Follow выполняется только если target действительно перемещается (или followWhileTargetMovingOnly == false).
+/// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: Follow (пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ target пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ), WASD, Zoom, Rotation.
+/// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: Follow пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ target пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅ followWhileTargetMovingOnly == false).
 /// </summary>
 [AddComponentMenu("Camera/CameraOnWorldMap")]
 public class CameraOnWorldMap : MonoBehaviour
@@ -62,7 +62,7 @@ public class CameraOnWorldMap : MonoBehaviour
     private Vector3 lastTargetPosition;
     private float timeSinceTargetStopped = Mathf.Infinity;
     private bool targetIsMoving = false;
-    private float verticalVelocity = 0f;
+    private float verticalVelocity;
 
     void Awake()
     {

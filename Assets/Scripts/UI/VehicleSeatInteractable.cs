@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 /// <summary>
 /// VehicleSeatInteractable — интерактив для посадки/выхода из транспорта через штурвал.
@@ -40,7 +40,10 @@ public class VehicleSeatInteractable : InteractableBase
         }
 
         if (player == null)
-            player = GameObject.FindObjectOfType<PlayerVehicleController>();
+        {
+            // Современный API поиска первого объекта нужного типа
+            player = UnityEngine.Object.FindFirstObjectByType<PlayerVehicleController>();
+        }
 
         return player;
     }

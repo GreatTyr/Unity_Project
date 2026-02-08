@@ -5,20 +5,20 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// InteractableActionHost — расширяемый компонент для интерактивных объектов.
-/// Позволяет в инспекторе задать список действий (ActionEntry) и выполнить их при Interact().
-/// Наследует поведение InteractableBase (подсветка, hintText и т.п.).
+/// InteractableActionHost пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
+/// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (ActionEntry) пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅ Interact().
+/// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ InteractableBase (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, hintText пїЅ пїЅ.пїЅ.).
 ///
-/// Особенности:
-/// - два режима выполнения: Single (выполнить одну выбранную action) и Sequence (выполнить все по порядку).
-/// - реализованы базовые действия: LoadScene, TeleportLocal, OpenMenu, EnterVehicle, CustomCallback.
-/// - задержки (delayBefore) и асинхронная загрузка сцен поддерживаются.
-/// - CustomCallback может быть назначен в рантайме (action.customCallback = ()=>{ ... } ).
+/// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ:
+/// - пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: Single (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ action) пїЅ Sequence (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ).
+/// - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: LoadScene, TeleportLocal, OpenMenu, EnterVehicle, CustomCallback.
+/// - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (delayBefore) пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
+/// - CustomCallback пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (action.customCallback = ()=>{ ... } ).
 /// 
-/// Дополнение:
-/// - флаг ignoreWhileInVehicle позволяет игнорировать hover (подсветку/подсказку),
-///   если игрок сейчас сидит в транспорте (PlayerVehicleController.IsInVehicle == true).
-///   Удобно, когда этот хост висит на штурвале.
+/// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ:
+/// - пїЅпїЅпїЅпїЅ ignoreWhileInVehicle пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ hover (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ),
+///   пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (PlayerVehicleController.IsInVehicle == true).
+///   пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
 /// </summary>
 [RequireComponent(typeof(Collider))]
 public class InteractableActionHost : InteractableBase
@@ -26,35 +26,36 @@ public class InteractableActionHost : InteractableBase
     public enum ExecutionMode { Single, Sequence }
 
     [Header("Action Host")]
-    [Tooltip("Режим выполнения: Single = выполнить только выбранную (activeIndex), Sequence = выполнить все по порядку")]
+    [Tooltip("пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: Single = пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (activeIndex), Sequence = пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ")]
     public ExecutionMode executionMode = ExecutionMode.Single;
 
-    [Tooltip("Если executionMode == Single, какой индекс в списке выбирать (0-based).")]
+    [Tooltip("пїЅпїЅпїЅпїЅ executionMode == Single, пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (0-based).")]
     public int activeIndex = 0;
 
-    [Tooltip("Список действий, которые можно выполнить при Interact()")]
+    [Tooltip("пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ Interact()")]
     public List<ActionEntry> actions = new List<ActionEntry>();
 
-    [Header("Vehicle / Hover поведение")]
-    [Tooltip("Если true — когда игрок сидит в транспорте (PlayerVehicleController.IsInVehicle), " +
-             "hover по этому объекту будет игнорироваться (без подсветки и подсказки). " +
-             "Включи это на штурвале, если на нём висит этот ActionHost.")]
+    [Header("Vehicle / Hover пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ")]
+    [Tooltip("пїЅпїЅпїЅпїЅ true пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (PlayerVehicleController.IsInVehicle), " +
+             "hover пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ). " +
+             "пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ ActionHost.")]
     public bool ignoreWhileInVehicle = false;
 
     /// <summary>
-    /// Находит PlayerVehicleController в сцене (по тегу 'Player' или через FindObjectOfType).
+    /// пїЅпїЅпїЅпїЅпїЅпїЅпїЅ PlayerVehicleController пїЅ пїЅпїЅпїЅпїЅпїЅ (пїЅпїЅ пїЅпїЅпїЅпїЅ 'Player' пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ FindObjectOfType).
     /// </summary>
-    private PlayerVehicleController ResolvePlayerVehicleController()
-    {
-        var go = GameObject.FindWithTag("Player");
-        if (go != null)
+        private PlayerVehicleController ResolvePlayerVehicleController()
         {
-            var pvc = go.GetComponent<PlayerVehicleController>();
-            if (pvc != null) return pvc;
-        }
+            var go = GameObject.FindWithTag("Player");
+            if (go != null)
+            {
+                var pvc = go.GetComponent<PlayerVehicleController>();
+                if (pvc != null) return pvc;
+            }
 
-        return GameObject.FindObjectOfType<PlayerVehicleController>();
-    }
+            // ??????????? API ?????? ??????? ? ?????
+            return UnityEngine.Object.FindFirstObjectByType<PlayerVehicleController>();
+        }
 
     public override void OnHoverEnter()
     {
@@ -63,7 +64,7 @@ public class InteractableActionHost : InteractableBase
             var pvc = ResolvePlayerVehicleController();
             if (pvc != null && pvc.IsInVehicle)
             {
-                // Игрок в транспорте — игнорируем hover для этого интерактива.
+                // пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ hover пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
                 return;
             }
         }
@@ -78,8 +79,8 @@ public class InteractableActionHost : InteractableBase
             var pvc = ResolvePlayerVehicleController();
             if (pvc != null && pvc.IsInVehicle)
             {
-                // Аналогично OnHoverEnter — при уходе курсора, если игрок в транспорте,
-                // не трогаем подсветку (она и так не включалась).
+                // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ OnHoverEnter пїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ,
+                // пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅ пїЅ пїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ).
                 return;
             }
         }
@@ -88,7 +89,7 @@ public class InteractableActionHost : InteractableBase
     }
 
     /// <summary>
-    /// Выполнить действие по индексу (из внешнего кода).
+    /// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ).
     /// </summary>
     public void ExecuteAction(int index)
     {
@@ -114,7 +115,7 @@ public class InteractableActionHost : InteractableBase
         if (a == null || a.type == ActionType.None)
             yield break;
 
-        // Универсальная задержка перед action
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ action
         if (a.delayBefore > 0f)
             yield return new WaitForSeconds(a.delayBefore);
 
@@ -143,7 +144,7 @@ public class InteractableActionHost : InteractableBase
                     Debug.LogWarning($"[InteractableActionHost] TeleportLocal missing teleportTarget on {name}");
                     yield break;
                 }
-                var mover = UnityEngine.Object.FindObjectOfType<PlayerMover>();
+                var mover = UnityEngine.Object.FindFirstObjectByType<PlayerMover>();
                 if (mover != null)
                 {
                     mover.TeleportTo(a.teleportTarget.position);
@@ -164,7 +165,7 @@ public class InteractableActionHost : InteractableBase
                 Action opt1 = null;
                 Action opt2 = null;
 
-                // option 1 — teleport local if provided, else sceneName, else no-op
+                // option 1 пїЅ teleport local if provided, else sceneName, else no-op
                 if (a.teleportTarget != null)
                     opt1 = () => {
                         var m = UnityEngine.Object.FindObjectOfType<PlayerMover>();
@@ -175,7 +176,7 @@ public class InteractableActionHost : InteractableBase
                 else
                     opt1 = () => Debug.Log($"[InteractableActionHost] OpenMenu option1 no-op for {name}");
 
-                // option 2 — secondary scene or custom callback if provided
+                // option 2 пїЅ secondary scene or custom callback if provided
                 if (!string.IsNullOrEmpty(a.sceneNameSecondary))
                 {
                     opt2 = () => SceneManager.LoadScene(a.sceneNameSecondary);
@@ -199,11 +200,11 @@ public class InteractableActionHost : InteractableBase
                     yield break;
                 }
 
-                // Простейшее поведение: ищем компонент VehicleSeatInteractable на этом объекте
+                // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ VehicleSeatInteractable пїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
                 var seat = a.vehicleRoot.GetComponentInChildren<VehicleSeatInteractable>();
                 if (seat != null)
                 {
-                    // Если на штурвале уже есть логика — вызываем её Interact().
+                    // пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ Interact().
                     seat.Interact();
                 }
                 else
@@ -258,35 +259,35 @@ public enum ActionType
 [Serializable]
 public class ActionEntry
 {
-    [Tooltip("Тип действия")]
+    [Tooltip("пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ")]
     public ActionType type = ActionType.None;
 
     [Header("Generic")]
-    [Tooltip("Задержка перед выполнением (сек)")]
+    [Tooltip("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅ)")]
     public float delayBefore = 0f;
 
     [Header("LoadScene")]
-    [Tooltip("Имя сцены для LoadScene")]
+    [Tooltip("пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ LoadScene")]
     public string sceneName;
-    [Tooltip("Асинхронно загружать сцену")]
+    [Tooltip("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ")]
     public bool useAsync = true;
 
     [Header("Teleport")]
-    [Tooltip("Точка телепорта внутри сцены")]
+    [Tooltip("пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ")]
     public Transform teleportTarget;
 
     [Header("Menu")]
     public string menuTitle;
     public string option1Label;
     public string option2Label;
-    [Tooltip("Вторая сцена / опция")]
+    [Tooltip("пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ / пїЅпїЅпїЅпїЅпїЅ")]
     public string sceneNameSecondary;
 
     [Header("Vehicle")]
-    [Tooltip("Ссылка на корень транспорта/штурвала")]
+    [Tooltip("пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ")]
     public GameObject vehicleRoot;
 
     [Header("Custom")]
-    [Tooltip("Callback для выполнения (назначается в рантайме из кода)")]
+    [Tooltip("Callback пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ)")]
     [NonSerialized] public Action customCallback;
 }
