@@ -2,24 +2,20 @@ using UnityEngine;
 
 namespace UnityProject.Inventory
 {
-    /// <summary>
-    /// Заглушка для инвентаря отряда.
-    /// В будущем будет подключена к системе отряда.
-    /// </summary>
     public class SquadInventorySource : IInventorySource
     {
-        private InventoryGrid emptyGrid;
+        private Inventory inventory;
 
         public string DisplayName => "Отряд";
-        public InventoryGrid MainInventory
+        public Inventory MainInventory
         {
             get
             {
-                if (emptyGrid == null)
-                    emptyGrid = new InventoryGrid(10, 8); // Временная заглушка
-                return emptyGrid;
+                if (inventory == null)
+                    inventory = new Inventory();
+                return inventory;
             }
         }
-        public bool IsAvailable => false; // Пока не реализовано, скрываем вкладку
+        public bool IsAvailable => false;
     }
 }

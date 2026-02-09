@@ -2,24 +2,20 @@ using UnityEngine;
 
 namespace UnityProject.Inventory
 {
-    /// <summary>
-    /// Заглушка для инвентаря базы.
-    /// В будущем будет подключена к системе базы.
-    /// </summary>
     public class BaseInventorySource : IInventorySource
     {
-        private InventoryGrid emptyGrid;
+        private Inventory inventory;
 
         public string DisplayName => "База";
-        public InventoryGrid MainInventory
+        public Inventory MainInventory
         {
             get
             {
-                if (emptyGrid == null)
-                    emptyGrid = new InventoryGrid(12, 10); // Временная заглушка
-                return emptyGrid;
+                if (inventory == null)
+                    inventory = new Inventory();
+                return inventory;
             }
         }
-        public bool IsAvailable => false; // Пока не реализовано, скрываем вкладку
+        public bool IsAvailable => false;
     }
 }

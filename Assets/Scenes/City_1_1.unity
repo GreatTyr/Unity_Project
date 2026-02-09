@@ -6073,8 +6073,7 @@ MonoBehaviour:
   centerPanel: {fileID: 2093569996}
   rightPanel: {fileID: 538977553}
   openInventoryAction: {fileID: 1810596751}
-  playerGridView: {fileID: 0}
-  externalGridView: {fileID: 0}
+  playerInventory: {fileID: 0}
 --- !u!1 &1219636954
 GameObject:
   m_ObjectHideFlags: 0
@@ -7027,13 +7026,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bd2fc8f7a58278b45a763e111d7855eb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UnityProject.Inventory.PlayerInventory
-  mainWidth: 16
-  mainHeight: 16
   equipmentSlotTypes: 010000000200000003000000040000000500000006000000
   hotbarSize: 4
   mainInventory:
-    width: 16
-    height: 16
     items: []
   equipment:
     slots:
@@ -7041,9 +7036,6 @@ MonoBehaviour:
       equippedItem:
         definition: {fileID: 0}
         quantity: 0
-        rotated: 0
-        x: 0
-        y: 0
   hotbar:
     slots: []
 --- !u!114 &1371907997

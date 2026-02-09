@@ -1,13 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using UnityEngine;
 
 namespace UnityProject.Inventory
 {
-    /// <summary>
-    /// Модель одной строки в списке инвентаря (агрегированная по типу предмета).
-    /// </summary>
     public struct InventoryListEntry
     {
         public ItemDefinition definition;
@@ -21,15 +17,12 @@ namespace UnityProject.Inventory
     }
 
     /// <summary>
-    /// Утилита для преобразования InventoryGrid в список строк для UI (стиль Mount and Blade).
-    /// Агрегирует предметы по типу (ItemDefinition) и сортирует по категориям.
+    /// Преобразует Inventory в отсортированный список строк для UI.
+    /// Поддерживает фильтрацию по категории.
     /// </summary>
     public static class InventoryListModel
     {
-        /// <summary>
-        /// Порядок категорий для сортировки (как они должны отображаться в списке).
-        /// </summary>
-        private static readonly ItemCategory[] CategoryOrder = new[]
+        private static readonly ItemCategory[] CategoryOrder =
         {
             ItemCategory.Weapon,
             ItemCategory.Armor,
@@ -39,51 +32,41 @@ namespace UnityProject.Inventory
         };
 
         /// <summary>
-        /// Преобразовать сетку инвентаря в отсортированный список строк для отображения.
+        /// Построить список строк из инвентаря.
+        /// Группирует по definition, суммирует quantity, сортирует.
         /// </summary>
-        public static List<InventoryListEntry> BuildList(InventoryGrid grid)
+        public static List<InventoryListEntry> BuildList(
+            Inventory inventory,
+            ItemCategory? filter = null)
         {
-            if (grid == null || grid.Items == null)
+            if (inventory == null || inventory.Items == null)
                 return new List<InventoryListEntry>();
 
-            // Группируем предметы по definition и суммируем количество.
-            var grouped = grid.Items
-                .Where(item => item != null && item.definition != null)
+            var query = inventory.Items
+                .Where(item => item != null && item.definition != null);
+
+            if (filter.HasValue)
+                query = query.Where(item => item.definition.itemCategory == filter.Value);
+
+            var grouped = query
                 .GroupBy(item => item.definition)
-                .Select(group => new InventoryListEntry(
-                    group.Key,
-                    group.Sum(item => item.quantity)))
+                .Select(g => new InventoryListEntry(g.Key, g.Sum(i => i.quantity)))
                 .ToList();
 
-            // Сортируем: сначала по категории (по порядку CategoryOrder),
-            // затем внутри категории по имени.
             grouped.Sort((a, b) =>
             {
-                if (a.definition == null || b.definition == null)
-                    return 0;
+                int catA = GetCategorySortOrder(a.definition.itemCategory);
+                int catB = GetCategorySortOrder(b.definition.itemCategory);
+                if (catA != catB) return catA.CompareTo(catB);
 
-                int categoryA = Array.IndexOf(CategoryOrder, a.definition.itemCategory);
-                int categoryB = Array.IndexOf(CategoryOrder, b.definition.itemCategory);
-
-                // Если категория не найдена в порядке, ставим в конец.
-                if (categoryA < 0) categoryA = int.MaxValue;
-                if (categoryB < 0) categoryB = int.MaxValue;
-
-                if (categoryA != categoryB)
-                    return categoryA.CompareTo(categoryB);
-
-                // Внутри категории сортируем по имени.
-                string nameA = string.IsNullOrEmpty(a.definition.displayName) ? "" : a.definition.displayName;
-                string nameB = string.IsNullOrEmpty(b.definition.displayName) ? "" : b.definition.displayName;
+                string nameA = a.definition.displayName ?? "";
+                string nameB = b.definition.displayName ?? "";
                 return string.Compare(nameA, nameB, StringComparison.OrdinalIgnoreCase);
             });
 
             return grouped;
         }
 
-        /// <summary>
-        /// Получить порядковый номер категории для сортировки (меньше = выше в списке).
-        /// </summary>
         public static int GetCategorySortOrder(ItemCategory category)
         {
             int index = Array.IndexOf(CategoryOrder, category);

@@ -3,25 +3,20 @@ using UnityEngine;
 namespace UnityProject.Inventory
 {
     /// <summary>
-    /// Простой отладочный скрипт для проверки работы PlayerInventory/InventoryGrid без UI.
-    /// Повесь на объект Player рядом с PlayerInventory.
+    /// Отладочный скрипт для проверки Inventory без UI.
+    /// Повесить на Player рядом с PlayerInventory.
     /// </summary>
     public class InventoryDebugTester : MonoBehaviour
     {
         [Header("References")]
-        [Tooltip("Ссылка на PlayerInventory (если не указана, возьмём с этого же объекта).")]
         public PlayerInventory playerInventory;
 
         [Header("Test Items")]
-        [Tooltip("Обычный предмет 1x1 (например, патроны).")]
         public ItemDefinition stackableItem;
-        [Tooltip("Крупный предмет (2x2, броня или оружие).")]
         public ItemDefinition bigItem;
-        [Tooltip("Экипируемый предмет для WeaponMain, Body и т.п.")]
         public ItemDefinition equippableItem;
 
         [Header("Settings")]
-        [Tooltip("Сколько штук стекаемого предмета попытаться добавить.")]
         public int stackableCount = 25;
 
         private void Awake()
@@ -30,7 +25,7 @@ namespace UnityProject.Inventory
                 playerInventory = GetComponent<PlayerInventory>();
 
             if (playerInventory == null)
-                Debug.LogError("[InventoryDebugTester] PlayerInventory не найден на объекте.");
+                Debug.LogError("[InventoryDebugTester] PlayerInventory не найден.");
         }
 
         private void Start()
@@ -47,41 +42,25 @@ namespace UnityProject.Inventory
 
         private void TestAddStackable()
         {
-            if (stackableItem == null)
-            {
-                Debug.LogWarning("[InventoryDebugTester] stackableItem не назначен.");
-                return;
-            }
-
+            if (stackableItem == null) return;
             int added = playerInventory.AddItem(stackableItem, stackableCount);
-            Debug.Log($"[InventoryDebugTester] Добавили стакаемый предмет {stackableItem.displayName}: запрошено {stackableCount}, добавлено {added}");
+            Debug.Log($"[DebugTester] {stackableItem.displayName}: " +
+                      $"запрошено {stackableCount}, добавлено {added}");
         }
 
         private void TestAddBigItem()
         {
-            if (bigItem == null)
-            {
-                Debug.LogWarning("[InventoryDebugTester] bigItem не назначен.");
-                return;
-            }
-
+            if (bigItem == null) return;
             int added = playerInventory.AddItem(bigItem, 1);
-            Debug.Log($"[InventoryDebugTester] Добавили большой предмет {bigItem.displayName}: добавлено {added}");
+            Debug.Log($"[DebugTester] {bigItem.displayName}: добавлено {added}");
         }
 
         private void TestEquipItem()
         {
-            if (equippableItem == null)
-            {
-                Debug.LogWarning("[InventoryDebugTester] equippableItem не назначен.");
-                return;
-            }
+            if (equippableItem == null) return;
 
-            // Добавляем один экземпляр экипируемого предмета
-            int added = playerInventory.AddItem(equippableItem, 1);
-            Debug.Log($"[InventoryDebugTester] Добавили экипируемый предмет {equippableItem.displayName}: {added}");
+            playerInventory.AddItem(equippableItem, 1);
 
-            // Ищем этот предмет в основной сетке
             InventoryItem found = null;
             foreach (var item in playerInventory.MainInventory.Items)
             {
@@ -92,51 +71,40 @@ namespace UnityProject.Inventory
                 }
             }
 
-            if (found == null)
-            {
-                Debug.LogWarning("[InventoryDebugTester] Не нашли экипируемый предмет в инвентаре.");
-                return;
-            }
+            if (found == null) return;
 
-            // Целевой слот берём из definition.equipmentSlotType
             var targetSlot = equippableItem.equipmentSlotType;
-            if (targetSlot == EquipmentSlotType.None)
-            {
-                Debug.LogWarning("[InventoryDebugTester] equippableItem.equipmentSlotType == None, некуда экипировать.");
-                return;
-            }
+            if (targetSlot == EquipmentSlotType.None) return;
 
-            bool equipped = playerInventory.TryEquipItem(found, targetSlot);
-            Debug.Log($"[InventoryDebugTester] Попытка экипировать {equippableItem.displayName} в слот {targetSlot}: результат={equipped}");
+            bool result = playerInventory.TryEquipItem(found, targetSlot);
+            Debug.Log($"[DebugTester] Экипировка {equippableItem.displayName} " +
+                      $"в {targetSlot}: {result}");
         }
 
         private void DumpInventory()
         {
-            var grid = playerInventory.MainInventory;
-            Debug.Log($"[InventoryDebugTester] MainInventory {grid.Width}x{grid.Height}, предметов: {grid.Items.Count}");
+            var inv = playerInventory.MainInventory;
+            Debug.Log($"[DebugTester] Инвентарь: {inv.Items.Count} записей");
 
-            foreach (var item in grid.Items)
+            foreach (var item in inv.Items)
             {
-                string defName = item.definition != null ? item.definition.displayName : "NULL_DEF";
-                Debug.Log($"  - {defName} x{item.quantity} " +
-                          $"pos=({item.x},{item.y}) size={item.CurrentWidth}x{item.CurrentHeight} rotated={item.rotated}");
+                string name = item.definition != null
+                    ? item.definition.displayName : "NULL";
+                Debug.Log($"  - {name} x{item.quantity}");
             }
 
-            // Экипировка
-            if (playerInventory.Equipment != null && playerInventory.Equipment.Slots != null)
+            if (playerInventory.Equipment?.Slots != null)
             {
-                Debug.Log("[InventoryDebugTester] Equipment slots:");
+                Debug.Log("[DebugTester] Экипировка:");
                 foreach (var slot in playerInventory.Equipment.Slots)
                 {
-                    string itemName = slot.equippedItem != null && slot.equippedItem.definition != null
-                        ? slot.equippedItem.definition.displayName
-                        : "(пусто)";
+                    string itemName = slot.equippedItem?.definition != null
+                        ? slot.equippedItem.definition.displayName : "(пусто)";
                     Debug.Log($"  - {slot.slotType}: {itemName}");
                 }
             }
 
-            float totalWeight = playerInventory.CalculateTotalWeight();
-            Debug.Log($"[InventoryDebugTester] Total weight = {totalWeight}");
+            Debug.Log($"[DebugTester] Общий вес: {playerInventory.CalculateTotalWeight():F1}");
         }
     }
 }
