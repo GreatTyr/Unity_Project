@@ -10,22 +10,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b42ec604ff6cb9949a761d44a57bb002, type: 3}
-  m_Name: Rifle_AK
+  m_Name: Item_LeatherArmor
   m_EditorClassIdentifier: Assembly-CSharp::UnityProject.Inventory.ItemDefinition
-  itemId: 3
-  displayName: AK
+  itemId: leather_armor
+  displayName: "\u041A\u043E\u0436\u0430\u043D\u0430\u044F \u0431\u0440\u043E\u043D\u044F"
   icon: {fileID: 0}
-  gridWidth: 2
-  gridHeight: 1
-  canRotate: 1
+  itemCategory: 1
   stackable: 0
   maxStack: 1
   isEquippable: 1
-  equipmentSlotType: 4
-  isContainer: 0
-  containerWidth: 0
-  containerHeight: 0
-  category: 
-  weight: 0
-  price: 0
+  equipmentSlotType: 2
+  weight: 5
+  price: 100
   rarity: 0
+  tags: []

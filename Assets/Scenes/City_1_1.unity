@@ -7010,10 +7010,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UnityProject.Inventory.InventoryDebugTester
   playerInventory: {fileID: 1371907996}
-  stackableItem: {fileID: 11400000, guid: 01f824e6375e9c54b9dc645b206686bb, type: 2}
-  bigItem: {fileID: 11400000, guid: f1c97bb4cf5ee05458497b7d06bab8eb, type: 2}
-  equippableItem: {fileID: 11400000, guid: e01c9d9169f2da648acad66eb4b1ba81, type: 2}
-  stackableCount: 25
+  stackableItem: {fileID: 11400000, guid: c447528d4f9d6b143bb0689dcb48a6dd, type: 2}
+  bigItem: {fileID: 11400000, guid: fa70a9f0c2d715e4b9f1ddb503e25801, type: 2}
+  equippableItem: {fileID: 11400000, guid: d2c64a4ba0626d448a1b161955b10cb4, type: 2}
+  stackableCount: 150
 --- !u!114 &1371907996
 MonoBehaviour:
   m_ObjectHideFlags: 0
