@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9c0be31b9e0ea10488cd16bd4ff3b54f, type: 3}
+  m_Name: GeneratorDatabase
+  m_EditorClassIdentifier: Assembly-CSharp::GeneratorDatabase
+  generators:
+  - {fileID: 3758520909022433340, guid: 7d6f7ea3dff70d94281055e6aed6ec1e, type: 3}
+  - {fileID: 6527781267324726573, guid: ad53409229d16514e9c4b9fad019cd90, type: 3}

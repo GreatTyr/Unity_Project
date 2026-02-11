@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1b1fe78ff3f9c274b85542044a1a0165, type: 3}
+  m_Name: FactionDatabase
+  m_EditorClassIdentifier: Assembly-CSharp::FactionDatabase
+  factions:
+  - shortName: Test Faction
+    fullName: TESTF
+  - shortName: ' Test Faction 2'
+    fullName: TESTF2
