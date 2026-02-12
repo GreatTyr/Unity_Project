@@ -106,5 +106,29 @@ namespace UnityProject.Inventory
 
             Debug.Log($"[DebugTester] Общий вес: {playerInventory.CalculateTotalWeight():F1}");
         }
+        private void TestEquipArmor()
+        {
+            if (bigItem == null) return;
+
+            // bigItem — это Кожаная броня (Body)
+            InventoryItem found = null;
+            foreach (var item in playerInventory.MainInventory.Items)
+            {
+                if (item.definition == bigItem)
+                {
+                    found = item;
+                    break;
+                }
+            }
+
+            if (found == null) return;
+
+            var targetSlot = bigItem.equipmentSlotType;
+            if (targetSlot == EquipmentSlotType.None) return;
+
+            bool result = playerInventory.TryEquipItem(found, targetSlot);
+            Debug.Log($"[DebugTester] Экипировка {bigItem.displayName} " +
+                      $"в {targetSlot}: {result}");
+        }
     }
 }

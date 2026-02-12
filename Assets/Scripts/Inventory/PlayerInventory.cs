@@ -27,8 +27,10 @@ namespace UnityProject.Inventory
         [SerializeField] private int hotbarSize = 4;
 
         [SerializeField] private Inventory mainInventory;
-        [SerializeField, HideInInspector] private EquipmentSlots equipment;
-        [SerializeField] private Hotbar hotbar;
+
+        // НЕ сериализуем — всегда создаём в Awake из актуального списка
+        private EquipmentSlots equipment;
+        private Hotbar hotbar;
 
         public Inventory MainInventory => mainInventory;
         public EquipmentSlots Equipment => equipment;
@@ -39,17 +41,13 @@ namespace UnityProject.Inventory
             if (mainInventory == null)
                 mainInventory = new Inventory();
 
-            if (equipment == null)
-                equipment = new EquipmentSlots(equipmentSlotTypes);
-
-            if (hotbar == null)
-                hotbar = new Hotbar(hotbarSize);
+            // Всегда создаём из актуального списка — без проверки на null
+            equipment = new EquipmentSlots(equipmentSlotTypes);
+            hotbar = new Hotbar(hotbarSize);
         }
 
         /// <summary>
         /// Добавить предмет в основной инвентарь.
-        /// Делегирует в Inventory.AddItem (стакинг автоматический).
-        /// Возвращает фактически добавленное количество.
         /// </summary>
         public int AddItem(ItemDefinition definition, int quantity = 1)
         {
@@ -75,14 +73,10 @@ namespace UnityProject.Inventory
             if (!equipment.TryEquip(item, targetSlot, out InventoryItem previous))
                 return false;
 
-            // Убираем предмет из инвентаря
             mainInventory.RemoveItem(item);
 
-            // Если в слоте был другой предмет — возвращаем в инвентарь
             if (previous != null && previous.definition != null)
-            {
                 mainInventory.AddItem(previous.definition, previous.quantity);
-            }
 
             return true;
         }

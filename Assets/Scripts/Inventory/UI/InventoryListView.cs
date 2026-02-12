@@ -13,6 +13,7 @@ namespace UnityProject.Inventory
 
         private IInventorySource currentSource;
         private InventoryPanelView ownerPanel;
+        private ItemCategory? currentFilter = null;
         private readonly List<InventoryListRowView> spawnedRows = new List<InventoryListRowView>();
 
         public void SetOwnerPanel(InventoryPanelView panel) => ownerPanel = panel;
@@ -23,15 +24,26 @@ namespace UnityProject.Inventory
             Refresh();
         }
 
+        /// <summary>
+        /// Установить фильтр категории. null = показать все.
+        /// </summary>
+        public void SetFilter(ItemCategory? filter)
+        {
+            currentFilter = filter;
+            Refresh();
+        }
+
         public void Refresh()
         {
+            // Очищаем старые строки
             foreach (var row in spawnedRows)
                 if (row != null) Destroy(row.gameObject);
             spawnedRows.Clear();
 
             if (currentSource?.MainInventory == null || rowPrefab == null) return;
 
-            var entries = InventoryListModel.BuildList(currentSource.MainInventory);
+            // Строим список С УЧЁТОМ фильтра
+            var entries = InventoryListModel.BuildList(currentSource.MainInventory, currentFilter);
 
             foreach (var entry in entries)
             {
@@ -40,12 +52,12 @@ namespace UnityProject.Inventory
                 row.Setup(entry, this, currentSource);
             }
 
+            // НЕ трогаем sizeDelta вручную!
+            // ContentSizeFitter + VerticalLayoutGroup на Content сами рассчитают высоту.
+            // Принудительно перестраиваем Layout, чтобы строки встали правильно.
             if (contentContainer != null)
             {
-                float rowHeight = 64f;
-                contentContainer.sizeDelta = new Vector2(
-                    contentContainer.sizeDelta.x,
-                    entries.Count * rowHeight);
+                LayoutRebuilder.ForceRebuildLayoutImmediate(contentContainer);
             }
         }
 
