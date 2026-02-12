@@ -1,29 +1,36 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 namespace UnityProject.Inventory
 {
     /// <summary>
-    /// Управляет окном инвентаря:
-    /// - показывает/скрывает панель,
-    /// - обновляет InventoryGridView,
-    /// - переключает курсор через CursorManager.
+    /// Главный менеджер UI инвентаря (Mount & Blade стиль).
+    /// Управляет тремя панелями и переключением курсора.
     /// </summary>
     public class InventoryUIManager : MonoBehaviour
     {
         public static InventoryUIManager Instance { get; private set; }
 
-        [Header("UI")]
-        [Tooltip("Корневой объект панели инвентаря (обычно панель внутри Canvas).")]
+        [Header("UI Root")]
+        [Tooltip("Корневой объект всего инвентаря (дочерний Canvas или Panel).")]
         [SerializeField] private GameObject inventoryPanelRoot;
-        [Tooltip("Компонент, который рисует грид игрока.")]
-        [SerializeField] private InventoryGridView playerGridView;
+
+        [Header("Three-column Layout")]
+        [SerializeField] private InventoryPanelView leftPanel;
+        [SerializeField] private InventoryCenterPanelView centerPanel;
+        [SerializeField] private InventoryPanelView rightPanel;
 
         [Header("Input")]
-        [Tooltip("InputAction для открытия/закрытия инвентаря (например, клавиша I или Tab).")]
         [SerializeField] private InputActionReference openInventoryAction;
 
+        [Header("Player Reference")]
+        [Tooltip("Назначьте вручную в инспекторе вместо FindObjectOfType.")]
+        [SerializeField] private PlayerInventory playerInventory;
+
         private bool isOpen;
+        private List<IInventorySource> sources;
+        private ObjectInventorySource objectSource;
 
         private void Awake()
         {
@@ -35,38 +42,65 @@ namespace UnityProject.Inventory
             Instance = this;
 
             if (inventoryPanelRoot != null)
-                inventoryPanelRoot.SetActive(false); // стартуем скрытым
+                inventoryPanelRoot.SetActive(false);
+
+            InitializeSources();
+        }
+
+        private void InitializeSources()
+        {
+            // Если не назначен в инспекторе — пробуем найти
+            if (playerInventory == null)
+                playerInventory = FindFirstObjectByType<PlayerInventory>();
+
+            objectSource = new ObjectInventorySource();
+
+            sources = new List<IInventorySource>
+            {
+                new PlayerInventorySource(playerInventory),
+                new PepelacInventorySource(),
+                new SquadInventorySource(),
+                new BaseInventorySource(),
+                objectSource
+            };
+
+            if (leftPanel != null)
+                leftPanel.SetSources(sources);
+
+            if (rightPanel != null)
+            {
+                rightPanel.SetSources(sources);
+                rightPanel.OtherPanel = leftPanel;
+            }
+
+            if (leftPanel != null)
+                leftPanel.OtherPanel = rightPanel;
         }
 
         private void OnEnable()
         {
-            if (openInventoryAction != null && openInventoryAction.action != null)
+            if (openInventoryAction?.action != null)
             {
-                openInventoryAction.action.performed += OnOpenInventoryPerformed;
+                openInventoryAction.action.performed += OnToggleInventory;
                 openInventoryAction.action.Enable();
             }
         }
 
         private void OnDisable()
         {
-            if (openInventoryAction != null && openInventoryAction.action != null)
+            if (openInventoryAction?.action != null)
             {
-                openInventoryAction.action.performed -= OnOpenInventoryPerformed;
+                openInventoryAction.action.performed -= OnToggleInventory;
                 openInventoryAction.action.Disable();
             }
-
-            if (Instance == this)
-                Instance = null;
+            if (Instance == this) Instance = null;
         }
 
-        private void OnOpenInventoryPerformed(InputAction.CallbackContext ctx)
+        private void OnToggleInventory(InputAction.CallbackContext ctx)
         {
             if (!ctx.performed) return;
-
-            if (isOpen)
-                CloseInventory();
-            else
-                OpenInventory();
+            if (isOpen) CloseInventory();
+            else OpenInventory();
         }
 
         public void OpenInventory()
@@ -77,10 +111,10 @@ namespace UnityProject.Inventory
             if (inventoryPanelRoot != null)
                 inventoryPanelRoot.SetActive(true);
 
-            // Обновляем визуал
-            playerGridView?.Refresh();
+            leftPanel?.RefreshList();
+            rightPanel?.RefreshList();
+            centerPanel?.Refresh();
 
-            // Переводим курсор в UI-режим
             CursorManager.Instance?.EnterUIMode();
         }
 
@@ -92,8 +126,25 @@ namespace UnityProject.Inventory
             if (inventoryPanelRoot != null)
                 inventoryPanelRoot.SetActive(false);
 
-            // Возврат в геймплейный режим
+            objectSource?.ClearContainer();
             CursorManager.Instance?.EnterGameplayMode();
+        }
+
+        public void SetOpenedContainer(Inventory containerInv, string displayName = "Объект")
+        {
+            if (objectSource != null && containerInv != null)
+            {
+                objectSource.SetContainer(containerInv, displayName);
+                leftPanel?.RefreshList();
+                rightPanel?.RefreshList();
+            }
+        }
+
+        public void ClearOpenedContainer()
+        {
+            objectSource?.ClearContainer();
+            leftPanel?.RefreshList();
+            rightPanel?.RefreshList();
         }
     }
 }

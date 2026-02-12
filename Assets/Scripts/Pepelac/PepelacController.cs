@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -69,7 +69,6 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
 
     // Fallback-режим (без Rigidbody)
     private float currentVerticalVelocity = 0f;
-    private float hoverVelocityRef = 0f;
 
     // Snap таймер (усиленный PD после отпускания rise/lower)
     private float snapBoostUntil = 0f;
@@ -514,7 +513,6 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
             main != null ? main.maxHoverOffset : 50f);
 
         currentVerticalVelocity = 0f;
-        hoverVelocityRef = 0f;
 
         if (main != null && main.snapOnRelease)
         {
@@ -555,7 +553,6 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
             main != null ? main.maxHoverOffset : 50f);
 
         currentVerticalVelocity = 0f;
-        hoverVelocityRef = 0f;
 
         if (main != null && main.snapOnRelease)
         {

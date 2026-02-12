@@ -4,8 +4,8 @@ using UnityEngine;
 public class InteractableWithMenu : InteractableBase
 {
     [Header("Menu Options")]
-    public Transform teleportTarget; // точка перемещения внутри сцены (можно null)
-    public string sceneToLoad;       // имя сцены для полной загрузки (опционально)
+    public Transform teleportTarget; // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅ null)
+    public string sceneToLoad;       // пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
 
     public override void Interact()
     {
@@ -16,7 +16,7 @@ public class InteractableWithMenu : InteractableBase
         {
             option1 = () =>
             {
-                var mover = FindObjectOfType<PlayerMover>();
+                var mover = UnityEngine.Object.FindFirstObjectByType<PlayerMover>();
                 if (mover != null) mover.TeleportTo(teleportTarget.position);
                 else Debug.LogWarning("[InteractableWithMenu] PlayerMover not found");
             };
@@ -36,11 +36,11 @@ public class InteractableWithMenu : InteractableBase
 
         if (option2 != null)
         {
-            InteractionMenuUI.Instance.Show(hintText, teleportTarget != null ? "Переместиться" : "Нет места", option1, "Загрузить сцену", option2, () => { });
+            InteractionMenuUI.Instance.Show(hintText, teleportTarget != null ? "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ" : "пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ", option1, "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ", option2, () => { });
         }
         else
         {
-            InteractionMenuUI.Instance.Show(hintText, teleportTarget != null ? "Переместиться" : "Нет места", option1, null, null, () => { });
+            InteractionMenuUI.Instance.Show(hintText, teleportTarget != null ? "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ" : "пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ", option1, null, null, () => { });
         }
     }
 }
