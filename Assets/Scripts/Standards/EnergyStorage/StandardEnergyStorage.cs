@@ -1,26 +1,26 @@
-﻿using UnityEngine;
+using UnityEngine;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
 
 [ExecuteAlways]
-public class StandardGenerator : MonoBehaviour
+public class StandardEnergyStorage : MonoBehaviour
 {
     // ====================== Identity ======================
 
     [Header("Identity")]
     [SerializeField, HideInInspector]
-    private string moduleType = ModuleTypesDatabase.TYPE_GENERATOR;
+    private string moduleType = ModuleTypesDatabase.TYPE_ENERGY_STORAGE;
 
     [Range(1, 10)] public int ModuleTier = 1;
 
     [Header("Faction")]
-    [Tooltip("Short name of the faction this generator belongs to (from FactionDatabase).")]
+    [Tooltip("Short name of the faction (from FactionDatabase).")]
     [SerializeField] private string factionShortName = "";
 
     [Header("Volume & Fill")]
     [Range(0f, 100f)] public float VolumeCoefficientPercent = 100f;
-    [Tooltip("If true — module may increase fill above ConstantFillPercent; ConstantFillPercent is the minimum.")]
+    [Tooltip("If true — module may increase fill above ConstantFillPercent.")]
     public bool VariableFill = true;
     [Range(0f, 100f)] public float ConstantFillPercent = 100f;
 
@@ -35,19 +35,8 @@ public class StandardGenerator : MonoBehaviour
     [SerializeField, HideInInspector] private float fillPercentUsed;
     [SerializeField, HideInInspector] private float massKg;
 
-    // --- Generator-specific inputs ---
-    [Header("Generator")]
-    [Min(0f)] public float PowerBy0001m3 = 1f;
-    [Range(1, 10)] public int FuelTier = 1;
-    [Min(0f)]
-    [Tooltip("Fuel by 0.001 m³ (kg/s) base value (for tier=1). Default 0.0001.")]
-    public float FuelBy0001m3_Base = 0.0001f;
-
-    // --- Outputs (stored rounded) ---
-    [SerializeField, HideInInspector] private float powerTimesTierPer0001;
-    [SerializeField, HideInInspector] private float fuelPer0001m3Tiered;
-    [SerializeField, HideInInspector] private float specificPower;
-    [SerializeField, HideInInspector] private float fuelKgPerS;
+    // --- EnergyStorage-specific outputs ---
+    [SerializeField, HideInInspector] private float energyCapacity;
 
     // ====================== Public getters ======================
 
@@ -71,11 +60,8 @@ public class StandardGenerator : MonoBehaviour
     public float EffectiveVolumeM3 => effectiveVolume;
     public float FillPercentUsed => fillPercentUsed;
     public float MassKg => massKg;
-    public float PowerBy0_001m3 => PowerBy0001m3;
-    public float PowerTimesTierBy0_001m3 => powerTimesTierPer0001;
-    public float FuelBy0_001m3_Tier => fuelPer0001m3Tiered;
-    public float SpecificPower => specificPower;
-    public float FuelKgPerS => fuelKgPerS;
+    public float EnergyCapacity => energyCapacity;
+    public float VolCoeffPercent => VolumeCoefficientPercent;
 
     // ====================== Public setters ======================
 
@@ -84,10 +70,22 @@ public class StandardGenerator : MonoBehaviour
         factionShortName = shortName ?? "";
     }
 
+    // ====================== Static calculation ======================
+
+    /// <summary>
+    /// Рассчитать ёмкость хранилища энергии.
+    /// capacity = TierCoeffs.Get(moduleTier) * effectiveVolumeDm3
+    /// effectiveVolumeDm3 = effectiveVolumeM3 * 1000
+    /// </summary>
+    public static float CalcCapacity(float effectiveVolumeM3, int moduleTier)
+    {
+        float effVolDm3 = effectiveVolumeM3 * 1000f;
+        float tierCoeff = TierCoeffs.Get(moduleTier);
+        return R3(effVolDm3 * tierCoeff);
+    }
+
     // ====================== Constants ======================
 
-    const double MIN_FUEL_PER0001_D = 1e-6;
-    const float MIN_FUEL_DISPLAY_TOTAL = 0.0001f;
     const float EPS_ROUND = 1e-7f;
 
     // ====================== Lifecycle ======================
@@ -96,14 +94,10 @@ public class StandardGenerator : MonoBehaviour
 
     void OnValidate()
     {
-        moduleType = ModuleTypesDatabase.TYPE_GENERATOR;
-
+        moduleType = ModuleTypesDatabase.TYPE_ENERGY_STORAGE;
         ModuleTier = Mathf.Clamp(ModuleTier, 1, 10);
-        FuelTier = Mathf.Clamp(FuelTier, 1, 10);
         VolumeCoefficientPercent = Mathf.Clamp(VolumeCoefficientPercent, 0f, 100f);
         ConstantFillPercent = Mathf.Clamp(ConstantFillPercent, 0f, 100f);
-        PowerBy0001m3 = Mathf.Max(0f, PowerBy0001m3);
-        FuelBy0001m3_Base = Mathf.Max(0f, FuelBy0001m3_Base);
         RecalculateAll();
     }
 
@@ -120,8 +114,7 @@ public class StandardGenerator : MonoBehaviour
     {
         MeasureWorldDimensions();
         ComputeVolumesAndMass();
-        ComputeGeneratorOutputs();
-        RoundAndStoreResults();
+        ComputeEnergyStorageOutputs();
     }
 
     private void MeasureWorldDimensions()
@@ -169,102 +162,56 @@ public class StandardGenerator : MonoBehaviour
 
     private void ComputeVolumesAndMass()
     {
-        aabbVolume = Mathf.Max(0f, length) * Mathf.Max(0f, width) * Mathf.Max(0f, height);
-        realVolume = aabbVolume * Mathf.Clamp01(VolumeCoefficientPercent / 100f);
-        effectiveVolume = realVolume;
+        aabbVolume = R6(Mathf.Max(0f, length) * Mathf.Max(0f, width) * Mathf.Max(0f, height));
+        realVolume = R6(aabbVolume * Mathf.Clamp01(VolumeCoefficientPercent / 100f));
+        effectiveVolume = R6(realVolume);
         fillPercentUsed = ConstantFillPercent;
-        massKg = realVolume * (fillPercentUsed / 100f) * 1000f;
+        massKg = R3(realVolume * (fillPercentUsed / 100f) * 1000f);
     }
 
-    private void ComputeGeneratorOutputs()
+    private void ComputeEnergyStorageOutputs()
     {
-        float unitsPer0001 = effectiveVolume * 1000f;
-
-        float moduleCoeff = TierCoeffs.Get(ModuleTier);
-        double rawPowerD = (double)PowerBy0001m3 * (double)unitsPer0001 * (double)moduleCoeff;
-        specificPower = (float)rawPowerD;
-
-        float fuelTierCoeff = TierCoeffs.Get(FuelTier);
-        double rawFuelPer0001D = (fuelTierCoeff > 0f)
-            ? (double)FuelBy0001m3_Base / (double)fuelTierCoeff
-            : 0.0;
-        if (rawFuelPer0001D <= 0.0) rawFuelPer0001D = MIN_FUEL_PER0001_D;
-        fuelPer0001m3Tiered = (float)rawFuelPer0001D;
-
-        float powerTierCoeff = TierCoeffs.Get(ModuleTier);
-        double powerTimesTierD = (double)PowerBy0001m3 * (double)powerTierCoeff;
-        powerTimesTierPer0001 = (float)powerTimesTierD;
-
-        double totalFuelD = rawFuelPer0001D * (double)effectiveVolume * 1000.0;
-        float totalFuel = (float)totalFuelD;
-        if (totalFuel <= 0f) totalFuel = 0f;
-        fuelKgPerS = totalFuel;
+        energyCapacity = CalcCapacity(effectiveVolume, ModuleTier);
     }
 
-    private void RoundAndStoreResults()
+    // ====================== Rounding ======================
+
+    private static float R3(float v)
     {
-        aabbVolume = RoundToWithEps(aabbVolume, 6);
-        realVolume = RoundToWithEps(realVolume, 6);
-        effectiveVolume = RoundToWithEps(effectiveVolume, 6);
-        specificPower = RoundToWithEps(specificPower, 3);
-        massKg = RoundToWithEps(massKg, 3);
-        fillPercentUsed = RoundToWithEps(fillPercentUsed, 3);
-
-        double perD = System.Math.Max((double)fuelPer0001m3Tiered, MIN_FUEL_PER0001_D);
-        perD = System.Math.Round(perD * 1_000_000.0) / 1_000_000.0;
-        fuelPer0001m3Tiered = (float)perD;
-
-        powerTimesTierPer0001 = RoundToWithEps(powerTimesTierPer0001, 3);
-
-        double eff = (double)effectiveVolume;
-        double totalD = perD * eff * 1000.0;
-        totalD = System.Math.Round(totalD * 10000.0) / 10000.0;
-        if (totalD < MIN_FUEL_DISPLAY_TOTAL) totalD = MIN_FUEL_DISPLAY_TOTAL;
-        fuelKgPerS = (float)totalD;
+        return (float)System.Math.Round(v, 3);
     }
 
-    static float RoundTo(float v, int d)
+    private static float R6(float v)
     {
-        float mul = Mathf.Pow(10f, d);
-        return Mathf.Round(v * mul) / mul;
-    }
-
-    static float RoundToWithEps(float v, int d)
-    {
-        float mul = Mathf.Pow(10f, d);
-        return Mathf.Round((v + EPS_ROUND) * mul) / mul;
+        return (float)System.Math.Round(v, 6);
     }
 }
 
 
 // ======================== CUSTOM EDITOR ========================
 #if UNITY_EDITOR
-[CustomEditor(typeof(StandardGenerator))]
-public class StandardGeneratorEditor : Editor
+[CustomEditor(typeof(StandardEnergyStorage))]
+public class StandardEnergyStorageEditor : Editor
 {
     SerializedProperty pModuleTier, pVolumeCoeff, pVariableFill, pConstantFill;
-    SerializedProperty pPowerBy0001m3, pFuelTier, pFuelBy0001m3_Base;
     SerializedProperty pFactionShortName;
 
-    StandardGenerator t;
+    StandardEnergyStorage t;
 
     private string[] factionDisplayNames;
     private string[] factionShortNames;
 
     void OnEnable()
     {
-        t = target as StandardGenerator;
+        t = target as StandardEnergyStorage;
         if (t == null) return;
 
         if (serializedObject != null)
         {
-            pModuleTier = serializedObject.FindProperty(nameof(StandardGenerator.ModuleTier));
-            pVolumeCoeff = serializedObject.FindProperty(nameof(StandardGenerator.VolumeCoefficientPercent));
-            pVariableFill = serializedObject.FindProperty(nameof(StandardGenerator.VariableFill));
-            pConstantFill = serializedObject.FindProperty(nameof(StandardGenerator.ConstantFillPercent));
-            pPowerBy0001m3 = serializedObject.FindProperty(nameof(StandardGenerator.PowerBy0001m3));
-            pFuelTier = serializedObject.FindProperty(nameof(StandardGenerator.FuelTier));
-            pFuelBy0001m3_Base = serializedObject.FindProperty(nameof(StandardGenerator.FuelBy0001m3_Base));
+            pModuleTier = serializedObject.FindProperty(nameof(StandardEnergyStorage.ModuleTier));
+            pVolumeCoeff = serializedObject.FindProperty(nameof(StandardEnergyStorage.VolumeCoefficientPercent));
+            pVariableFill = serializedObject.FindProperty(nameof(StandardEnergyStorage.VariableFill));
+            pConstantFill = serializedObject.FindProperty(nameof(StandardEnergyStorage.ConstantFillPercent));
             pFactionShortName = serializedObject.FindProperty("factionShortName");
         }
 
@@ -274,10 +221,9 @@ public class StandardGeneratorEditor : Editor
     private void RebuildFactionList()
     {
         var db = FactionDatabase.Instance;
-
         if (db == null || db.factions == null || db.factions.Count == 0)
         {
-            factionDisplayNames = new string[] { "(None — no FactionDatabase)" };
+            factionDisplayNames = new string[] { "(None)" };
             factionShortNames = new string[] { "" };
             return;
         }
@@ -313,23 +259,11 @@ public class StandardGeneratorEditor : Editor
         GUI.enabled = true;
 
         var mtDb = ModuleTypesDatabase.Instance;
-        if (mtDb != null)
-        {
-            if (!mtDb.Exists(t.ModuleType))
-            {
-                EditorGUILayout.HelpBox(
-                    $"Type \"{t.ModuleType}\" is NOT registered in ModuleTypesDatabase!\n" +
-                    "Open ModuleTypesDatabase and add it, or click 'Add Missing Standard Types' there.",
-                    MessageType.Error);
-            }
-        }
-        else
+        if (mtDb != null && !mtDb.Exists(t.ModuleType))
         {
             EditorGUILayout.HelpBox(
-                "ModuleTypesDatabase not found in Resources/.\n" +
-                "Create via: Assets → Create → Game → Module Types Database\n" +
-                "and place at Resources/ModuleTypesDatabase.asset",
-                MessageType.Warning);
+                $"Type \"{t.ModuleType}\" is NOT registered in ModuleTypesDatabase!",
+                MessageType.Error);
         }
 
         EditorGUILayout.PropertyField(pModuleTier);
@@ -338,33 +272,22 @@ public class StandardGeneratorEditor : Editor
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Faction", EditorStyles.boldLabel);
 
-        if (factionDisplayNames != null && factionShortNames != null && factionShortNames.Length > 1)
+        if (factionShortNames.Length > 1)
         {
             string current = pFactionShortName.stringValue ?? "";
             int selectedIndex = 0;
             for (int i = 0; i < factionShortNames.Length; i++)
             {
-                if (factionShortNames[i] == current)
-                {
-                    selectedIndex = i;
-                    break;
-                }
+                if (factionShortNames[i] == current) { selectedIndex = i; break; }
             }
 
             EditorGUI.BeginChangeCheck();
             int newIndex = EditorGUILayout.Popup("Faction", selectedIndex, factionDisplayNames);
             if (EditorGUI.EndChangeCheck())
-            {
                 pFactionShortName.stringValue = factionShortNames[newIndex];
-            }
         }
         else
         {
-            EditorGUILayout.HelpBox(
-                "FactionDatabase not found in Resources/ or is empty.\n" +
-                "Create via: Assets → Create → Game → Faction Database\n" +
-                "and place at Resources/FactionDatabase.asset",
-                MessageType.Warning);
             EditorGUILayout.PropertyField(pFactionShortName, new GUIContent("Faction (short name)"));
         }
 
@@ -384,23 +307,13 @@ public class StandardGeneratorEditor : Editor
         EditorGUILayout.LabelField("AABB Volume (m³)", t.AABBVolumeM3.ToString("F6"));
         EditorGUILayout.LabelField("Real Volume (m³)", t.RealVolumeM3.ToString("F6"));
         EditorGUILayout.LabelField("Effective Volume (m³)", t.EffectiveVolumeM3.ToString("F6"));
-        EditorGUILayout.LabelField("Fill % used (min)", t.FillPercentUsed.ToString("F3"));
+        EditorGUILayout.LabelField("Fill % used", t.FillPercentUsed.ToString("F3"));
         EditorGUILayout.LabelField("Mass (kg)", t.MassKg.ToString("F3"));
 
-        // ---- Generator (inputs) ----
+        // ---- Output ----
         EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Generator (inputs)", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(pPowerBy0001m3, new GUIContent("Power by 0.001 m³ (energy/s)"));
-        EditorGUILayout.PropertyField(pFuelTier);
-        EditorGUILayout.PropertyField(pFuelBy0001m3_Base, new GUIContent("Fuel by 0.001 m³ (kg/s)"));
-
-        // ---- Outputs ----
-        EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Outputs", EditorStyles.boldLabel);
-        EditorGUILayout.LabelField("Power*Tier by 0.001 m³ (energy/s)", t.PowerTimesTierBy0_001m3.ToString("F3"));
-        EditorGUILayout.LabelField("Fuel*Tier by 0.001 m³ (kg/s)", t.FuelBy0_001m3_Tier.ToString("F6"));
-        EditorGUILayout.LabelField("Power (energy/s)", t.SpecificPower.ToString("F3"));
-        EditorGUILayout.LabelField("Fuel (kg/s)", t.FuelKgPerS.ToString("F4"));
+        EditorGUILayout.LabelField("Energy Storage Output", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("Energy Capacity", t.EnergyCapacity.ToString("F3"));
 
         serializedObject.ApplyModifiedProperties();
     }

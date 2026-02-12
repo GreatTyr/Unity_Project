@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: FactionDatabase
   m_EditorClassIdentifier: Assembly-CSharp::FactionDatabase
   factions:
-  - shortName: Test Faction
-    fullName: TESTF
-  - shortName: ' Test Faction 2'
-    fullName: TESTF2
+  - shortName: TESTF1
+    fullName: Test Faction 1
+  - shortName: TESTF2
+    fullName: Test Faction 2
