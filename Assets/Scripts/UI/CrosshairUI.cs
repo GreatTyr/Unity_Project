@@ -1,23 +1,15 @@
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
 
-/// <summary>
-/// CrosshairUI — отвечает за отображение прицела в центре экрана.
-/// Поддерживает состояния: Normal, HoverInteractive, Hidden.
-/// Пулящий/пульсирующий фон при наведении на интерактивный объект.
-/// </summary>
 [DisallowMultipleComponent]
 public class CrosshairUI : MonoBehaviour
 {
-    public static CrosshairUI Instance;
-
     [Header("UI refs")]
-    public Image crosshairImage;            // основное изображение прицела
-    public Image backgroundImage;           // опциональный круг позади прицела (для пульса)
-    public float hoverPulseSpeed = 4f;      // скорость пульса при наведении
+    public Image crosshairImage;
+    public Image backgroundImage;
+    public float hoverPulseSpeed = 4f;
     public Color normalColor = Color.white;
-    public Color hoverColor = new Color(1f, 0.85f, 0.2f); // теплый желтый
+    public Color hoverColor = new Color(1f, 0.85f, 0.2f);
     public float normalScale = 1f;
     public float hoverScale = 1.25f;
 
@@ -26,8 +18,7 @@ public class CrosshairUI : MonoBehaviour
 
     void Awake()
     {
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
+        UIServices.Register(this);
 
         if (crosshairImage == null)
             crosshairImage = GetComponentInChildren<Image>();
@@ -36,9 +27,15 @@ public class CrosshairUI : MonoBehaviour
         SetHover(false);
     }
 
+    void OnDestroy()
+    {
+        UIServices.Unregister(this);
+    }
+
     void Update()
     {
-        // Если hover — пульсируем фон и немного масштабируем прицел
+        if (!isShown) return;
+
         if (isHover)
         {
             float t = (Mathf.Sin(Time.time * hoverPulseSpeed) + 1f) * 0.5f;
@@ -54,14 +51,12 @@ public class CrosshairUI : MonoBehaviour
         else
         {
             crosshairImage.transform.localScale = Vector3.one * normalScale;
-            if (backgroundImage != null) backgroundImage.color = Color.Lerp(backgroundImage.color, Color.clear, Time.deltaTime * 10f);
+            if (backgroundImage != null)
+                backgroundImage.color = Color.Lerp(backgroundImage.color, Color.clear, Time.deltaTime * 10f);
             crosshairImage.color = normalColor;
         }
     }
 
-    /// <summary>
-    /// Показывает/скрывает прицел.
-    /// </summary>
     public void SetVisible(bool v)
     {
         isShown = v;
@@ -69,20 +64,13 @@ public class CrosshairUI : MonoBehaviour
         if (backgroundImage != null) backgroundImage.enabled = v;
     }
 
-    /// <summary>
-    /// Включить/выключить визуальное состояние наведения на интерактивный объект.
-    /// </summary>
     public void SetHover(bool hover)
     {
         isHover = hover;
     }
 
-    /// <summary>
-    /// Быстро всплеск при клике/взаимодействии (короткая анимация).
-    /// </summary>
     public void DoClickPulse()
     {
-        // Для простоты: небольшой временный масштаб
         StartCoroutine(ClickPulseCoroutine());
     }
 

@@ -1,0 +1,20 @@
+{
+    "version": 1,
+    "entries": [
+        {
+            "id": "2ab66be7947a46a0b8d7cb314c7b9e42",
+            "dataTypeName": "EnergyStorageData",
+            "json": "{\"moduleType\":\"EnergyStorage\",\"moduleTier\":2,\"faction\":\"TESTF2\",\"referenceIndex\":1,\"referenceName\":\"StandardEnergyStorage001\",\"alloyCode\":\"1-K1/000-T1/000-C0/000-E0/000\",\"alloyTier\":1,\"shellPercent\":5.0,\"length\":0.5329999923706055,\"width\":0.5329999923706055,\"height\":0.3709999918937683,\"aabbVolume\":0.10539700090885163,\"realVolume\":0.10526300221681595,\"shellVolumeM3\":0.0052629997953772549,\"effectiveVolume\":0.10000000149011612,\"shellMassKg\":5.263000011444092,\"innerMassKg\":90.0,\"totalMassKg\":95.26300048828125,\"durability\":5.263000011444092,\"scaleFactor\":0.7101693153381348,\"fillPercent\":90.0,\"moduleCode\":\"EnergyStorage-2-TESTF2-1-E167,000-H5,263-0,533*0,533*0,371-m95,263:1-K1/000-T1/000-C0/000-E0/000\",\"craftTimestamp\":\"2026-02-19T13:20:11.5574155Z\",\"dataVersion\":1,\"energyCapacity\":167.0}"
+        },
+        {
+            "id": "cfa808c8c6bd428594cdaa16a2366f59",
+            "dataTypeName": "GeneratorData",
+            "json": "{\"moduleType\":\"Generator\",\"moduleTier\":2,\"faction\":\" Test Faction 2\",\"referenceIndex\":1,\"referenceName\":\"StandardGenerator001\",\"alloyCode\":\"1-K1/000-T1/000-C0/000-E0/000\",\"alloyTier\":1,\"shellPercent\":5.0,\"length\":0.42100000381469729,\"width\":0.14000000059604646,\"height\":0.20999999344348908,\"aabbVolume\":0.012377000413835049,\"realVolume\":0.010525999590754509,\"shellVolumeM3\":0.0005259999888949096,\"effectiveVolume\":0.009999999776482582,\"shellMassKg\":0.5260000228881836,\"innerMassKg\":8.0,\"totalMassKg\":8.526000022888184,\"durability\":0.5260000228881836,\"scaleFactor\":0.42068663239479067,\"fillPercent\":80.0,\"moduleCode\":\"Generator-2- Test Faction 2-1-G20,040F0,0006FT2-H0,526-0,421*0,140*0,210-m8,526:1-K1/000-T1/000-C0/000-E0/000\",\"craftTimestamp\":\"2026-02-19T13:20:47.9297767Z\",\"dataVersion\":1,\"specificPower\":20.040000915527345,\"fuelKgPerS\":0.0006000000284984708,\"fuelTier\":2,\"powerTimesTierPer0001\":2.003999948501587,\"fuelPer0001m3Tiered\":0.00005999999848427251,\"powerBy0001m3\":1.2000000476837159,\"fuelBy0001m3Base\":0.00009999999747378752}"
+        },
+        {
+            "id": "40d7f3c5ed9b486f857e0f3228f848ee",
+            "dataTypeName": "EnergyStorageData",
+            "json": "{\"moduleType\":\"EnergyStorage\",\"moduleTier\":1,\"faction\":\"TESTF2\",\"referenceIndex\":1,\"referenceName\":\"StandardEnergyStorage001\",\"alloyCode\":\"1-K1/000-T1/000-C0/000-E0/000\",\"alloyTier\":1,\"shellPercent\":5.0,\"length\":0.5329999923706055,\"width\":0.5329999923706055,\"height\":0.3709999918937683,\"aabbVolume\":0.10539700090885163,\"realVolume\":0.10526300221681595,\"shellVolumeM3\":0.0052629997953772549,\"effectiveVolume\":0.10000000149011612,\"shellMassKg\":5.263000011444092,\"innerMassKg\":100.0,\"totalMassKg\":105.26300048828125,\"durability\":5.263000011444092,\"scaleFactor\":0.7101693153381348,\"fillPercent\":100.0,\"moduleCode\":\"EnergyStorage-1-TESTF2-1-E100,000-H5,263-0,533*0,533*0,371-m105,263:1-K1/000-T1/000-C0/000-E0/000\",\"craftTimestamp\":\"2026-02-20T09:29:45.4132813Z\",\"dataVersion\":1,\"energyCapacity\":100.0}"
+        }
+    ]
+}

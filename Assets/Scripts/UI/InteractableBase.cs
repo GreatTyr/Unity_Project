@@ -1,41 +1,53 @@
 using UnityEngine;
 
 [RequireComponent(typeof(Collider))]
-public abstract class InteractableBase : MonoBehaviour, Interactable
+public abstract class InteractableBase : MonoBehaviour, IInteractable
 {
     [Header("Hint")]
-    [Tooltip("Текст подсказки, который будет показан на UI при наведении")]
     [TextArea]
     public string hintText = "Нажмите F";
 
-    [Tooltip("Тип взаимодействия (для шаблонов UI и логики)")]
     public InteractionType interactionType = InteractionType.Simple;
-
-    [Tooltip("Отображаемая клавиша/иконка (например, F, E)")]
     public string keyLabel = "F";
 
     [Header("Highlight")]
-    public bool useEmissionHighlight = true;      // включать эмиссию материала
-    public Color emissionColor = Color.yellow;   // цвет эмиссии
-    public float emissionIntensity = 2f;         // интенсивность эмиссии
-    public Material highlightMaterial;           // опционально: заменить материал целиком для подсветки
-    public Light highlightLight;                 // опционально: включать свет при подсветке
+    public bool useEmissionHighlight = true;
+    public Color emissionColor = Color.yellow;
+    public float emissionIntensity = 2f;
+    public Material highlightMaterial;
+    public Light highlightLight;
 
-    // внутренние поля для хранения оригинальных материалов
     Renderer[] renderers;
-    Material[] originalMaterials;
+    Material[] originalSharedMaterials;
     bool isHighlighted = false;
+    bool materialsInstanced = false;
 
     protected virtual void Awake()
     {
-        // Кэшируем рендереры и оригинальные материалы на Awake
         renderers = GetComponentsInChildren<Renderer>();
-        originalMaterials = new Material[renderers.Length];
+        originalSharedMaterials = new Material[renderers.Length];
+
         for (int i = 0; i < renderers.Length; i++)
-            originalMaterials[i] = renderers[i].material;
+            originalSharedMaterials[i] = renderers[i].sharedMaterial;
     }
 
-    // Интерфейсные методы для hover — могут быть переопределены в наследниках
+    protected virtual void OnDestroy()
+    {
+        if (materialsInstanced && renderers != null)
+        {
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i] == null) continue;
+
+                var mat = renderers[i].material;
+                if (mat != null && mat != originalSharedMaterials[i])
+                    Object.Destroy(mat);
+
+                renderers[i].sharedMaterial = originalSharedMaterials[i];
+            }
+        }
+    }
+
     public virtual void OnHoverEnter()
     {
         SetHighlight(true);
@@ -46,7 +58,6 @@ public abstract class InteractableBase : MonoBehaviour, Interactable
         SetHighlight(false);
     }
 
-    // Переключение подсветки: либо меняем материал, либо включаем эмиссию
     protected virtual void SetHighlight(bool enable)
     {
         if (isHighlighted == enable) return;
@@ -54,71 +65,54 @@ public abstract class InteractableBase : MonoBehaviour, Interactable
 
         if (highlightMaterial != null)
         {
-            // Если задан override материал — применить/вернуть оригинал
             for (int i = 0; i < renderers.Length; i++)
-                renderers[i].material = enable ? highlightMaterial : originalMaterials[i];
+            {
+                if (renderers[i] == null) continue;
+                renderers[i].sharedMaterial = enable
+                    ? highlightMaterial
+                    : originalSharedMaterials[i];
+            }
         }
         else if (useEmissionHighlight)
         {
-            // Меняем эмиссию у текущего материала
-            for (int i = 0; i < renderers.Length; i++)
+            if (enable)
             {
-                var mat = renderers[i].material;
-                if (enable)
+                if (!materialsInstanced)
                 {
+                    for (int i = 0; i < renderers.Length; i++)
+                    {
+                        if (renderers[i] == null) continue;
+                        renderers[i].material = new Material(originalSharedMaterials[i]);
+                    }
+                    materialsInstanced = true;
+                }
+
+                for (int i = 0; i < renderers.Length; i++)
+                {
+                    if (renderers[i] == null) continue;
+                    var mat = renderers[i].material;
                     mat.EnableKeyword("_EMISSION");
                     mat.SetColor("_EmissionColor", emissionColor * emissionIntensity);
                 }
-                else
+            }
+            else
+            {
+                if (materialsInstanced)
                 {
-                    mat.SetColor("_EmissionColor", Color.black);
-                    mat.DisableKeyword("_EMISSION");
+                    for (int i = 0; i < renderers.Length; i++)
+                    {
+                        if (renderers[i] == null) continue;
+                        var mat = renderers[i].material;
+                        mat.SetColor("_EmissionColor", Color.black);
+                        mat.DisableKeyword("_EMISSION");
+                    }
                 }
             }
         }
 
-        // Управление Light (если указан)
         if (highlightLight != null)
             highlightLight.enabled = enable;
     }
 
-    // Наследник обязан реализовать логику Interact()
     public abstract void Interact();
-
-    // =====================================================================
-    // ПАТЧ: отключаем триггерную логику OnTriggerEnter/OnTriggerExit
-    // Причина: взаимодействие теперь реализуется через look-based raycast
-    // (PlayerLookInteractor). Чтобы исключить дублирование вызовов и
-    // конфликтную логику, методы ниже временно закомментированы.
-    //
-    // Если вы хотите вернуть trigger-based взаимодействие — просто
-    // раскомментируйте эти методы. Альтернативно, можно вместо
-    // удаления оставить пустые реализации (см. пример внизу).
-    // =====================================================================
-
-    /*
-    // Удобный хук: если интерактивный объект имеет Collider (обычно не trigger),
-    // и игрок имеет триггер-сферу (на child), то этот OnTriggerEnter/Exit позволит
-    // автоматически уведомить менеджер взаимодействия на игроке.
-    void OnTriggerEnter(Collider other)
-    {
-        var mgr = other.GetComponentInParent<PlayerInteractionManager>();
-        if (mgr != null) mgr.OnObjectHovered(this);
-    }
-
-    void OnTriggerExit(Collider other)
-    {
-        var mgr = other.GetComponentInParent<PlayerInteractionManager>();
-        if (mgr != null) mgr.OnObjectUnhovered(this);
-    }
-    */
-
-    // =====================================================================
-    // Альтернатива: оставить методы присутствующими, но пустыми — чтобы не
-    // ломать вызовы внешних систем, если где-то всё ещё ожидают триггеров.
-    // Для этого можно раскомментировать и заменить телом на пустую реализацию:
-    //
-    // void OnTriggerEnter(Collider other) { /* intentionally left blank * / }
-    // void OnTriggerExit(Collider other) { /* intentionally left blank * / }
-    // =====================================================================
 }

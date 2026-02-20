@@ -3,64 +3,52 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using Unity.Cinemachine;
 
-/// <summary>
-/// PlayerVehicleController
-/// Управляет посадкой/выходом игрока в транспорт через IControllableVehicle.
-/// - Отключает пеший контроллер и CharacterController при посадке.
-/// - Привязывает playerRoot к Root транспорта.
-/// - Переключает Cinemachine-камеры (игрок <-> Pepelac).
-/// - Обрабатывает глобальный выход из транспорта по exitVehicleAction.
-/// - События OnEnteredVehicle / OnExitedVehicle для подписчиков (камера, UI).
-/// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(CharacterController))]
 public class PlayerVehicleController : MonoBehaviour
 {
     [Header("Cameras")]
-    [Tooltip("Cinemachine FreeLook / Virtual Camera для пешего режима")]
     public CinemachineVirtualCameraBase playerCamera;
-
-    [Tooltip("Cinemachine FreeLook / Virtual Camera для Pepelac")]
     public CinemachineVirtualCameraBase pepelacCamera;
 
     [Header("References")]
-    [Tooltip("Основной контроллер игрока (ходьба/бег/прыжок). Отключается при посадке.")]
     public PlayerController playerController;
-
-    [Tooltip("CharacterController игрока.")]
     public CharacterController characterController;
-
-    [Tooltip("Animator игрока.")]
     [SerializeField] private Animator playerAnimator;
-
-    [Tooltip("Корневой объект игрока (обычно тот же объект, где CC/PlayerController).")]
     public Transform playerRoot;
 
     [Header("Input")]
-    [Tooltip("Action для выхода из транспорта (например, F или отдельная клавиша).")]
     public InputActionReference exitVehicleAction;
 
-    [Header("Exit settings")]
-    [Tooltip("Минимальное время после посадки, в течение которого нажатие выхода игнорируется (защита от мгновенного двойного срабатывания).")]
+    [Header("Exit Settings")]
     public float exitGraceTime = 0.2f;
 
-    [Header("Debug / State (read-only)")]
-    [SerializeField] private bool isInVehicle = false;
-    [SerializeField] private IControllableVehicle currentVehicle;        // контроллер транспорта (IControllableVehicle)
-    [SerializeField] private VehicleSeatInteractable currentSeat;        // сиденье/штурвал
-    [SerializeField] private Transform currentSeatStandPoint;            // точка стояния у штурвала
+    [Header("Seat Lerp")]
+    [SerializeField] private float posLerpSpeed = 20f;
+    [SerializeField] private float rotLerpSpeed = 20f;
 
-    // Сохранённые данные до посадки
+    [Header("Camera Priority")]
+    [SerializeField] private int activeCameraPriority = 20;
+    [SerializeField] private int inactiveCameraPriority = 10;
+
+    [Header("Debug (read-only)")]
+    [SerializeField] private bool isInVehicle = false;
+    [SerializeField] private string debugVehicleName = "";
+    [SerializeField] private string debugSeatName = "";
+
+    private IControllableVehicle currentVehicle;
+    private VehicleSeatInteractable currentSeat;
+    private Transform currentSeatStandPoint;
+
     private Vector3 storedPlayerPosition;
     private Quaternion storedPlayerRotation;
     private Transform originalParent;
-
-    // Время последней посадки в транспорт (для грейс-периода)
     private float lastEnterTime = -999f;
 
-    // События
     public event Action<IControllableVehicle> OnEnteredVehicle;
     public event Action OnExitedVehicle;
+
+    public bool IsInVehicle => isInVehicle;
 
     void Awake()
     {
@@ -79,65 +67,31 @@ public class PlayerVehicleController : MonoBehaviour
 
     private void OnEnable()
     {
-        if (exitVehicleAction != null && exitVehicleAction.action != null)
-        {
-            exitVehicleAction.action.performed += OnExitVehiclePerformed;
-            exitVehicleAction.action.Enable();
-        }
+        InputActionHelper.Subscribe(exitVehicleAction, OnExitVehiclePerformed);
     }
 
     private void OnDisable()
     {
-        if (exitVehicleAction != null && exitVehicleAction.action != null)
-        {
-            exitVehicleAction.action.performed -= OnExitVehiclePerformed;
-            exitVehicleAction.action.Disable();
-        }
+        InputActionHelper.Unsubscribe(exitVehicleAction, OnExitVehiclePerformed);
     }
 
-    void Update()
-    {
-        // Жёсткое позиционирование за штурвалом отключено.
-        // PlayerRoot как дочерний объект транспорта двигается вместе с ним.
-        // При необходимости можно сделать мягкую подтяжку к currentSeatStandPoint в LateUpdate.
-    }
-
-    /// <summary>
-    /// true, если игрок сейчас находится в транспорте.
-    /// </summary>
-    public bool IsInVehicle => isInVehicle;
-
-    /// <summary>
-    /// Внешний запрос выхода (например, от VehicleSeatInteractable).
-    /// </summary>
     public void RequestExit()
     {
         if (!isInVehicle) return;
         ExitVehicle();
     }
 
-    /// <summary>
-    /// Обработчик нажатия кнопки выхода из транспорта (exitVehicleAction).
-    /// Работает глобально: не требуется наводиться на штурвал.
-    /// </summary>
     private void OnExitVehiclePerformed(InputAction.CallbackContext ctx)
     {
         if (!ctx.performed) return;
         if (!isInVehicle) return;
 
-        // Грейс-период: игнорируем нажатие, если прошло меньше exitGraceTime
-        // с момента посадки. Это защищает от ситуации, когда та же кнопка
-        // используется и для входа, и для выхода, и событие срабатывает дважды.
         if (Time.time - lastEnterTime < exitGraceTime)
             return;
 
         ExitVehicle();
     }
 
-    /// <summary>
-    /// EnterVehicle: принимает VehicleSeatInteractable, IControllableVehicle и точку стояния.
-    /// Вызывается штурвалом (VehicleSeatInteractable.Interact).
-    /// </summary>
     public void EnterVehicle(VehicleSeatInteractable seat, IControllableVehicle vehicle, Transform seatStandPoint)
     {
         if (isInVehicle)
@@ -155,25 +109,22 @@ public class PlayerVehicleController : MonoBehaviour
         currentVehicle = vehicle;
         currentSeatStandPoint = seatStandPoint;
 
-        // Сохраняем позицию/ротацию и родителя
+        debugVehicleName = vehicle.Root != null ? vehicle.Root.name : "unknown";
+        debugSeatName = seat != null ? seat.name : "none";
+
         originalParent = playerRoot.parent;
         storedPlayerPosition = playerRoot.position;
         storedPlayerRotation = playerRoot.rotation;
 
-        // Найдём Animator (если не задан в инспекторе)
         if (playerAnimator == null)
             playerAnimator = playerRoot.GetComponentInChildren<Animator>();
 
         if (playerAnimator != null)
         {
-            // Отключаем root motion, чтобы анимация не тащила модельку за штурвалом
             playerAnimator.applyRootMotion = false;
-
-            // Обнуляем параметр скорости (если он используется в контроллере анимаций)
             playerAnimator.SetFloat("Speed", 0f);
         }
 
-        // 1) Перемещаем к seatStandPoint
         if (seatStandPoint != null)
         {
             if (characterController != null && characterController.enabled)
@@ -183,112 +134,77 @@ public class PlayerVehicleController : MonoBehaviour
             playerRoot.rotation = seatStandPoint.rotation;
         }
 
-        // 2) Привязываем к vehicle.Root — playerRoot будет следовать за палубой
         var vehicleTransform = vehicle.Root;
         playerRoot.SetParent(vehicleTransform, true);
 
-        // 3) Отключаем управление пешим персонажем
         if (playerController != null)
             playerController.enabled = false;
 
-        // 4) Включаем управление транспортом через интерфейс
         vehicle.EnableControl();
         isInVehicle = true;
-
-        // Запоминаем время посадки для грейс-периода выхода
         lastEnterTime = Time.time;
 
-        // --- Переключаем камеры: включаем Pepelac-камеру ---
-        SwitchToPepelacCamera();
+        SetActiveCamera(pepelacCamera, playerCamera);
 
-        Debug.Log($"[PlayerVehicleController] Вход в транспорт (IControllableVehicle) playerRoot теперь ребёнок {playerRoot.parent?.name}");
+        Debug.Log($"[PlayerVehicleController] Вход в транспорт: {debugVehicleName}");
         OnEnteredVehicle?.Invoke(vehicle);
 
-        // При входе скрываем подсказки — их будет показывать отдельный UI (если нужен).
-        InteractionHintUI.Instance?.SetVisible(false);
+        UIServices.Get<InteractionHintUI>()?.SetVisible(false);
     }
 
-    /// <summary>
-    /// ExitVehicle — отключение управления транспортом и восстановление управления персонажем.
-    /// </summary>
     public void ExitVehicle()
     {
         if (!isInVehicle)
             return;
 
-        Debug.Log($"[PlayerVehicleController] Выход из транспорта: {currentVehicle?.Root?.name}");
+        Debug.Log($"[PlayerVehicleController] Выход из транспорта: {debugVehicleName}");
 
-        // 1) Отключаем управление транспортом
         currentVehicle?.DisableControl();
 
-        // 2) Отвязываем и возвращаем родителя
         if (originalParent != null)
             playerRoot.SetParent(originalParent, true);
         else
             playerRoot.SetParent(null, true);
 
-        // 3) Включаем управление персонажем и CharacterController
         if (playerController != null)
             playerController.enabled = true;
         if (characterController != null && !characterController.enabled)
             characterController.enabled = true;
 
-        // Возвращаем root motion для пешего режима (если он используется)
         if (playerAnimator != null)
-        {
             playerAnimator.applyRootMotion = true;
-        }
 
         isInVehicle = false;
         currentVehicle = null;
         currentSeat = null;
         currentSeatStandPoint = null;
+        debugVehicleName = "";
+        debugSeatName = "";
 
-        // --- Переключаем камеры: включаем камеру игрока ---
-        SwitchToPlayerCamera();
+        SetActiveCamera(playerCamera, pepelacCamera);
 
         OnExitedVehicle?.Invoke();
-
-        // После выхода подсказки решает показывать look-based система.
-        InteractionHintUI.Instance?.SetVisible(false);
+        UIServices.Get<InteractionHintUI>()?.SetVisible(false);
     }
 
-    // =========================
-    // Переключение Cinemachine-камер
-    // =========================
-
-    private void SwitchToPepelacCamera()
+    private void SetActiveCamera(CinemachineVirtualCameraBase active, CinemachineVirtualCameraBase inactive)
     {
-        if (pepelacCamera != null)
-            pepelacCamera.Priority = 20;   // выше приоритет → активнее
+        if (active != null)
+            active.Priority = activeCameraPriority;
 
-        if (playerCamera != null)
-            playerCamera.Priority = 10;    // ниже
+        if (inactive != null)
+            inactive.Priority = inactiveCameraPriority;
     }
 
-    private void SwitchToPlayerCamera()
-    {
-        if (playerCamera != null)
-            playerCamera.Priority = 20;
-
-        if (pepelacCamera != null)
-            pepelacCamera.Priority = 10;
-    }
     void LateUpdate()
     {
         if (isInVehicle && currentSeatStandPoint != null)
         {
-            // Коэффициенты сглаживания (подбери по ощущениям)
-            float posLerpSpeed = 20f; // чем больше, тем жёстче "прилипает"
-            float rotLerpSpeed = 20f;
-
-            // Позиция — плавно тянем игрока к seatStandPoint
             playerRoot.position = Vector3.Lerp(
                 playerRoot.position,
                 currentSeatStandPoint.position,
                 posLerpSpeed * Time.deltaTime);
 
-            // Поворот — тоже плавно
             playerRoot.rotation = Quaternion.Slerp(
                 playerRoot.rotation,
                 currentSeatStandPoint.rotation,

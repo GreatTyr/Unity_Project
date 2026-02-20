@@ -5,20 +5,8 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// InteractableActionHost � ����������� ��������� ��� ������������� ��������.
-/// ��������� � ���������� ������ ������ �������� (ActionEntry) � ��������� �� ��� Interact().
-/// ��������� ��������� InteractableBase (���������, hintText � �.�.).
-///
-/// �����������:
-/// - ��� ������ ����������: Single (��������� ���� ��������� action) � Sequence (��������� ��� �� �������).
-/// - ����������� ������� ��������: LoadScene, TeleportLocal, OpenMenu, EnterVehicle, CustomCallback.
-/// - �������� (delayBefore) � ����������� �������� ���� ��������������.
-/// - CustomCallback ����� ���� �������� � �������� (action.customCallback = ()=>{ ... } ).
-/// 
-/// ����������:
-/// - ���� ignoreWhileInVehicle ��������� ������������ hover (���������/���������),
-///   ���� ����� ������ ����� � ���������� (PlayerVehicleController.IsInVehicle == true).
-///   ������, ����� ���� ���� ����� �� ��������.
+/// Универсальный хост действий для интерактивных объектов.
+/// Содержит список ActionEntry и выполняет их при Interact().
 /// </summary>
 [RequireComponent(typeof(Collider))]
 public class InteractableActionHost : InteractableBase
@@ -26,36 +14,23 @@ public class InteractableActionHost : InteractableBase
     public enum ExecutionMode { Single, Sequence }
 
     [Header("Action Host")]
-    [Tooltip("����� ����������: Single = ��������� ������ ��������� (activeIndex), Sequence = ��������� ��� �� �������")]
+    [Tooltip("Режим выполнения: Single = одно действие, Sequence = все по порядку.")]
     public ExecutionMode executionMode = ExecutionMode.Single;
 
-    [Tooltip("���� executionMode == Single, ����� ������ � ������ �������� (0-based).")]
+    [Tooltip("Индекс активного действия при режиме Single (0-based).")]
     public int activeIndex = 0;
 
-    [Tooltip("������ ��������, ������� ����� ��������� ��� Interact()")]
+    [Tooltip("Список действий, выполняемых при Interact().")]
     public List<ActionEntry> actions = new List<ActionEntry>();
 
-    [Header("Vehicle / Hover ���������")]
-    [Tooltip("���� true � ����� ����� ����� � ���������� (PlayerVehicleController.IsInVehicle), " +
-             "hover �� ����� ������� ����� �������������� (��� ��������� � ���������). " +
-             "������ ��� �� ��������, ���� �� ��� ����� ���� ActionHost.")]
+    [Header("Настройки транспорта")]
+    [Tooltip("Если true и игрок в транспорте — hover не срабатывает.")]
     public bool ignoreWhileInVehicle = false;
 
-    /// <summary>
-    /// ������� PlayerVehicleController � ����� (�� ���� 'Player' ��� ����� FindObjectOfType).
-    /// </summary>
-        private PlayerVehicleController ResolvePlayerVehicleController()
-        {
-            var go = GameObject.FindWithTag("Player");
-            if (go != null)
-            {
-                var pvc = go.GetComponent<PlayerVehicleController>();
-                if (pvc != null) return pvc;
-            }
-
-            // ??????????? API ?????? ??????? ? ?????
-            return UnityEngine.Object.FindFirstObjectByType<PlayerVehicleController>();
-        }
+    private PlayerVehicleController ResolvePlayerVehicleController()
+    {
+        return PlayerLocator.VehicleController;
+    }
 
     public override void OnHoverEnter()
     {
@@ -63,10 +38,7 @@ public class InteractableActionHost : InteractableBase
         {
             var pvc = ResolvePlayerVehicleController();
             if (pvc != null && pvc.IsInVehicle)
-            {
-                // ����� � ���������� � ���������� hover ��� ����� �����������.
                 return;
-            }
         }
 
         base.OnHoverEnter();
@@ -78,18 +50,14 @@ public class InteractableActionHost : InteractableBase
         {
             var pvc = ResolvePlayerVehicleController();
             if (pvc != null && pvc.IsInVehicle)
-            {
-                // ���������� OnHoverEnter � ��� ����� �������, ���� ����� � ����������,
-                // �� ������� ��������� (��� � ��� �� ����������).
                 return;
-            }
         }
 
         base.OnHoverExit();
     }
 
     /// <summary>
-    /// ��������� �������� �� ������� (�� �������� ����).
+    /// Выполнить действие по индексу.
     /// </summary>
     public void ExecuteAction(int index)
     {
@@ -115,7 +83,6 @@ public class InteractableActionHost : InteractableBase
         if (a == null || a.type == ActionType.None)
             yield break;
 
-        // ������������� �������� ����� action
         if (a.delayBefore > 0f)
             yield return new WaitForSeconds(a.delayBefore);
 
@@ -124,7 +91,7 @@ public class InteractableActionHost : InteractableBase
             case ActionType.LoadScene:
                 if (string.IsNullOrEmpty(a.sceneName))
                 {
-                    Debug.LogWarning($"[InteractableActionHost] LoadScene action missing sceneName on {name}");
+                    Debug.LogWarning($"[InteractableActionHost] LoadScene: не указано имя сцены на {name}");
                     yield break;
                 }
                 if (a.useAsync)
@@ -141,7 +108,7 @@ public class InteractableActionHost : InteractableBase
             case ActionType.TeleportLocal:
                 if (a.teleportTarget == null)
                 {
-                    Debug.LogWarning($"[InteractableActionHost] TeleportLocal missing teleportTarget on {name}");
+                    Debug.LogWarning($"[InteractableActionHost] TeleportLocal: не указана точка телепорта на {name}");
                     yield break;
                 }
                 var mover = UnityEngine.Object.FindFirstObjectByType<PlayerMover>();
@@ -151,32 +118,31 @@ public class InteractableActionHost : InteractableBase
                 }
                 else
                 {
-                    Debug.LogWarning($"[InteractableActionHost] PlayerMover not found for TeleportLocal on {name}");
+                    Debug.LogWarning($"[InteractableActionHost] PlayerMover не найден для TeleportLocal на {name}");
                 }
                 break;
 
             case ActionType.OpenMenu:
-                if (InteractionMenuUI.Instance == null)
+                var menuUI = UIServices.Get<InteractionMenuUI>();
+                if (menuUI == null)
                 {
-                    Debug.LogWarning($"[InteractableActionHost] OpenMenu requested but InteractionMenuUI.Instance == null on {name}");
+                    Debug.LogWarning($"[InteractableActionHost] OpenMenu: InteractionMenuUI не найден на {name}");
                     yield break;
                 }
 
                 Action opt1 = null;
                 Action opt2 = null;
 
-                // option 1 � teleport local if provided, else sceneName, else no-op
                 if (a.teleportTarget != null)
                     opt1 = () => {
-                        var m = UnityEngine.Object.FindObjectOfType<PlayerMover>();
+                        var m = UnityEngine.Object.FindFirstObjectByType<PlayerMover>();
                         if (m != null) m.TeleportTo(a.teleportTarget.position);
                     };
                 else if (!string.IsNullOrEmpty(a.sceneName))
                     opt1 = () => SceneManager.LoadScene(a.sceneName);
                 else
-                    opt1 = () => Debug.Log($"[InteractableActionHost] OpenMenu option1 no-op for {name}");
+                    opt1 = () => Debug.Log($"[InteractableActionHost] OpenMenu option1: действие не задано для {name}");
 
-                // option 2 � secondary scene or custom callback if provided
                 if (!string.IsNullOrEmpty(a.sceneNameSecondary))
                 {
                     opt2 = () => SceneManager.LoadScene(a.sceneNameSecondary);
@@ -190,26 +156,25 @@ public class InteractableActionHost : InteractableBase
                 string label1 = string.IsNullOrEmpty(a.option1Label) ? "OK" : a.option1Label;
                 string label2 = string.IsNullOrEmpty(a.option2Label) ? null : a.option2Label;
 
-                InteractionMenuUI.Instance.Show(title, label1, opt1, label2, opt2, () => { });
+                menuUI.Show(title, label1, opt1, label2, opt2, () => { });
                 break;
+
 
             case ActionType.EnterVehicle:
                 if (a.vehicleRoot == null)
                 {
-                    Debug.LogWarning($"[InteractableActionHost] EnterVehicle missing vehicleRoot on {name}");
+                    Debug.LogWarning($"[InteractableActionHost] EnterVehicle: не указан vehicleRoot на {name}");
                     yield break;
                 }
 
-                // ���������� ���������: ���� ��������� VehicleSeatInteractable �� ���� �������
                 var seat = a.vehicleRoot.GetComponentInChildren<VehicleSeatInteractable>();
                 if (seat != null)
                 {
-                    // ���� �� �������� ��� ���� ������ � �������� � Interact().
                     seat.Interact();
                 }
                 else
                 {
-                    Debug.Log($"[InteractableActionHost] EnterVehicle requested for {a.vehicleRoot.name}, but VehicleSeatInteractable not found. Implement IVehicle for full behavior.");
+                    Debug.Log($"[InteractableActionHost] EnterVehicle: VehicleSeatInteractable не найден на {a.vehicleRoot.name}");
                 }
                 break;
 
@@ -218,7 +183,7 @@ public class InteractableActionHost : InteractableBase
                 break;
 
             default:
-                Debug.LogWarning($"[InteractableActionHost] Unknown action type {a.type} on {name}");
+                Debug.LogWarning($"[InteractableActionHost] Неизвестный тип действия {a.type} на {name}");
                 break;
         }
 
@@ -229,7 +194,7 @@ public class InteractableActionHost : InteractableBase
     {
         if (actions == null || actions.Count == 0)
         {
-            Debug.Log($"[InteractableActionHost] Interact called but no actions assigned on {name}");
+            Debug.Log($"[InteractableActionHost] Interact: нет назначенных действий на {name}");
             return;
         }
 
@@ -259,35 +224,35 @@ public enum ActionType
 [Serializable]
 public class ActionEntry
 {
-    [Tooltip("��� ��������")]
+    [Tooltip("Тип действия.")]
     public ActionType type = ActionType.None;
 
-    [Header("Generic")]
-    [Tooltip("�������� ����� ����������� (���)")]
+    [Header("Общее")]
+    [Tooltip("Задержка перед выполнением (сек).")]
     public float delayBefore = 0f;
 
-    [Header("LoadScene")]
-    [Tooltip("��� ����� ��� LoadScene")]
+    [Header("Загрузка сцены")]
+    [Tooltip("Имя сцены для LoadScene.")]
     public string sceneName;
-    [Tooltip("���������� ��������� �����")]
+    [Tooltip("Асинхронная загрузка сцены.")]
     public bool useAsync = true;
 
-    [Header("Teleport")]
-    [Tooltip("����� ��������� ������ �����")]
+    [Header("Телепорт")]
+    [Tooltip("Точка назначения внутри сцены.")]
     public Transform teleportTarget;
 
-    [Header("Menu")]
+    [Header("Меню")]
     public string menuTitle;
     public string option1Label;
     public string option2Label;
-    [Tooltip("������ ����� / �����")]
+    [Tooltip("Вторая сцена для второй опции меню.")]
     public string sceneNameSecondary;
 
-    [Header("Vehicle")]
-    [Tooltip("������ �� ������ ����������/��������")]
+    [Header("Транспорт")]
+    [Tooltip("Корневой объект транспорта.")]
     public GameObject vehicleRoot;
 
-    [Header("Custom")]
-    [Tooltip("Callback ��� ���������� (����������� � �������� �� ����)")]
+    [Header("Пользовательское действие")]
+    [Tooltip("Callback для программного назначения (не сериализуется).")]
     [NonSerialized] public Action customCallback;
 }

@@ -5,12 +5,8 @@ using UnityEngine.EventSystems;
 
 namespace UnityProject.Inventory
 {
-    /// <summary>
-    /// Визуальное представление одной строки в списке инвентаря.
-    /// Отображает иконку, название и количество предмета.
-    /// Поддерживает drag & drop для переноса между панелями.
-    /// </summary>
-    public class InventoryListRowView : MonoBehaviour,
+    public class InventoryListRowView : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler,
+        IPointerClickHandler,
         IBeginDragHandler, IDragHandler, IEndDragHandler
     {
         [Header("UI References")]
@@ -22,14 +18,15 @@ namespace UnityProject.Inventory
         private Canvas rootCanvas;
         private CanvasGroup canvasGroup;
 
-        // Контекст
         private InventoryListEntry boundEntry;
         private InventoryListView ownerListView;
         private IInventorySource sourceInventory;
 
-        // Для drag
-        private Vector2 dragOffset;
         private GameObject dragPreview;
+        private bool isDragging;
+
+        public InventoryListEntry BoundEntry => boundEntry;
+        public IInventorySource SourceInventory => sourceInventory;
 
         private void Awake()
         {
@@ -41,9 +38,6 @@ namespace UnityProject.Inventory
             rootCanvas = GetComponentInParent<Canvas>();
         }
 
-        /// <summary>
-        /// Настройка визуала и контекста строки.
-        /// </summary>
         public void Setup(InventoryListEntry entry, InventoryListView owner, IInventorySource source)
         {
             boundEntry = entry;
@@ -60,62 +54,70 @@ namespace UnityProject.Inventory
 
             if (iconImage != null)
             {
-                iconImage.enabled = true;
+                iconImage.enabled = entry.definition.icon != null;
                 iconImage.sprite = entry.definition.icon;
             }
 
             if (nameText != null)
-            {
                 nameText.text = entry.definition.displayName;
-            }
 
             if (quantityText != null)
+                quantityText.text = entry.totalQuantity > 1 ? $"x{entry.totalQuantity}" : "";
+        }
+
+        public void OnPointerClick(PointerEventData eventData)
+        {
+            if (isDragging) return;
+
+            if (eventData.button == PointerEventData.InputButton.Right)
             {
-                quantityText.text = entry.totalQuantity > 1
-                    ? $"x{entry.totalQuantity}"
-                    : "";
+                OpenContextMenu(eventData.position);
             }
         }
 
-        // =========================
-        // Drag & Drop
-        // =========================
+        private void OpenContextMenu(Vector2 screenPos)
+        {
+            if (boundEntry.definition == null) return;
+
+            var menu = InventoryContextMenuUI.Instance;
+            if (menu == null)
+            {
+                Debug.LogWarning("[InventoryListRowView] InventoryContextMenuUI.Instance == null.");
+                return;
+            }
+
+            menu.Show(boundEntry, sourceInventory, screenPos, PlayerLocator.Inventory);
+        }
 
         public void OnBeginDrag(PointerEventData eventData)
         {
             if (boundEntry.definition == null || ownerListView == null || sourceInventory == null)
                 return;
 
-            // Делаем строку полупрозрачной и создаём визуальный превью для drag.
+            isDragging = true;
             canvasGroup.alpha = 0.5f;
             canvasGroup.blocksRaycasts = false;
 
-            // Создаём простой превью (можно улучшить позже).
-            if (dragPreview == null && iconImage != null && iconImage.sprite != null)
+            if (iconImage != null && iconImage.sprite != null)
             {
                 dragPreview = new GameObject("DragPreview");
                 dragPreview.transform.SetParent(rootCanvas.transform, false);
                 var previewImage = dragPreview.AddComponent<Image>();
                 previewImage.sprite = iconImage.sprite;
                 previewImage.raycastTarget = false;
+                previewImage.color = new Color(1f, 1f, 1f, 0.7f);
                 var previewRect = dragPreview.GetComponent<RectTransform>();
-                previewRect.sizeDelta = new Vector2(64, 64);
+                previewRect.sizeDelta = new Vector2(48, 48);
             }
-
-            // Сохраняем offset для плавного следования за курсором.
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                rectTransform, eventData.position, eventData.pressEventCamera, out dragOffset);
         }
 
         public void OnDrag(PointerEventData eventData)
         {
             if (dragPreview == null) return;
 
-            // Перемещаем превью за курсором.
-            Vector2 screenPoint = eventData.position;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 rootCanvas.transform as RectTransform,
-                screenPoint,
+                eventData.position,
                 eventData.pressEventCamera,
                 out Vector2 localPoint);
 
@@ -124,21 +126,31 @@ namespace UnityProject.Inventory
 
         public void OnEndDrag(PointerEventData eventData)
         {
+            isDragging = false;
             canvasGroup.alpha = 1f;
             canvasGroup.blocksRaycasts = true;
 
-            // Уничтожаем превью.
             if (dragPreview != null)
             {
                 Destroy(dragPreview);
                 dragPreview = null;
             }
 
-            // Проверяем, над какой панелью был drop.
             if (ownerListView != null)
             {
                 ownerListView.OnRowDragEnd(this, eventData.position, sourceInventory, boundEntry);
             }
+        }
+
+        public void OnPointerEnter(PointerEventData eventData)
+        {
+            if (boundEntry.definition == null) return;
+            ItemTooltipUI.Instance?.Show(boundEntry.definition);
+        }
+
+        public void OnPointerExit(PointerEventData eventData)
+        {
+            ItemTooltipUI.Instance?.Hide();
         }
     }
 }

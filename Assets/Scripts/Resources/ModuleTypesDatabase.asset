@@ -14,5 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ModuleTypesDatabase
   moduleTypes:
   - typeName: Generator
-  - typeName: FuelTank
+    database: {fileID: 11400000, guid: 54121b5cadbab4f4c995cf32bd095521, type: 2}
   - typeName: EnergyStorage
+    database: {fileID: 11400000, guid: 7919acbaa0cd31b48a8a9851118e1ab9, type: 2}

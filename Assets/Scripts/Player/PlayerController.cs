@@ -1,27 +1,16 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-/// <summary>
-/// PlayerController — обновлённая версия с поддержкой jump buffering и опцией удержания.
-/// Исправляет баг: когда игрок нажимает кнопку прыжка в воздухе (до приземления),
-/// текущая реализация могла выполнить второй прыжок сразу при касании земли (неожиданно для игрока).
-/// 
-/// Теперь:
-/// - При нажатии jumpAction устанавливается флаг jumpRequested и время jumpRequestedTime = Time.time.
-/// - В Update/HandleGravityAndJump: прыжок выполняется только если IsGrounded() И (jumpRequested && Time.time - jumpRequestedTime <= jumpBufferTime).
-/// - После выполнения прыжка флаг сбрасывается.
-/// - Если игрок удерживает кнопку прыжка, можно контролировать поведение через acceptHoldToRepeat (по умолчанию false).
-/// </summary>
 [RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour
 {
-    [Header("Input (assign InputActionReference assets)")]
+    [Header("Input")]
     public InputActionReference moveAction;
     public InputActionReference sprintAction;
     public InputActionReference jumpAction;
 
     [Header("References")]
-    public Transform cameraTarget; // optional
+    public Transform cameraTarget;
 
     [Header("Movement")]
     public float walkSpeed = 3.5f;
@@ -37,11 +26,8 @@ public class PlayerController : MonoBehaviour
     public float gravity = -9.81f;
     public bool useCharacterControllerGround = true;
 
-    [Header("Jump Buffer / Hold behavior")]
-    [Tooltip("Время в секундах, в течение которого нажатие прыжка до приземления будет принято (buffer).")]
+    [Header("Jump Buffer")]
     public float jumpBufferTime = 0.15f;
-
-    [Tooltip("Если true — удержание кнопки прыжка приведёт к повторным прыжкам при каждом приземлении (обычно false).")]
     public bool acceptHoldToRepeat = false;
 
     [Header("Ground Check")]
@@ -49,83 +35,47 @@ public class PlayerController : MonoBehaviour
     public Vector3 groundCheckOffset = new Vector3(0, -0.1f, 0);
     public float groundCheckRadius = 0.2f;
 
-    [Header("Cursor")]
-    public bool lockCursorOnStart = true;
-
     [Header("Animation")]
-    [SerializeField] private string speedParam = "Speed"; // имя параметра в Animator
+    [SerializeField] private string speedParam = "Speed";
+
     private Animator animator;
-
-    CharacterController cc;
-    Vector2 moveInput = Vector2.zero;
-    bool isSprinting = false;
-
-    // Прыжковая логика
-    bool jumpRequested = false;
-    float jumpRequestedTime = -999f;
-    float verticalVelocity = 0f;
-
-    float currentVelocityAngle;
-    float smoothYaw;
+    private int speedParamHash;
+    private CharacterController cc;
+    private Vector2 moveInput;
+    private bool isSprinting;
+    private bool jumpRequested;
+    private float jumpRequestedTime = -999f;
+    private float verticalVelocity;
+    private float currentVelocityAngle;
+    private float smoothYaw;
 
     void Awake()
     {
         cc = GetComponent<CharacterController>();
-        animator = GetComponent<Animator>(); // только с этого объекта
+        animator = GetComponent<Animator>();
+        speedParamHash = Animator.StringToHash(speedParam);
+
         if (animator == null)
             Debug.LogWarning("[PlayerController] Animator not found on Player.");
     }
 
     void OnEnable()
     {
-        if (moveAction != null)
-        {
-            moveAction.action.performed += OnMovePerformed;
-            moveAction.action.canceled += OnMoveCanceled;
-            moveAction.action.Enable();
-        }
-        if (sprintAction != null)
-        {
-            sprintAction.action.performed += OnSprintPerformed;
-            sprintAction.action.canceled += OnSprintCanceled;
-            sprintAction.action.Enable();
-        }
-        if (jumpAction != null)
-        {
-            jumpAction.action.performed += OnJumpPerformed;
-            jumpAction.action.canceled += OnJumpCanceled;
-            jumpAction.action.Enable();
-        }
+        InputActionHelper.Subscribe(moveAction, OnMovePerformed, OnMoveCanceled);
+        InputActionHelper.Subscribe(sprintAction, OnSprintPerformed, OnSprintCanceled);
+        InputActionHelper.Subscribe(jumpAction, OnJumpPerformed, OnJumpCanceled);
     }
 
     void OnDisable()
     {
-        if (moveAction != null)
-        {
-            moveAction.action.performed -= OnMovePerformed;
-            moveAction.action.canceled -= OnMoveCanceled;
-            moveAction.action.Disable();
-        }
-        if (sprintAction != null)
-        {
-            sprintAction.action.performed -= OnSprintPerformed;
-            sprintAction.action.canceled -= OnSprintCanceled;
-            sprintAction.action.Disable();
-        }
-        if (jumpAction != null)
-        {
-            jumpAction.action.performed -= OnJumpPerformed;
-            jumpAction.action.canceled -= OnJumpCanceled;
-            jumpAction.action.Disable();
-        }
+        InputActionHelper.Unsubscribe(moveAction, OnMovePerformed, OnMoveCanceled);
+        InputActionHelper.Unsubscribe(sprintAction, OnSprintPerformed, OnSprintCanceled);
+        InputActionHelper.Unsubscribe(jumpAction, OnJumpPerformed, OnJumpCanceled);
     }
 
     void Start()
     {
-        // Курсором управляет CursorManager
         smoothYaw = transform.eulerAngles.y;
-    
-    
     }
 
     void Update()
@@ -134,26 +84,21 @@ public class PlayerController : MonoBehaviour
 
         Vector3 move = CalculateMoveVector();
         float baseSpeed = walkSpeed * (isSprinting ? sprintMultiplier : 1f);
-
         float currentHorizontalSpeed = baseSpeed * move.magnitude;
 
         if (animator != null)
-        {
-            int hash = Animator.StringToHash(speedParam);
-            animator.SetFloat(hash, currentHorizontalSpeed);
-        }
+            animator.SetFloat(speedParamHash, currentHorizontalSpeed);
 
         Vector3 horizontalMotion = move * baseSpeed * Time.deltaTime;
         Vector3 verticalMotion = Vector3.up * verticalVelocity * Time.deltaTime;
         cc.Move(horizontalMotion + verticalMotion);
 
         if (rotateToCameraOnInput && moveInput != Vector2.zero)
-        {
             RotateToCameraYaw();
-        }
     }
 
-    // Input callbacks
+    // === Input Callbacks ===
+
     void OnMovePerformed(InputAction.CallbackContext ctx) => moveInput = ctx.ReadValue<Vector2>();
     void OnMoveCanceled(InputAction.CallbackContext ctx) => moveInput = Vector2.zero;
     void OnSprintPerformed(InputAction.CallbackContext ctx) => isSprinting = ctx.ReadValueAsButton();
@@ -163,7 +108,6 @@ public class PlayerController : MonoBehaviour
     {
         if (ctx.performed)
         {
-            // Записываем запрос на прыжок и время
             jumpRequested = true;
             jumpRequestedTime = Time.time;
         }
@@ -171,12 +115,11 @@ public class PlayerController : MonoBehaviour
 
     void OnJumpCanceled(InputAction.CallbackContext ctx)
     {
-        // При отпускании кнопки: если hold не разрешён — сбрасываем запрос
         if (!acceptHoldToRepeat)
-        {
             jumpRequested = false;
-        }
     }
+
+    // === Logic ===
 
     void HandleGravityAndJump()
     {
@@ -186,17 +129,14 @@ public class PlayerController : MonoBehaviour
         {
             if (verticalVelocity < 0f) verticalVelocity = -2f;
 
-            // Выполняем прыжок только если есть валидный запрос и он не слишком стар (jumpBuffer)
             if (jumpRequested && (Time.time - jumpRequestedTime) <= jumpBufferTime)
             {
                 verticalVelocity = jumpForce;
-                jumpRequested = acceptHoldToRepeat; // если hold не разрешён — сбрасываем
-                // если hold разрешён, оставляем флаг в зависимости от логики (можно захотеть сбрасывать тоже)
+                jumpRequested = acceptHoldToRepeat;
             }
-            else
+            else if ((Time.time - jumpRequestedTime) > jumpBufferTime)
             {
-                // Если запрос старый — сбрасываем
-                if ((Time.time - jumpRequestedTime) > jumpBufferTime) jumpRequested = false;
+                jumpRequested = false;
             }
         }
         else
@@ -212,8 +152,6 @@ public class PlayerController : MonoBehaviour
         return Physics.CheckSphere(origin, groundCheckRadius, groundLayers, QueryTriggerInteraction.Ignore);
     }
 
-    // Остальные методы (RotateToCameraYaw, CalculateMoveVector и т.д.) остаются прежними из оригинала.
-    // Для компактности они не изменялись логически — оставим их как в исходной версии.
     Vector3 CalculateMoveVector()
     {
         Transform refTransform = cameraTarget;
@@ -240,7 +178,7 @@ public class PlayerController : MonoBehaviour
 
     void RotateToCameraYaw()
     {
-        float cameraYaw = GetPreferedCameraYaw();
+        float cameraYaw = GetPreferredCameraYaw();
         float currentYaw = transform.eulerAngles.y;
 
         if (instantRotateToCamera)
@@ -256,7 +194,7 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    float GetPreferedCameraYaw()
+    float GetPreferredCameraYaw()
     {
         float mainYaw = (Camera.main != null) ? Camera.main.transform.eulerAngles.y : float.NaN;
 
@@ -276,10 +214,10 @@ public class PlayerController : MonoBehaviour
 
     public void ForceStop()
     {
-        moveAction?.action?.Disable();
-        sprintAction?.action?.Disable();
-        // сбросить внутренний moveInput / анимацию, если нужно
-        moveAction?.action?.Enable();
-        sprintAction?.action?.Enable();
+        moveInput = Vector2.zero;
+        isSprinting = false;
+
+        if (animator != null)
+            animator.SetFloat(speedParamHash, 0f);
     }
 }

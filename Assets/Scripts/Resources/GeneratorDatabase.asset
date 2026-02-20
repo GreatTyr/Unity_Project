@@ -9,9 +9,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9c0be31b9e0ea10488cd16bd4ff3b54f, type: 3}
+  m_Script: {fileID: 11500000, guid: fdb0a9429d5fef1458dcc1dfcbc285bb, type: 3}
   m_Name: GeneratorDatabase
   m_EditorClassIdentifier: Assembly-CSharp::GeneratorDatabase
   generators:
-  - {fileID: 3758520909022433340, guid: 7d6f7ea3dff70d94281055e6aed6ec1e, type: 3}
-  - {fileID: 6527781267324726573, guid: ad53409229d16514e9c4b9fad019cd90, type: 3}
+  - {fileID: 406396205377248678, guid: 17d03eb4275120f47b02822b3e37cd1a, type: 3}
+  - {fileID: 2963866614151017785, guid: b4413b2403221d247b9825e9f734f36e, type: 3}

@@ -3,14 +3,9 @@ using UnityEngine;
 
 namespace UnityProject.Inventory
 {
-    /// <summary>
-    /// Главный компонент инвентаря игрока.
-    /// Содержит: основной инвентарь (List-based), экипировку, хотбар.
-    /// </summary>
     public class PlayerInventory : MonoBehaviour, IInventoryOwner
     {
         [Header("Equipment Slots")]
-        [Tooltip("Список типов слотов экипировки, которые есть у игрока.")]
         [SerializeField]
         private List<EquipmentSlotType> equipmentSlotTypes = new List<EquipmentSlotType>
         {
@@ -23,12 +18,10 @@ namespace UnityProject.Inventory
         };
 
         [Header("Hotbar")]
-        [Tooltip("Количество быстрых слотов (1..N).")]
         [SerializeField] private int hotbarSize = 4;
 
         [SerializeField] private Inventory mainInventory;
 
-        // НЕ сериализуем — всегда создаём в Awake из актуального списка
         private EquipmentSlots equipment;
         private Hotbar hotbar;
 
@@ -41,14 +34,10 @@ namespace UnityProject.Inventory
             if (mainInventory == null)
                 mainInventory = new Inventory();
 
-            // Всегда создаём из актуального списка — без проверки на null
             equipment = new EquipmentSlots(equipmentSlotTypes);
             hotbar = new Hotbar(hotbarSize);
         }
 
-        /// <summary>
-        /// Добавить предмет в основной инвентарь.
-        /// </summary>
         public int AddItem(ItemDefinition definition, int quantity = 1)
         {
             if (mainInventory == null) return 0;
@@ -57,7 +46,9 @@ namespace UnityProject.Inventory
 
         /// <summary>
         /// Экипировать предмет из инвентаря в указанный слот.
-        /// Если в слоте уже что-то есть — старый предмет возвращается в инвентарь.
+        /// Транзакционно: проверяет все условия ДО изменений.
+        /// Если в слоте что-то есть — старый предмет возвращается в инвентарь.
+        /// При неудаче на любом шаге — откат.
         /// </summary>
         public bool TryEquipItem(InventoryItem item, EquipmentSlotType targetSlot)
         {
@@ -67,16 +58,58 @@ namespace UnityProject.Inventory
                 return false;
             }
 
+            // ===== ФАЗА 1: ПРОВЕРКИ (ничего не меняем) =====
+
             if (!equipment.CanEquip(item, targetSlot))
                 return false;
 
-            if (!equipment.TryEquip(item, targetSlot, out InventoryItem previous))
+            // Проверяем, есть ли предмет в инвентаре
+            if (!mainInventory.Contains(item.definition))
+            {
+                Debug.LogWarning($"[PlayerInventory] TryEquipItem: {item.definition.displayName} не найден в инвентаре");
                 return false;
+            }
 
-            mainInventory.RemoveItem(item);
+            // Узнаём, что сейчас в целевом слоте (без изменений)
+            var slot = equipment.GetSlot(targetSlot);
+            bool slotOccupied = slot != null
+                && slot.equippedItem != null
+                && slot.equippedItem.definition != null;
 
+            // ===== ФАЗА 2: ВЫПОЛНЕНИЕ С ОТКАТОМ =====
+
+            // Шаг 1: убираем предмет из инвентаря
+            bool removed = mainInventory.RemoveItem(item);
+            if (!removed)
+            {
+                Debug.LogWarning($"[PlayerInventory] TryEquipItem: не удалось удалить {item.definition.displayName} из инвентаря");
+                return false;
+            }
+
+            // Шаг 2: экипируем (получаем предыдущий предмет)
+            if (!equipment.TryEquip(item, targetSlot, out InventoryItem previous))
+            {
+                // Откат шага 1: возвращаем предмет в инвентарь
+                mainInventory.AddItem(item.definition, item.quantity);
+                Debug.LogWarning($"[PlayerInventory] TryEquipItem: TryEquip провалился, откат");
+                return false;
+            }
+
+            // Шаг 3: возвращаем предыдущий предмет в инвентарь
             if (previous != null && previous.definition != null)
-                mainInventory.AddItem(previous.definition, previous.quantity);
+            {
+                int returned = mainInventory.AddItem(previous.definition, previous.quantity);
+
+                // Если не удалось вернуть полностью — логируем, но не откатываем
+                // (в List-based инвентаре без лимита это невозможно,
+                //  но на будущее — защита)
+                if (returned < previous.quantity)
+                {
+                    Debug.LogError($"[PlayerInventory] TryEquipItem: не удалось вернуть " +
+                                   $"{previous.definition.displayName} полностью в инвентарь! " +
+                                   $"Возвращено {returned}/{previous.quantity}");
+                }
+            }
 
             return true;
         }
@@ -86,13 +119,28 @@ namespace UnityProject.Inventory
         /// </summary>
         public bool TryUnequipItem(EquipmentSlotType slotType)
         {
+            // Проверяем, есть ли что снимать
+            var slot = equipment.GetSlot(slotType);
+            if (slot == null || slot.equippedItem == null || slot.equippedItem.definition == null)
+                return false;
+
             if (!equipment.TryUnequip(slotType, out InventoryItem previous))
                 return false;
 
             if (previous == null || previous.definition == null)
                 return false;
 
-            mainInventory.AddItem(previous.definition, previous.quantity);
+            int added = mainInventory.AddItem(previous.definition, previous.quantity);
+
+            if (added < previous.quantity)
+            {
+                // Откат: надеваем обратно
+                equipment.TryEquip(previous, slotType, out _);
+                Debug.LogWarning($"[PlayerInventory] TryUnequipItem: не удалось вернуть " +
+                                 $"{previous.definition.displayName} в инвентарь, откат");
+                return false;
+            }
+
             return true;
         }
 
@@ -106,9 +154,6 @@ namespace UnityProject.Inventory
             return hotbar?.GetItem(index);
         }
 
-        /// <summary>
-        /// Общий вес: инвентарь + экипировка.
-        /// </summary>
         public float CalculateTotalWeight()
         {
             float total = 0f;

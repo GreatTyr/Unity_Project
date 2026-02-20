@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -23,11 +24,27 @@ namespace UnityProject.Inventory
         private readonly List<Button> tabButtons = new List<Button>();
         private readonly List<Button> filterButtons = new List<Button>();
 
-        // Цвета для активной/неактивной вкладки
+        // Список фильтров: null (Все) + все значения enum
+        private readonly List<ItemCategory?> filterOrder = new List<ItemCategory?>();
+
         private static readonly Color ActiveTabColor = new Color(0.16f, 0.63f, 0.78f, 1f);
         private static readonly Color InactiveTabColor = new Color(0.24f, 0.24f, 0.31f, 1f);
         private static readonly Color ActiveFilterColor = new Color(0.16f, 0.63f, 0.78f, 1f);
         private static readonly Color InactiveFilterColor = new Color(0.24f, 0.24f, 0.31f, 1f);
+
+        /// <summary>
+        /// Маппинг enum → русское название для кнопок фильтра.
+        /// При добавлении новой категории в ItemCategory — добавить строку сюда.
+        /// Если не добавить — будет использовано имя из enum.
+        /// </summary>
+        private static readonly Dictionary<ItemCategory, string> CategoryDisplayNames = new Dictionary<ItemCategory, string>
+        {
+            { ItemCategory.Weapon,   "Оружие"  },
+            { ItemCategory.Armor,    "Броня"   },
+            { ItemCategory.Module,   "Модули"  },
+            { ItemCategory.Resource, "Ресурсы" },
+            { ItemCategory.Other,    "Прочее"  },
+        };
 
         public InventoryPanelView OtherPanel { get; set; }
 
@@ -43,7 +60,6 @@ namespace UnityProject.Inventory
 
         public void SetSources(List<IInventorySource> newSources)
         {
-            // Отписываемся от старых источников
             UnsubscribeFromSources();
 
             sources = newSources ?? new List<IInventorySource>();
@@ -54,7 +70,6 @@ namespace UnityProject.Inventory
             RefreshFilters();
             RefreshList();
 
-            // Подписываемся на события изменений
             SubscribeToSources();
         }
 
@@ -122,7 +137,7 @@ namespace UnityProject.Inventory
         {
             if (index < 0 || index >= sources.Count) return;
             selectedTabIndex = index;
-            currentFilter = null; // Сбрасываем фильтр при смене вкладки
+            currentFilter = null;
             UpdateTabVisuals();
             UpdateFilterVisuals();
             RefreshList();
@@ -130,7 +145,6 @@ namespace UnityProject.Inventory
 
         private void UpdateTabVisuals()
         {
-            // Подсвечиваем активную вкладку
             int visibleIndex = 0;
             for (int i = 0; i < sources.Count; i++)
             {
@@ -152,24 +166,38 @@ namespace UnityProject.Inventory
             foreach (var btn in filterButtons)
                 if (btn != null) Destroy(btn.gameObject);
             filterButtons.Clear();
+            filterOrder.Clear();
 
             if (filtersContainer == null) return;
 
-            // Если нет prefab — создаём кнопки из tabButtonPrefab или вручную
             var prefab = filterButtonPrefab != null ? filterButtonPrefab : tabButtonPrefab;
             if (prefab == null) return;
 
-            // Кнопка "Все"
+            // Кнопка "Все" (null = без фильтра)
             CreateFilterButton(prefab, "Все", null);
+            filterOrder.Add(null);
 
-            // Кнопки по категориям
-            CreateFilterButton(prefab, "Оружие", ItemCategory.Weapon);
-            CreateFilterButton(prefab, "Броня", ItemCategory.Armor);
-            CreateFilterButton(prefab, "Модули", ItemCategory.Module);
-            CreateFilterButton(prefab, "Ресурсы", ItemCategory.Resource);
-            CreateFilterButton(prefab, "Прочее", ItemCategory.Other);
+            // Автоматически генерируем кнопки из enum ItemCategory
+            foreach (ItemCategory category in Enum.GetValues(typeof(ItemCategory)))
+            {
+                string displayName = GetCategoryDisplayName(category);
+                CreateFilterButton(prefab, displayName, category);
+                filterOrder.Add(category);
+            }
 
             UpdateFilterVisuals();
+        }
+
+        /// <summary>
+        /// Получить русское название категории.
+        /// Если маппинг не задан — возвращает имя из enum.
+        /// </summary>
+        private static string GetCategoryDisplayName(ItemCategory category)
+        {
+            if (CategoryDisplayNames.TryGetValue(category, out string name))
+                return name;
+
+            return category.ToString();
         }
 
         private void CreateFilterButton(GameObject prefab, string label, ItemCategory? category)
@@ -198,10 +226,7 @@ namespace UnityProject.Inventory
 
         private void UpdateFilterVisuals()
         {
-            // Индекс 0 = "Все" (null), 1 = Weapon, 2 = Armor, ...
-            ItemCategory?[] filterOrder = { null, ItemCategory.Weapon, ItemCategory.Armor, ItemCategory.Module, ItemCategory.Resource, ItemCategory.Other };
-
-            for (int i = 0; i < filterButtons.Count && i < filterOrder.Length; i++)
+            for (int i = 0; i < filterButtons.Count && i < filterOrder.Count; i++)
             {
                 var img = filterButtons[i].GetComponent<Image>();
                 if (img != null)

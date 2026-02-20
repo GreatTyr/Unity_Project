@@ -5,83 +5,127 @@ using UnityEngine.EventSystems;
 
 namespace UnityProject.Inventory
 {
-    /// <summary>
-    /// Визуальное представление одного слота экипировки на кукле игрока.
-    /// Отвечает только за отображение и обработку клика по слоту,
-    /// а логику экипировки/снятия делегирует во внешний контроллер.
-    /// </summary>
-    public class EquipmentSlotView : MonoBehaviour, IPointerClickHandler
+    public class EquipmentSlotView : MonoBehaviour,
+        IPointerClickHandler,
+        IDropHandler,
+        IPointerEnterHandler,
+        IPointerExitHandler
     {
         [Header("Config")]
-        [Tooltip("Тип экипировочного слота, которому соответствует этот UI-элемент.")]
         [SerializeField] private EquipmentSlotType slotType = EquipmentSlotType.None;
 
         [Header("UI References")]
-        [Tooltip("Иконка экипированного предмета (может быть пустой).")]
         [SerializeField] private Image iconImage;
-        [Tooltip("Текстовая метка слота (например, 'HEAD', 'BODY').")]
         [SerializeField] private TextMeshProUGUI slotLabel;
 
-        /// <summary>
-        /// Ссылка на контроллер куклы игрока.
-        /// Через него мы вызываем операции инвентаря.
-        /// </summary>
+        [Header("Background")]
+        [SerializeField] private Image backgroundImage;
+
+        [Header("Visual Feedback Colors")]
+        [SerializeField] private Color normalColor = new Color(0.18f, 0.18f, 0.25f, 0.8f);
+        [SerializeField] private Color validDropColor = new Color(0.2f, 0.6f, 0.2f, 0.9f);
+        [SerializeField] private Color invalidDropColor = new Color(0.6f, 0.2f, 0.2f, 0.9f);
+        [SerializeField] private Color occupiedDropColor = new Color(0.6f, 0.5f, 0.1f, 0.9f);
+
         private PlayerPaperDollView paperDollView;
 
         public EquipmentSlotType SlotType => slotType;
 
-        /// <summary>
-        /// Инициализация вида слота ссылкой на контроллер куклы.
-        /// </summary>
         public void Initialize(PlayerPaperDollView owner)
         {
             paperDollView = owner;
 
-            // Можно автоматически проставить текст метки, если он не задан.
             if (slotLabel != null && string.IsNullOrEmpty(slotLabel.text))
-            {
                 slotLabel.text = slotType.ToString().ToUpperInvariant();
-            }
+
+            if (backgroundImage == null)
+                backgroundImage = GetComponent<Image>();
+
+            ResetVisual();
         }
 
-        /// <summary>
-        /// Обновление визуальной части из модели слота экипировки.
-        /// </summary>
         public void Refresh(EquipmentSlot slot)
         {
-            if (slot == null || slot.equippedItem == null || slot.equippedItem.definition == null)
+            bool hasItem = slot != null
+                && slot.equippedItem != null
+                && slot.equippedItem.definition != null;
+
+            if (iconImage != null)
             {
-                // Если слота нет или предмет не экипирован – скрываем иконку.
-                if (iconImage != null)
+                if (hasItem)
+                {
+                    iconImage.enabled = true;
+                    iconImage.sprite = slot.equippedItem.definition.icon;
+                }
+                else
                 {
                     iconImage.enabled = false;
                     iconImage.sprite = null;
                 }
-                return;
-            }
-
-            if (iconImage != null)
-            {
-                iconImage.enabled = true;
-                iconImage.sprite = slot.equippedItem.definition.icon;
             }
         }
 
-        /// <summary>
-        /// Обработка клика по слоту.
-        /// По умолчанию – попытка снять предмет (левый клик).
-        /// Вся бизнесс-логика лежит в PlayerPaperDollView / PlayerInventory.
-        /// </summary>
         public void OnPointerClick(PointerEventData eventData)
         {
-            if (eventData.button != PointerEventData.InputButton.Left)
-                return;
-
-            if (paperDollView == null)
-                return;
-
+            if (eventData.button != PointerEventData.InputButton.Left) return;
+            if (paperDollView == null) return;
             paperDollView.OnSlotClicked(this);
+        }
+
+        public void OnDrop(PointerEventData eventData)
+        {
+            ResetVisual();
+
+            if (eventData.pointerDrag == null) return;
+            var draggedRow = eventData.pointerDrag.GetComponent<InventoryListRowView>();
+            if (draggedRow == null) return;
+
+            var entry = draggedRow.BoundEntry;
+            if (entry.definition == null) return;
+            if (!entry.definition.isEquippable) return;
+            if (entry.definition.equipmentSlotType != slotType) return;
+            if (paperDollView == null) return;
+
+            paperDollView.OnItemDroppedOnSlot(this, draggedRow);
+        }
+
+        public void OnPointerEnter(PointerEventData eventData)
+        {
+            if (eventData.pointerDrag == null) return;
+            var draggedRow = eventData.pointerDrag.GetComponent<InventoryListRowView>();
+            if (draggedRow == null) return;
+
+            var entry = draggedRow.BoundEntry;
+            if (entry.definition == null) return;
+            if (backgroundImage == null) return;
+
+            if (!entry.definition.isEquippable ||
+                entry.definition.equipmentSlotType != slotType)
+            {
+                backgroundImage.color = invalidDropColor;
+                return;
+            }
+
+            bool slotOccupied = false;
+            var playerInv = PlayerLocator.Inventory;
+            if (playerInv?.Equipment != null)
+            {
+                var s = playerInv.Equipment.GetSlot(slotType);
+                slotOccupied = s?.equippedItem?.definition != null;
+            }
+
+            backgroundImage.color = slotOccupied ? occupiedDropColor : validDropColor;
+        }
+
+        public void OnPointerExit(PointerEventData eventData)
+        {
+            ResetVisual();
+        }
+
+        private void ResetVisual()
+        {
+            if (backgroundImage != null)
+                backgroundImage.color = normalColor;
         }
     }
 }
-

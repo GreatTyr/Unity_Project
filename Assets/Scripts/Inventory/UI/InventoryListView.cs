@@ -5,16 +5,22 @@ using UnityEngine.EventSystems;
 
 namespace UnityProject.Inventory
 {
+    /// <summary>
+    /// Отображает список предметов инвентаря в ScrollView.
+    /// M-008: Использует object pooling вместо Destroy/Instantiate при каждом Refresh.
+    /// </summary>
     public class InventoryListView : MonoBehaviour
     {
-        [SerializeField] private ScrollRect scrollRect;
         [SerializeField] private RectTransform contentContainer;
         [SerializeField] private InventoryListRowView rowPrefab;
 
         private IInventorySource currentSource;
         private InventoryPanelView ownerPanel;
         private ItemCategory? currentFilter = null;
-        private readonly List<InventoryListRowView> spawnedRows = new List<InventoryListRowView>();
+
+        // Пул строк: activeRows — видимые, pooledRows — скрытые и готовые к переиспользованию
+        private readonly List<InventoryListRowView> activeRows = new List<InventoryListRowView>();
+        private readonly List<InventoryListRowView> pooledRows = new List<InventoryListRowView>();
 
         public void SetOwnerPanel(InventoryPanelView panel) => ownerPanel = panel;
 
@@ -24,9 +30,6 @@ namespace UnityProject.Inventory
             Refresh();
         }
 
-        /// <summary>
-        /// Установить фильтр категории. null = показать все.
-        /// </summary>
         public void SetFilter(ItemCategory? filter)
         {
             currentFilter = filter;
@@ -35,30 +38,76 @@ namespace UnityProject.Inventory
 
         public void Refresh()
         {
-            // Очищаем старые строки
-            foreach (var row in spawnedRows)
-                if (row != null) Destroy(row.gameObject);
-            spawnedRows.Clear();
+            // Возвращаем все активные строки в пул
+            ReturnAllToPool();
 
             if (currentSource?.MainInventory == null || rowPrefab == null) return;
 
-            // Строим список С УЧЁТОМ фильтра
             var entries = InventoryListModel.BuildList(currentSource.MainInventory, currentFilter);
 
             foreach (var entry in entries)
             {
-                var row = Instantiate(rowPrefab, contentContainer);
-                spawnedRows.Add(row);
+                var row = GetRowFromPool();
                 row.Setup(entry, this, currentSource);
             }
 
-            // НЕ трогаем sizeDelta вручную!
-            // ContentSizeFitter + VerticalLayoutGroup на Content сами рассчитают высоту.
-            // Принудительно перестраиваем Layout, чтобы строки встали правильно.
+            // Перестраиваем layout
             if (contentContainer != null)
-            {
                 LayoutRebuilder.ForceRebuildLayoutImmediate(contentContainer);
+        }
+
+        /// <summary>
+        /// Получить строку из пула или создать новую.
+        /// </summary>
+        private InventoryListRowView GetRowFromPool()
+        {
+            InventoryListRowView row;
+
+            if (pooledRows.Count > 0)
+            {
+                // Берём последнюю из пула (быстрее чем из начала)
+                int lastIndex = pooledRows.Count - 1;
+                row = pooledRows[lastIndex];
+                pooledRows.RemoveAt(lastIndex);
+                row.gameObject.SetActive(true);
             }
+            else
+            {
+                // Пул пуст — создаём новую строку
+                row = Instantiate(rowPrefab, contentContainer);
+            }
+
+            activeRows.Add(row);
+            return row;
+        }
+
+        /// <summary>
+        /// Вернуть все активные строки в пул (деактивировать, не уничтожать).
+        /// </summary>
+        private void ReturnAllToPool()
+        {
+            foreach (var row in activeRows)
+            {
+                if (row == null) continue;
+                row.gameObject.SetActive(false);
+                pooledRows.Add(row);
+            }
+            activeRows.Clear();
+        }
+
+        /// <summary>
+        /// Очистить пул полностью (при уничтожении компонента).
+        /// </summary>
+        private void OnDestroy()
+        {
+            foreach (var row in activeRows)
+                if (row != null) Destroy(row.gameObject);
+
+            foreach (var row in pooledRows)
+                if (row != null) Destroy(row.gameObject);
+
+            activeRows.Clear();
+            pooledRows.Clear();
         }
 
         public void OnRowDragEnd(

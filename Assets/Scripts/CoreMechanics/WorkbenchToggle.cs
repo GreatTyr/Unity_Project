@@ -2,12 +2,12 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
-/// Р’СЂРµРјРµРЅРЅС‹Р№ СЃРєСЂРёРїС‚ РґР»СЏ РѕС‚РєСЂС‹С‚РёСЏ/Р·Р°РєСЂС‹С‚РёСЏ РІРµСЂСЃС‚Р°РєР° РїРѕ РєР»Р°РІРёС€Рµ P.
-/// РџРѕРІРµСЃРёС‚СЊ РЅР° С‚РѕС‚ Р¶Рµ GameObject, С‡С‚Рѕ Рё ModuleWorkbench, РёР»Рё Р»СЋР±РѕР№ РґСЂСѓРіРѕР№.
+/// Временный скрипт для открытия/закрытия верстака по клавише P.
+/// Повесить на тот же GameObject, что и ModuleWorkbench, или любой другой.
 /// </summary>
 public class WorkbenchToggle : MonoBehaviour
 {
-    [Tooltip("РЎСЃС‹Р»РєР° РЅР° РІРµСЂСЃС‚Р°Рє. Р•СЃР»Рё РЅРµ РЅР°Р·РЅР°С‡РµРЅР° вЂ” РёС‰РµС‚ РЅР° СЌС‚РѕРј Р¶Рµ РѕР±СЉРµРєС‚Рµ.")]
+    [Tooltip("Ссылка на верстак. Если не назначена — ищет на этом же объекте.")]
     public ModuleWorkbench workbench;
 
     private bool isOpen;

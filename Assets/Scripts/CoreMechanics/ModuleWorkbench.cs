@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -6,7 +6,8 @@ using UnityEngine.InputSystem;
 /// <summary>
 /// UI верстака крафта модулей на IMGUI.
 /// Вешается на GameObject верстака. Склады назначаются в инспекторе.
-/// Использует IModuleCalculator для делегирования расчётов конкретным типам модулей.
+/// Калькуляторы модулей создаются автоматически из баз данных,
+/// привязанных к типам в ModuleTypesDatabase.
 /// Путь: Assets/Scripts/CoreMechanics/ModuleWorkbench.cs
 /// </summary>
 public class ModuleWorkbench : MonoBehaviour
@@ -18,6 +19,9 @@ public class ModuleWorkbench : MonoBehaviour
     [Tooltip("Resources storage to consume metal and energy on craft.")]
     public ResourcesStorage resourcesStorage;
 
+    [Tooltip("Module storage to save crafted modules.")]
+    public ModuleStorage moduleStorage;
+
     // ====================== State ======================
     private bool panelOpen;
     private Rect windowRect = new Rect(30, 30, 1000, 612);
@@ -26,7 +30,7 @@ public class ModuleWorkbench : MonoBehaviour
     private int selectedModuleTypeIndex;
     private string[] moduleTypeNames;
 
-    // Calculators
+    // Calculators — создаются из IModuleDatabase
     private Dictionary<string, IModuleCalculator> calculators;
     private IModuleCalculator activeCalculator;
 
@@ -72,34 +76,55 @@ public class ModuleWorkbench : MonoBehaviour
     private Vector2 scrollPos;
 
     // ====================== Init ======================
-
     private void Awake()
     {
         BuildCalculators();
     }
 
+    /// <summary>
+    /// Автоматически создаёт калькуляторы из всех баз данных,
+    /// привязанных к типам в ModuleTypesDatabase.
+    /// </summary>
     private void BuildCalculators()
     {
         calculators = new Dictionary<string, IModuleCalculator>();
 
-        // Регистрируем все калькуляторы
-        RegisterCalculator(new EnergyStorageCalculator());
-        // В будущем:
-        // RegisterCalculator(new GeneratorCalculator());
-        // RegisterCalculator(new FuelTankCalculator());
-    }
+        var db = ModuleTypesDatabase.Instance;
+        if (db == null)
+        {
+            Debug.LogWarning("[ModuleWorkbench] ModuleTypesDatabase not found!");
+            return;
+        }
 
-    private void RegisterCalculator(IModuleCalculator calc)
-    {
-        if (calc == null) return;
-        calculators[calc.ModuleType] = calc;
+        foreach (var entry in db.moduleTypes)
+        {
+            if (entry == null || string.IsNullOrEmpty(entry.typeName)) continue;
+            if (entry.database == null) continue;
+
+            if (entry.database is IModuleDatabase moduleDb)
+            {
+                try
+                {
+                    var calc = moduleDb.CreateCalculator();
+                    if (calc != null)
+                    {
+                        calculators[entry.typeName] = calc;
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogError($"[ModuleWorkbench] Failed to create calculator for '{entry.typeName}': {ex.Message}");
+                }
+            }
+        }
     }
 
     // ====================== Open / Close ======================
-
     public void OpenPanel()
     {
         panelOpen = true;
+        // Перестраиваем калькуляторы при каждом открытии — на случай если БД изменились
+        BuildCalculators();
         RebuildAllLists();
         ResetToDefaults();
     }
@@ -107,6 +132,7 @@ public class ModuleWorkbench : MonoBehaviour
     public void ClosePanel()
     {
         panelOpen = false;
+        WorkbenchPopup.Hide();
     }
 
     private void Update()
@@ -125,16 +151,26 @@ public class ModuleWorkbench : MonoBehaviour
     }
 
     // ====================== OnGUI ======================
-
     private void OnGUI()
     {
         if (!panelOpen) return;
+
+        // Если popup открыт и кликнули вне него — закрыть
+        if (WorkbenchPopup.IsShowing && Event.current.type == EventType.MouseDown)
+        {
+            Vector2 screenMouse = Event.current.mousePosition;
+            if (!WorkbenchPopup.PopupRect.Contains(screenMouse))
+            {
+                WorkbenchPopup.Hide();
+                Event.current.Use();
+            }
+        }
+
         windowRect = GUI.Window(298765, windowRect, DrawWindow, "Верстак модулей");
-        GenericMenuIMGUI.DrawPopup();
+        WorkbenchPopup.DrawPopup();
     }
 
     // ====================== Main Window ======================
-
     private void DrawWindow(int id)
     {
         GUI.DragWindow(new Rect(0, 0, 10000, 20));
@@ -230,7 +266,7 @@ public class ModuleWorkbench : MonoBehaviour
         GUILayout.Label("Тип модуля:", GUILayout.Width(130));
         if (moduleTypeNames != null && moduleTypeNames.Length > 0)
         {
-            int newIdx = DrawPopup(selectedModuleTypeIndex, moduleTypeNames, "moduleType");
+            int newIdx = DrawDropdown("wb_moduleType", selectedModuleTypeIndex, moduleTypeNames);
             if (newIdx != selectedModuleTypeIndex)
             {
                 selectedModuleTypeIndex = newIdx;
@@ -246,7 +282,7 @@ public class ModuleWorkbench : MonoBehaviour
         {
             string[] refNames = activeCalculator.GetReferenceNames();
             int curIdx = activeCalculator.SelectedIndex;
-            int newIdx = DrawPopup(curIdx, refNames, "moduleRef");
+            int newIdx = DrawDropdown("wb_moduleRef", curIdx, refNames);
             if (newIdx != curIdx)
             {
                 activeCalculator.SelectReference(newIdx);
@@ -307,7 +343,7 @@ public class ModuleWorkbench : MonoBehaviour
         GUILayout.Label("Сплав оболочки:", GUILayout.Width(130));
         if (alloyDisplayNames != null && alloyDisplayNames.Length > 0)
         {
-            int newIdx = DrawPopup(selectedAlloyIndex, alloyDisplayNames, "alloySelect");
+            int newIdx = DrawDropdown("wb_alloySelect", selectedAlloyIndex, alloyDisplayNames);
             if (newIdx != selectedAlloyIndex)
             {
                 selectedAlloyIndex = newIdx;
@@ -351,6 +387,7 @@ public class ModuleWorkbench : MonoBehaviour
                 RecalculateFromScaleInput();
             }
         }
+
         string unit = scaleMode == ScaleMode.Mass ? "кг" :
                       scaleMode == ScaleMode.EffectiveVolume ? "м³" : "м";
         GUILayout.Label(unit, GUILayout.Width(25));
@@ -391,7 +428,6 @@ public class ModuleWorkbench : MonoBehaviour
     private void DrawModuleSpecificSection()
     {
         if (activeCalculator == null) return;
-
         GUILayout.Label($"Параметры: {activeCalculator.ModuleType}", GetBoldStyle());
         activeCalculator.DrawResultsGUI();
     }
@@ -406,8 +442,8 @@ public class ModuleWorkbench : MonoBehaviour
             return;
         }
 
-        GUILayout.Label($"Тир сплава: {alloyParams.tier}    " +
-                        $"Химикаты: {(alloyParams.useChemicals ? "Да" : "Нет")}    " +
+        GUILayout.Label($"Тир сплава: {alloyParams.tier}   " +
+                        $"Химикаты: {(alloyParams.useChemicals ? "Да" : "Нет")}   " +
                         $"Наниты: {(alloyParams.useNanites ? "Да" : "Нет")}");
 
         float colW = (windowRect.width - 40) * 0.24f;
@@ -435,7 +471,6 @@ public class ModuleWorkbench : MonoBehaviour
 
         // Left: costs
         GUILayout.BeginVertical(GUILayout.Width(windowRect.width * 0.6f - 10));
-
         GUILayout.Label("Стоимость изготовления", GetBoldStyle());
 
         string alloyCode = GetSelectedAlloyCode();
@@ -492,7 +527,6 @@ public class ModuleWorkbench : MonoBehaviour
     }
 
     // ====================== Helpers ======================
-
     private void LabelPair(string left, string right)
     {
         GUILayout.BeginHorizontal();
@@ -506,12 +540,10 @@ public class ModuleWorkbench : MonoBehaviour
         GUILayout.BeginHorizontal();
         GUILayout.Label(label, GUILayout.Width(180));
         GUILayout.Label($"{needed:F3} {unit}", GUILayout.Width(110));
-
         Color prev = GUI.color;
         if (!enough) GUI.color = Color.red;
         GUILayout.Label($"(есть: {available:F3})", GUILayout.Width(150));
         GUI.color = prev;
-
         GUILayout.EndHorizontal();
     }
 
@@ -520,38 +552,38 @@ public class ModuleWorkbench : MonoBehaviour
         GUILayout.BeginHorizontal();
         GUILayout.Label(label, GUILayout.Width(180));
         GUILayout.Label($"{needed}", GUILayout.Width(110));
-
         Color prev = GUI.color;
         if (!enough) GUI.color = Color.red;
         GUILayout.Label($"(есть: {available})", GUILayout.Width(150));
         GUI.color = prev;
-
         GUILayout.EndHorizontal();
     }
 
-    // ====================== Popup ======================
+    // ====================== Dropdown ======================
+    private Dictionary<string, int> _pendingSelections = new Dictionary<string, int>();
 
-    // Хранилище состояний popup'ов по тегу
-    private Dictionary<string, int> _popupResults = new Dictionary<string, int>();
-
-    private int DrawPopup(int selected, string[] options, string tag)
+    private int DrawDropdown(string tag, int selected, string[] options)
     {
         if (options == null || options.Length == 0) return selected;
         selected = Mathf.Clamp(selected, 0, options.Length - 1);
 
         string current = options[selected];
-        if (GUILayout.Button(current, "popup"))
+
+        if (GUILayout.Button(current, GUI.skin.button, GUILayout.MinWidth(120)))
         {
+            Vector2 screenPos = GUIUtility.GUIToScreenPoint(Event.current.mousePosition);
             string capturedTag = tag;
-            GenericMenuIMGUI.Show(options, selected, idx =>
+            string[] capturedOptions = options;
+
+            WorkbenchPopup.Show(capturedOptions, selected, screenPos, idx =>
             {
-                _popupResults[capturedTag] = idx;
+                _pendingSelections[capturedTag] = idx;
             });
         }
 
-        if (_popupResults.TryGetValue(tag, out int result))
+        if (_pendingSelections.TryGetValue(tag, out int result))
         {
-            _popupResults.Remove(tag);
+            _pendingSelections.Remove(tag);
             return Mathf.Clamp(result, 0, options.Length - 1);
         }
 
@@ -565,7 +597,6 @@ public class ModuleWorkbench : MonoBehaviour
     }
 
     // ====================== List Building ======================
-
     private void RebuildAllLists()
     {
         RebuildModuleTypeList();
@@ -575,30 +606,27 @@ public class ModuleWorkbench : MonoBehaviour
 
     private void RebuildModuleTypeList()
     {
+        // Показываем только те типы, для которых есть калькулятор
+        var available = new List<string>();
+
         var db = ModuleTypesDatabase.Instance;
         if (db != null)
         {
-            // Показываем только те типы, для которых есть калькулятор
-            var available = new List<string>();
-            string[] allNames = db.GetAllNames();
-            foreach (var name in allNames)
+            foreach (var entry in db.moduleTypes)
             {
-                if (calculators.ContainsKey(name))
-                    available.Add(name);
+                if (entry == null || string.IsNullOrEmpty(entry.typeName)) continue;
+                if (calculators.ContainsKey(entry.typeName))
+                    available.Add(entry.typeName);
             }
+        }
 
-            if (available.Count > 0)
-            {
-                moduleTypeNames = available.ToArray();
-            }
-            else
-            {
-                moduleTypeNames = new string[] { "(Нет доступных типов)" };
-            }
+        if (available.Count > 0)
+        {
+            moduleTypeNames = available.ToArray();
         }
         else
         {
-            moduleTypeNames = new string[] { "(No ModuleTypesDatabase)" };
+            moduleTypeNames = new string[] { "(Нет доступных типов)" };
         }
 
         selectedModuleTypeIndex = 0;
@@ -622,7 +650,6 @@ public class ModuleWorkbench : MonoBehaviour
     }
 
     // ====================== Selection Callbacks ======================
-
     private void OnModuleTypeChanged()
     {
         activeCalculator = null;
@@ -634,8 +661,6 @@ public class ModuleWorkbench : MonoBehaviour
         if (calculators.TryGetValue(typeName, out var calc))
         {
             activeCalculator = calc;
-
-            // Выбрать первый эталон
             if (activeCalculator.ReferenceCount > 0)
                 activeCalculator.SelectReference(0);
         }
@@ -675,7 +700,6 @@ public class ModuleWorkbench : MonoBehaviour
     }
 
     // ====================== Scaling ======================
-
     private void RecalculateFromScaleInput()
     {
         if (activeCalculator == null || activeCalculator.ReferenceCount == 0) return;
@@ -741,7 +765,6 @@ public class ModuleWorkbench : MonoBehaviour
     }
 
     // ====================== Core Calculation ======================
-
     private void RecalculateAll()
     {
         if (activeCalculator == null || activeCalculator.ReferenceCount == 0)
@@ -799,17 +822,8 @@ public class ModuleWorkbench : MonoBehaviour
             alloyTier = alloyTier
         };
 
-        // Delegate to calculator
+        // Delegate to calculator for module-specific calculations
         activeCalculator.Calculate(scaleData);
-
-        // Refresh alloy list display
-        if (alloyStorage != null)
-        {
-            alloyDisplayNames = alloyStorage.GetDisplayNames();
-            alloyCodes = alloyStorage.GetAllCodes();
-            if (alloyCodes.Length > 0 && selectedAlloyIndex >= alloyCodes.Length)
-                selectedAlloyIndex = 0;
-        }
 
         // Build code
         currentModuleCode = BuildModuleCode();
@@ -825,7 +839,6 @@ public class ModuleWorkbench : MonoBehaviour
     }
 
     // ====================== Module Code ======================
-
     private string BuildModuleCode()
     {
         if (activeCalculator == null || activeCalculator.ReferenceCount == 0) return "";
@@ -838,7 +851,6 @@ public class ModuleWorkbench : MonoBehaviour
         string alloyCode = GetSelectedAlloyCode() ?? "NONE";
         string specific = activeCalculator.GetCodeSegment();
 
-        // [Type]-[Tier]-[Faction]-[RefIndex]-[Specific]-H[durability]-[X]*[Y]*[Z]-m[mass]:alloy
         return $"{type}-{tier}-{faction}-{refIndex}" +
                $"-{specific}" +
                $"-H{calcDurability:F3}" +
@@ -847,7 +859,6 @@ public class ModuleWorkbench : MonoBehaviour
     }
 
     // ====================== Craft ======================
-
     private void OnCraft()
     {
         if (activeCalculator == null || activeCalculator.ReferenceCount == 0) return;
@@ -855,8 +866,14 @@ public class ModuleWorkbench : MonoBehaviour
         string alloyCode = GetSelectedAlloyCode();
         if (string.IsNullOrEmpty(alloyCode)) { ShowError("Сплав не выбран"); return; }
 
+        // Сохраняем данные до возможного пересчёта
+        string craftCode = currentModuleCode;
+        float craftShellMassKg = calcShellMassKg;
+        float craftInnerMassKg = calcInnerMassKg;
+        float craftTotalMassKg = calcTotalMassKg;
+
         // Check alloy
-        if (!alloyStorage.HasEnoughMass(alloyCode, calcShellMassKg))
+        if (!alloyStorage.HasEnoughMass(alloyCode, craftShellMassKg))
         {
             ShowError("Недостаточно сплава для оболочки");
             return;
@@ -865,7 +882,7 @@ public class ModuleWorkbench : MonoBehaviour
         // Check metal
         int metalTier = activeCalculator.RefModuleTier;
         var metalIdx = GetMetalIndex(metalTier);
-        long metalNeededG = (long)Math.Ceiling(calcInnerMassKg * 1000.0);
+        long metalNeededG = (long)Math.Ceiling(craftInnerMassKg * 1000.0);
         if (resourcesStorage.GetGrams(metalIdx) < metalNeededG)
         {
             ShowError("Недостаточно металла");
@@ -873,15 +890,63 @@ public class ModuleWorkbench : MonoBehaviour
         }
 
         // Check energy
-        long energyNeeded = (long)Math.Ceiling(calcTotalMassKg);
+        long energyNeeded = (long)Math.Ceiling(craftTotalMassKg);
         if (resourcesStorage.EnergyUnits < energyNeeded)
         {
             ShowError("Недостаточно энергии");
             return;
         }
 
-        // ─── Consume ───
-        alloyStorage.TryConsumeMass(alloyCode, calcShellMassKg);
+        // ─── Create ModuleData ───
+        var scaleData = new ModuleScaleData
+        {
+            scaleFactor = Mathf.Max(0.001f, scaleFactor),
+            realVolume = calcRealVolume,
+            shellVolumeM3 = calcShellVolumeM3,
+            effectiveVolume = calcEffectiveVolume,
+            shellPercent = shellPercent,
+            fillPercent = activeCalculator.RefFillPercent,
+            shellMassKg = craftShellMassKg,
+            innerMassKg = craftInnerMassKg,
+            totalMassKg = craftTotalMassKg,
+            durability = calcDurability,
+            alloyTier = alloyDecoded ? alloyParams.tier : 1
+        };
+
+        ModuleData moduleData = activeCalculator.CreateModuleData(scaleData);
+        if (moduleData == null)
+        {
+            ShowError("Ошибка создания данных модуля");
+            return;
+        }
+
+        // Fill common fields
+        string faction = string.IsNullOrEmpty(activeCalculator.RefFaction)
+            ? "NONE" : activeCalculator.RefFaction;
+        string refName = "";
+        GameObject prefab = activeCalculator.GetPrefab();
+        if (prefab != null) refName = prefab.name;
+
+        moduleData.FillCommon(
+            activeCalculator.ModuleType,
+            activeCalculator.RefModuleTier,
+            faction,
+            activeCalculator.SelectedIndex,
+            refName,
+            alloyCode,
+            alloyDecoded ? alloyParams.tier : 1,
+            shellPercent,
+            Mathf.Max(0.001f, scaleFactor),
+            activeCalculator.RefFillPercent,
+            calcLength, calcWidth, calcHeight,
+            calcAABBVolume, calcRealVolume, calcShellVolumeM3, calcEffectiveVolume,
+            craftShellMassKg, craftInnerMassKg, craftTotalMassKg,
+            calcDurability,
+            craftCode
+        );
+
+        // ─── Consume resources ───
+        alloyStorage.TryConsumeMass(alloyCode, craftShellMassKg);
         resourcesStorage.TryRemoveGrams(metalIdx, metalNeededG);
         resourcesStorage.TryConsumeEnergy(energyNeeded);
 
@@ -893,7 +958,6 @@ public class ModuleWorkbench : MonoBehaviour
         }
 
         // ─── Instantiate ───
-        GameObject prefab = activeCalculator.GetPrefab();
         if (prefab == null) { ShowError("Префаб эталона не найден"); return; }
 
         Vector3 spawnPos = transform.position + Vector3.up * 2f;
@@ -903,16 +967,38 @@ public class ModuleWorkbench : MonoBehaviour
         float s = Mathf.Max(0.001f, scaleFactor);
         craftedInstance.transform.localScale = prefab.transform.localScale * s;
 
-        // Refresh
+        // ─── Remove Standard* component, add CraftedModule ───
+        // Удаляем стандартный компонент (если есть)
+        var oldES = craftedInstance.GetComponent<StandardEnergyStorage>();
+        if (oldES != null) Destroy(oldES);
+
+        var oldGen = craftedInstance.GetComponent<StandardGenerator>();
+        if (oldGen != null) Destroy(oldGen);
+
+        // Добавляем CraftedModule
+        var craftedComp = craftedInstance.AddComponent<CraftedModule>();
+        craftedComp.SetData(moduleData);
+
+        // ─── Save to ModuleStorage ───
+        if (moduleStorage != null)
+        {
+            string id = moduleStorage.AddModule(moduleData);
+            Debug.Log($"[ModuleWorkbench] Saved to ModuleStorage, ID: {id}");
+        }
+        else
+        {
+            Debug.LogWarning("[ModuleWorkbench] ModuleStorage not assigned! Module not saved.");
+        }
+
+        // ─── Refresh UI ───
         RebuildAlloyList();
         RecalculateAll();
         UpdateScaleInputFromCurrent();
 
-        Debug.Log($"[ModuleWorkbench] Crafted: {craftedInstance.name}, Code: {currentModuleCode}");
+        Debug.Log($"[ModuleWorkbench] Crafted: {craftedInstance.name}, Code: {craftCode}");
     }
 
     // ====================== Reset ======================
-
     private void ResetToDefaults()
     {
         selectedModuleTypeIndex = 0;
@@ -923,7 +1009,8 @@ public class ModuleWorkbench : MonoBehaviour
         scaleFactor = 1f;
         codeInputField = "";
         errorMessage = "";
-        _popupResults.Clear();
+        _pendingSelections.Clear();
+        WorkbenchPopup.Hide();
 
         RebuildAllLists();
         RecalculateAll();
@@ -931,7 +1018,6 @@ public class ModuleWorkbench : MonoBehaviour
     }
 
     // ====================== Error ======================
-
     private void ShowError(string msg)
     {
         errorMessage = msg;
@@ -939,12 +1025,10 @@ public class ModuleWorkbench : MonoBehaviour
     }
 
     // ====================== Rounding ======================
-
     private static float R3(float v) => (float)Math.Round(v, 3);
     private static float R6(float v) => (float)Math.Round(v, 6);
 
     // ====================== Styles ======================
-
     private GUIStyle _centeredBold;
     private GUIStyle GetCenteredBoldStyle()
     {
@@ -974,9 +1058,8 @@ public class ModuleWorkbench : MonoBehaviour
     }
 }
 
-// ====================== IMGUI Popup Helper ======================
-
-public static class GenericMenuIMGUI
+// ====================== Workbench Popup ======================
+public static class WorkbenchPopup
 {
     private static bool _showing;
     private static string[] _options;
@@ -984,51 +1067,114 @@ public static class GenericMenuIMGUI
     private static Action<int> _callback;
     private static Rect _popupRect;
     private static Vector2 _scrollPos;
-    private static int _windowId = 987654;
+    private static int _windowId = 987655;
+    private static int _showFrame;
 
-    public static void Show(string[] options, int current, Action<int> callback)
+    public static bool IsShowing => _showing;
+    public static Rect PopupRect => _popupRect;
+
+    public static void Show(string[] options, int current, Vector2 screenPos, Action<int> callback)
     {
-        if (_showing)
-        {
-            _showing = false;
-            return;
-        }
         _options = options;
         _current = current;
         _callback = callback;
         _showing = true;
         _scrollPos = Vector2.zero;
+        _showFrame = Time.frameCount;
 
-        Vector2 mouse = Event.current != null
-            ? GUIUtility.GUIToScreenPoint(Event.current.mousePosition)
-            : new Vector2(200, 200);
-        float h = Mathf.Min(options.Length * 22 + 10, 300);
-        _popupRect = new Rect(mouse.x, mouse.y, 280, h);
+        float itemHeight = 24f;
+        float h = Mathf.Min(options.Length * itemHeight + 10, 350);
+        float w = 300;
+
+        float maxX = Screen.width - w - 5;
+        float maxY = Screen.height - h - 5;
+        float px = Mathf.Clamp(screenPos.x, 5, Mathf.Max(5, maxX));
+        float py = Mathf.Clamp(screenPos.y, 5, Mathf.Max(5, maxY));
+
+        _popupRect = new Rect(px, py, w, h);
+    }
+
+    public static void Hide()
+    {
+        _showing = false;
+        _options = null;
+        _callback = null;
     }
 
     public static void DrawPopup()
     {
         if (!_showing || _options == null) return;
-        _popupRect = GUI.Window(_windowId, _popupRect, DrawPopupWindow, "");
+
+        GUI.BringWindowToFront(_windowId);
+        _popupRect = GUI.Window(_windowId, _popupRect, DrawPopupWindow, "", GUI.skin.box);
     }
 
     private static void DrawPopupWindow(int id)
     {
+        bool canInteract = Time.frameCount > _showFrame;
+
         _scrollPos = GUILayout.BeginScrollView(_scrollPos);
+
         for (int i = 0; i < _options.Length; i++)
         {
-            string label = (i == _current) ? $"► {_options[i]}" : $"   {_options[i]}";
-            if (GUILayout.Button(label, GUI.skin.label))
+            bool isCurrent = (i == _current);
+            GUIStyle style = isCurrent ? GetSelectedStyle() : GetNormalStyle();
+
+            if (GUILayout.Button(_options[i], style, GUILayout.Height(22)))
             {
-                _callback?.Invoke(i);
-                _showing = false;
+                if (canInteract)
+                {
+                    _callback?.Invoke(i);
+                    _showing = false;
+                    GUIUtility.ExitGUI();
+                    return;
+                }
             }
         }
-        GUILayout.EndScrollView();
 
-        if (Event.current.type == EventType.MouseDown)
+        GUILayout.EndScrollView();
+    }
+
+    private static GUIStyle _normalStyle;
+    private static GUIStyle _selectedStyle;
+
+    private static GUIStyle GetNormalStyle()
+    {
+        if (_normalStyle == null)
         {
-            _showing = false;
+            _normalStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleLeft,
+                padding = new RectOffset(8, 4, 2, 2),
+                hover = { textColor = Color.white, background = MakeTex(1, 1, new Color(0.3f, 0.5f, 0.8f, 0.5f)) },
+                normal = { textColor = Color.white }
+            };
         }
+        return _normalStyle;
+    }
+
+    private static GUIStyle GetSelectedStyle()
+    {
+        if (_selectedStyle == null)
+        {
+            _selectedStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleLeft,
+                fontStyle = FontStyle.Bold,
+                padding = new RectOffset(8, 4, 2, 2),
+                normal = { textColor = Color.cyan, background = MakeTex(1, 1, new Color(0.2f, 0.4f, 0.6f, 0.4f)) }
+            };
+        }
+        return _selectedStyle;
+    }
+
+    private static Texture2D MakeTex(int w, int h, Color col)
+    {
+        var pix = new Color[w * h];
+        for (int i = 0; i < pix.Length; i++) pix[i] = col;
+        var tex = new Texture2D(w, h);
+        tex.SetPixels(pix);
+        tex.Apply();
+        return tex;
     }
 }

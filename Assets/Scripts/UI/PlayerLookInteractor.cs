@@ -1,96 +1,96 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-/// <summary>
-/// PlayerLookInteractor (with radius + fallback)
-/// - ���/����� �� ������ ��� ������ ������������� ��������.
-/// - ��������� SphereCastAll (aimRadius) � fallback-���� �����.
-/// - ���������� ������ �� ����/�����������/�����.
-/// - ����������: ���� ����� ����� � ���������� (����� PlayerVehicleController),
-///   ������� (VehicleSeatInteractable) � InteractableActionHost c ignoreWhileInVehicle
-///   �� ��������� ������ ��������� (�� ���� ��������� � ���������).
-/// </summary>
 [DisallowMultipleComponent]
 public class PlayerLookInteractor : MonoBehaviour
 {
     [Header("Raycast")]
     public Camera mainCamera;
     public float maxDistance = 4.0f;
-
-    [Tooltip("���� > 0 � ����������� SphereCastAll � ������ �������� (�������� �������).")]
     public float aimRadius = 0.12f;
-
-    [Tooltip("�������� origin ����� �� ������, ����� ��� ��������� �� � ����� ������.")]
     public float originForwardOffset = 0.06f;
-
-    [Tooltip("���� primary �� �������� � ������ fallback-��� � origin, ��������� ����� �� ��� ���������� (�).")]
     public float fallbackForward = 0.6f;
-
-    [Tooltip("���� ������, ������� ����� ������������ (������ 0, ���� �� �����������).")]
     public LayerMask ignoreLayer = 0;
-
-    [Tooltip("���� ����� ��� ������ ������������� �������� (�� ��������� ���).")]
     public LayerMask layerMask = ~0;
 
-    [Header("Ignore")]
-    [Tooltip("����� ����� �����������, ������� ������� ������������ ��� �������� (��������, PlayerController, CharacterController).")]
+    [Header("Фильтры игнорирования")]
     public string[] ignoreComponentTypeNames = new string[] { "PlayerController", "CharacterController" };
-
-    [Tooltip("����, ������� ����� ������������.")]
     public string[] ignoreTags = new string[0];
 
     [Header("Input")]
-    [Tooltip("�������� ��� ��������� �������������� ������� (��������, F).")]
     public InputActionReference interactAction;
 
-    [Header("Player / Vehicle")]
-    [Tooltip("�����������: ������ �� PlayerVehicleController, ����� �����, ����� �� ����� � ����������.")]
+    [Header("Ссылки")]
     public PlayerVehicleController playerVehicleController;
 
-    [Header("Debug")]
+    [Header("Отладка")]
     public bool debugRay = false;
 
-    Interactable currentTarget;
-    Interactable lastTarget;
+    private System.Type[] cachedIgnoreTypes;
+    private const int MaxHits = 16;
+    private readonly RaycastHit[] hitBuffer = new RaycastHit[MaxHits];
+
+    IInteractable currentTarget;
+    IInteractable lastTarget;
 
     void Awake()
     {
         if (mainCamera == null) mainCamera = Camera.main;
 
-        // ���� ������ ignoreLayer, ��������� ��� �� layerMask �� ����� ������
         if (ignoreLayer.value != 0)
-        {
             layerMask &= ~ignoreLayer;
-        }
 
-        // �������� ����� PlayerVehicleController, ���� �� ����� � ����������
         if (playerVehicleController == null)
-        {
-            var go = GameObject.FindWithTag("Player");
-            if (go != null)
-                playerVehicleController = go.GetComponent<PlayerVehicleController>();
+            playerVehicleController = PlayerLocator.VehicleController;
 
-            if (playerVehicleController == null)
-                playerVehicleController = UnityEngine.Object.FindFirstObjectByType<PlayerVehicleController>();
+        CacheIgnoreTypes();
+    }
+
+    private void CacheIgnoreTypes()
+    {
+        if (ignoreComponentTypeNames == null || ignoreComponentTypeNames.Length == 0)
+        {
+            cachedIgnoreTypes = System.Array.Empty<System.Type>();
+            return;
         }
+
+        var typeList = new System.Collections.Generic.List<System.Type>();
+
+        foreach (var typeName in ignoreComponentTypeNames)
+        {
+            if (string.IsNullOrEmpty(typeName)) continue;
+
+            System.Type type = System.Type.GetType(typeName);
+
+            if (type == null)
+            {
+                foreach (var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    type = assembly.GetType(typeName);
+                    if (type != null) break;
+
+                    type = assembly.GetType("UnityEngine." + typeName);
+                    if (type != null) break;
+                }
+            }
+
+            if (type != null)
+                typeList.Add(type);
+            else
+                Debug.LogWarning($"[PlayerLookInteractor] Тип '{typeName}' не найден.");
+        }
+
+        cachedIgnoreTypes = typeList.ToArray();
     }
 
     void OnEnable()
     {
-        if (interactAction != null && interactAction.action != null)
-        {
-            interactAction.action.performed += OnInteractPerformed;
-            interactAction.action.Enable();
-        }
+        InputActionHelper.Subscribe(interactAction, OnInteractPerformed);
     }
 
     void OnDisable()
     {
-        if (interactAction != null && interactAction.action != null)
-        {
-            interactAction.action.performed -= OnInteractPerformed;
-            interactAction.action.Disable();
-        }
+        InputActionHelper.Unsubscribe(interactAction, OnInteractPerformed);
     }
 
     void Update()
@@ -98,9 +98,6 @@ public class PlayerLookInteractor : MonoBehaviour
         UpdateLookTarget();
     }
 
-    /// <summary>
-    /// ���������� ������� ����, �� ������� ������� �����.
-    /// </summary>
     void UpdateLookTarget()
     {
         lastTarget = currentTarget;
@@ -113,10 +110,8 @@ public class PlayerLookInteractor : MonoBehaviour
 
         if (debugRay) Debug.DrawRay(origin, dir * maxDistance, Color.green);
 
-        // �������� ������: sphere ��� ray
-        bool found = TryFindInteractable(origin, dir, maxDistance, aimRadius, out Interactable foundInteractable);
+        bool found = TryFindInteractable(origin, dir, maxDistance, aimRadius, out IInteractable foundInteractable);
 
-        // Fallback: ���� �� ������� � fallbackForward > 0 � ������� ��� ��� � origin, ��������� �����
         if (!found && fallbackForward > 0f)
         {
             Vector3 fallbackOrigin = origin + dir * fallbackForward;
@@ -124,141 +119,123 @@ public class PlayerLookInteractor : MonoBehaviour
             found = TryFindInteractable(fallbackOrigin, dir, maxDistance - fallbackForward, 0f, out foundInteractable);
         }
 
-        if (found)
-            currentTarget = foundInteractable;
-        else
-            currentTarget = null;
+        currentTarget = found ? foundInteractable : null;
 
-        // ��������� ����� ���� (enter/exit)
         if (lastTarget != currentTarget)
         {
             if (lastTarget != null)
             {
                 lastTarget.OnHoverExit();
-                CrosshairUI.Instance?.SetHover(false);
-                InteractionHintUI.Instance?.HideImmediate();
+                UIServices.Get<CrosshairUI>()?.SetHover(false);
+                UIServices.Get<InteractionHintUI>()?.HideImmediate();
             }
 
             if (currentTarget != null)
             {
                 currentTarget.OnHoverEnter();
-                CrosshairUI.Instance?.SetHover(true);
+                UIServices.Get<CrosshairUI>()?.SetHover(true);
 
                 var baseComp = (currentTarget as MonoBehaviour)?.GetComponent<InteractableBase>();
                 string key = baseComp != null && !string.IsNullOrEmpty(baseComp.keyLabel) ? baseComp.keyLabel : "F";
-                string hint = baseComp != null && !string.IsNullOrEmpty(baseComp.hintText) ? baseComp.hintText : "��������������";
+                string hint = baseComp != null && !string.IsNullOrEmpty(baseComp.hintText) ? baseComp.hintText : "Взаимодействовать";
 
-                // ���������� ����������� API InteractionHintUI: key � ����� ��������.
-                // UI ��� ���������� [F] � ���������.
-                InteractionHintUI.Instance?.SetVisible(true, key, hint);
+                UIServices.Get<InteractionHintUI>()?.SetVisible(true, key, hint);
             }
         }
     }
 
-    /// <summary>
-    /// �������� ����� ������ ���������� Interactable �� ����/�����.
-    /// �����: ��������� ��������� PlayerVehicleController.IsInVehicle � ���������� �������
-    /// (VehicleSeatInteractable) � InteractableActionHost � ignoreWhileInVehicle == true
-    /// �� ����� �������������.
-    /// </summary>
-    bool TryFindInteractable(Vector3 origin, Vector3 dir, float distance, float radius, out Interactable result)
+    bool TryFindInteractable(Vector3 origin, Vector3 dir, float distance, float radius, out IInteractable result)
     {
         result = null;
-        RaycastHit[] hits;
+
+        int hitCount;
         if (radius > 0f)
-            hits = Physics.SphereCastAll(origin, radius, dir, distance, layerMask, QueryTriggerInteraction.Ignore);
+            hitCount = Physics.SphereCastNonAlloc(origin, radius, dir, hitBuffer, distance, layerMask, QueryTriggerInteraction.Ignore);
         else
-            hits = Physics.RaycastAll(origin, dir, distance, layerMask, QueryTriggerInteraction.Ignore);
+            hitCount = Physics.RaycastNonAlloc(origin, dir, hitBuffer, distance, layerMask, QueryTriggerInteraction.Ignore);
 
-        if (hits == null || hits.Length == 0) return false;
+        if (hitCount == 0) return false;
 
-        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+        System.Array.Sort(hitBuffer, 0, hitCount, HitDistanceComparer.Instance);
 
-        foreach (var h in hits)
+        for (int i = 0; i < hitCount; i++)
         {
+            var h = hitBuffer[i];
             if (h.collider == null) continue;
 
-            // ������� �� ������������� ����
             if (ignoreLayer.value != 0 && ((1 << h.collider.gameObject.layer) & ignoreLayer) != 0)
                 continue;
 
-            // ������� �� �����
-            bool skip = false;
-            if (ignoreTags != null && ignoreTags.Length > 0)
+            if (ShouldIgnoreByTag(h.collider))
+                continue;
+
+            if (ShouldIgnoreByType(h.collider))
+                continue;
+
+            var interactableBase = h.collider.GetComponentInParent<InteractableBase>();
+
+            IInteractable found = null;
+            if (interactableBase != null)
             {
-                foreach (var t in ignoreTags)
-                {
-                    if (!string.IsNullOrEmpty(t) && h.collider.CompareTag(t))
-                    {
-                        skip = true;
-                        break;
-                    }
-                }
+                found = interactableBase;
             }
-            if (skip) continue;
-
-            // ������� �� ����� �����������
-            if (ignoreComponentTypeNames != null && ignoreComponentTypeNames.Length > 0)
-            {
-                foreach (var typeName in ignoreComponentTypeNames)
-                {
-                    if (string.IsNullOrEmpty(typeName)) continue;
-
-                    var type = System.Type.GetType(typeName);
-                    if (type != null)
-                    {
-                        var comp = h.collider.GetComponentInParent(type);
-                        if (comp != null) { skip = true; break; }
-                    }
-                    else
-                    {
-                        var mb = h.collider.GetComponentInParent<MonoBehaviour>();
-                        if (mb != null && mb.GetType().Name == typeName) { skip = true; break; }
-                    }
-                }
-            }
-            if (skip) continue;
-
-            // ���� Interactable
-            Interactable found = null;
-            var mbCandidate = h.collider.GetComponentInParent<MonoBehaviour>();
-            if (mbCandidate is Interactable) found = mbCandidate as Interactable;
             else
             {
-                var ib = h.collider.GetComponentInParent<InteractableBase>();
-                if (ib != null) found = ib as Interactable;
+                var mb = h.collider.GetComponentInParent<MonoBehaviour>();
+                if (mb is IInteractable directInteractable)
+                    found = directInteractable;
             }
 
-            if (found != null)
-            {
-                // --- �������������� ������ ��� ������ ������������� ---
-                if (playerVehicleController != null && playerVehicleController.IsInVehicle)
-                {
-                    var mb = (found as MonoBehaviour);
-                    if (mb != null)
-                    {
-                        // ���� ��� ������� (VehicleSeatInteractable) � ���������� ���, ���� ����� � ����������
-                        var seat = mb.GetComponent<VehicleSeatInteractable>();
-                        if (seat != null)
-                        {
-                            // ���������� ���� ��� � ���� ���������� ���������
-                            continue;
-                        }
+            if (found == null) continue;
 
-                        // ���� ��� InteractableActionHost � ������� ignoreWhileInVehicle � ���� ����������
-                        var host = mb.GetComponent<InteractableActionHost>();
-                        if (host != null && host.ignoreWhileInVehicle)
-                        {
-                            continue;
-                        }
-                    }
-                }
+            if (ShouldIgnoreInVehicle(found))
+                continue;
 
-                // ���� �� ������������� � ��������� ��� ������� ����
-                result = found;
-                return true;
-            }
+            result = found;
+            return true;
         }
+
+        return false;
+    }
+
+    private bool ShouldIgnoreByTag(Collider col)
+    {
+        if (ignoreTags == null || ignoreTags.Length == 0) return false;
+
+        foreach (var t in ignoreTags)
+        {
+            if (!string.IsNullOrEmpty(t) && col.CompareTag(t))
+                return true;
+        }
+        return false;
+    }
+
+    private bool ShouldIgnoreByType(Collider col)
+    {
+        if (cachedIgnoreTypes == null || cachedIgnoreTypes.Length == 0) return false;
+
+        foreach (var type in cachedIgnoreTypes)
+        {
+            if (col.GetComponentInParent(type) != null)
+                return true;
+        }
+        return false;
+    }
+
+    private bool ShouldIgnoreInVehicle(IInteractable found)
+    {
+        if (playerVehicleController == null || !playerVehicleController.IsInVehicle)
+            return false;
+
+        var mb = found as MonoBehaviour;
+        if (mb == null) return false;
+
+        if (mb.GetComponent<VehicleSeatInteractable>() != null)
+            return true;
+
+        var host = mb.GetComponent<InteractableActionHost>();
+        if (host != null && host.ignoreWhileInVehicle)
+            return true;
 
         return false;
     }
@@ -270,7 +247,17 @@ public class PlayerLookInteractor : MonoBehaviour
         if (currentTarget != null)
         {
             currentTarget.Interact();
-            CrosshairUI.Instance?.DoClickPulse();
+            UIServices.Get<CrosshairUI>()?.DoClickPulse();
+        }
+    }
+
+    private class HitDistanceComparer : System.Collections.Generic.IComparer<RaycastHit>
+    {
+        public static readonly HitDistanceComparer Instance = new HitDistanceComparer();
+
+        public int Compare(RaycastHit a, RaycastHit b)
+        {
+            return a.distance.CompareTo(b.distance);
         }
     }
 }
