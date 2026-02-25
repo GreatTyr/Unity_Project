@@ -5,6 +5,8 @@ namespace UnityProject.Inventory
     public class BaseInventorySource : IInventorySource
     {
         private Inventory inventory;
+        public ResourcesStorage Resources => null;
+        public AlloyStorage Alloys => null;
 
         public string DisplayName => "База";
         public Inventory MainInventory

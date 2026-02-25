@@ -106,7 +106,6 @@ MonoBehaviour:
   ModuleTier: 1
   factionShortName: TESTF1
   VolumeCoefficientPercent: 90
-  VariableFill: 0
   ConstantFillPercent: 85
   length: 2
   width: 1
@@ -119,6 +118,8 @@ MonoBehaviour:
   PowerBy0001m3: 1
   FuelTier: 1
   FuelBy0001m3_Base: 0.0002
+  BaseHeating: 1
+  HeatCapacityCoeff: 1
   powerTimesTierPer0001: 1
   fuelPer0001m3Tiered: 0.0002
   specificPower: 2700

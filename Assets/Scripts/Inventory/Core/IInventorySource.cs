@@ -8,5 +8,7 @@ namespace UnityProject.Inventory
         string DisplayName { get; }
         Inventory MainInventory { get; }
         bool IsAvailable { get; }
+        ResourcesStorage Resources { get; }
+        AlloyStorage Alloys { get; }
     }
 }

@@ -6,6 +6,9 @@ namespace UnityProject.Inventory
     {
         private Inventory inventory;
 
+        public ResourcesStorage Resources => null;  // TODO: подключить к реальному Pepelac
+        public AlloyStorage Alloys => null;
+
         public string DisplayName => "Pepelac";
         public Inventory MainInventory
         {

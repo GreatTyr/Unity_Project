@@ -20,8 +20,6 @@ public class StandardGenerator : MonoBehaviour
 
     [Header("Volume & Fill")]
     [Range(0f, 100f)] public float VolumeCoefficientPercent = 100f;
-    [Tooltip("If true — module may increase fill above ConstantFillPercent; ConstantFillPercent is the minimum.")]
-    public bool VariableFill = true;
     [Range(0f, 100f)] public float ConstantFillPercent = 100f;
 
     // --- Computed (measured/derived) ---
@@ -39,9 +37,15 @@ public class StandardGenerator : MonoBehaviour
     [Header("Generator")]
     [Min(0f)] public float PowerBy0001m3 = 1f;
     [Range(1, 10)] public int FuelTier = 1;
-    [Min(0f)]
-    [Tooltip("Fuel by 0.001 m³ (kg/s) base value (for tier=1). Default 0.0001.")]
-    public float FuelBy0001m3_Base = 0.0001f;
+    [Min(0f)] public float FuelBy0001m3_Base = 0.0001f;
+
+    // NEW THERMAL PARAMS
+    [Header("Thermal Physics")]
+    [Tooltip("Base heating rate (degrees per second) at 100% load.")]
+    [Min(0f)] public float BaseHeating = 10f;
+
+    [Tooltip("Heat Capacity Coefficient. Used to calculate Heat Capacity = Vol * Coeff * TierCoeff.")]
+    [Min(0.001f)] public float HeatCapacityCoeff = 1000f;
 
     // --- Outputs (stored rounded) ---
     [SerializeField, HideInInspector] private float powerTimesTierPer0001;
@@ -104,6 +108,10 @@ public class StandardGenerator : MonoBehaviour
         ConstantFillPercent = Mathf.Clamp(ConstantFillPercent, 0f, 100f);
         PowerBy0001m3 = Mathf.Max(0f, PowerBy0001m3);
         FuelBy0001m3_Base = Mathf.Max(0f, FuelBy0001m3_Base);
+
+        BaseHeating = Mathf.Max(0f, BaseHeating);
+        HeatCapacityCoeff = Mathf.Max(0.001f, HeatCapacityCoeff);
+
         RecalculateAll();
     }
 
@@ -242,9 +250,10 @@ public class StandardGenerator : MonoBehaviour
 [CustomEditor(typeof(StandardGenerator))]
 public class StandardGeneratorEditor : Editor
 {
-    SerializedProperty pModuleTier, pVolumeCoeff, pVariableFill, pConstantFill;
+    SerializedProperty pModuleTier, pVolumeCoeff, pConstantFill;
     SerializedProperty pPowerBy0001m3, pFuelTier, pFuelBy0001m3_Base;
     SerializedProperty pFactionShortName;
+    SerializedProperty pBaseHeating, pHeatCapacityCoeff;
 
     StandardGenerator t;
 
@@ -260,12 +269,14 @@ public class StandardGeneratorEditor : Editor
         {
             pModuleTier = serializedObject.FindProperty(nameof(StandardGenerator.ModuleTier));
             pVolumeCoeff = serializedObject.FindProperty(nameof(StandardGenerator.VolumeCoefficientPercent));
-            pVariableFill = serializedObject.FindProperty(nameof(StandardGenerator.VariableFill));
             pConstantFill = serializedObject.FindProperty(nameof(StandardGenerator.ConstantFillPercent));
             pPowerBy0001m3 = serializedObject.FindProperty(nameof(StandardGenerator.PowerBy0001m3));
             pFuelTier = serializedObject.FindProperty(nameof(StandardGenerator.FuelTier));
             pFuelBy0001m3_Base = serializedObject.FindProperty(nameof(StandardGenerator.FuelBy0001m3_Base));
             pFactionShortName = serializedObject.FindProperty("factionShortName");
+            
+            pBaseHeating = serializedObject.FindProperty(nameof(StandardGenerator.BaseHeating));
+            pHeatCapacityCoeff = serializedObject.FindProperty(nameof(StandardGenerator.HeatCapacityCoeff));
         }
 
         RebuildFactionList();
@@ -372,7 +383,6 @@ public class StandardGeneratorEditor : Editor
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Volume & Fill", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(pVolumeCoeff, new GUIContent("Volume Coeff %"));
-        EditorGUILayout.PropertyField(pVariableFill, new GUIContent("Variable Fill"));
         EditorGUILayout.PropertyField(pConstantFill, new GUIContent("Constant Fill %"));
 
         // ---- Computed ----
@@ -393,6 +403,11 @@ public class StandardGeneratorEditor : Editor
         EditorGUILayout.PropertyField(pPowerBy0001m3, new GUIContent("Power by 0.001 m³ (energy/s)"));
         EditorGUILayout.PropertyField(pFuelTier);
         EditorGUILayout.PropertyField(pFuelBy0001m3_Base, new GUIContent("Fuel by 0.001 m³ (kg/s)"));
+        
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("Thermal Physics", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(pBaseHeating, new GUIContent("Base Heating (°/s)"));
+        EditorGUILayout.PropertyField(pHeatCapacityCoeff, new GUIContent("Heat Capacity Coeff"));
 
         // ---- Outputs ----
         EditorGUILayout.Space();

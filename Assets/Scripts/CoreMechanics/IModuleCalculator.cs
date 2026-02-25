@@ -25,6 +25,8 @@ public interface IModuleCalculator
     string GetCodeSegment();
     GameObject GetPrefab();
 
+    
+
     /// <summary>
     /// Создать ModuleData со всеми специфичными для типа полями.
     /// Вызывается верстаком при крафте. Общие поля заполняет верстак через FillCommon().

@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
-
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -9,6 +8,13 @@ using UnityEditor;
 public class GeneratorDatabase : ScriptableObject, IModuleDatabase
 {
     private static GeneratorDatabase _instance;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatic()
+    {
+        _instance = null;
+    }
+
     public static GeneratorDatabase Instance
     {
         get
@@ -17,6 +23,17 @@ public class GeneratorDatabase : ScriptableObject, IModuleDatabase
                 _instance = Resources.Load<GeneratorDatabase>("GeneratorDatabase");
             return _instance;
         }
+    }
+
+    private void OnEnable()
+    {
+        _instance = this;
+    }
+
+    private void OnDisable()
+    {
+        if (_instance == this)
+            _instance = null;
     }
 
     [Tooltip("Drag generator prefabs here. Each must have StandardGenerator component.")]
@@ -162,9 +179,9 @@ public class GeneratorDatabaseEditor : Editor
                 string faction = string.IsNullOrEmpty(sg.FactionShortName) ? "—" : sg.FactionShortName;
                 EditorGUILayout.BeginVertical(EditorStyles.helpBox);
                 EditorGUILayout.LabelField($"[{i}] {go.name}", EditorStyles.boldLabel);
-                EditorGUILayout.LabelField($"  Faction: {faction}   Module Tier: {sg.ModuleTier}   Fuel Tier: {sg.FuelTier}");
-                EditorGUILayout.LabelField($"  Power: {sg.SpecificPower:F3} energy/s   Fuel: {sg.FuelKgPerS:F4} kg/s   Mass: {sg.MassKg:F3} kg");
-                EditorGUILayout.LabelField($"  Eff. Volume: {sg.EffectiveVolumeM3:F6} m³   Fill: {sg.FillPercentUsed:F1}%");
+                EditorGUILayout.LabelField($"  Faction: {faction}  Module Tier: {sg.ModuleTier}  Fuel Tier: {sg.FuelTier}");
+                EditorGUILayout.LabelField($"  Power: {sg.SpecificPower:F3} energy/s  Fuel: {sg.FuelKgPerS:F4} kg/s  Mass: {sg.MassKg:F3} kg");
+                EditorGUILayout.LabelField($"  Eff. Volume: {sg.EffectiveVolumeM3:F6} m³  Fill: {sg.FillPercentUsed:F1}%");
                 EditorGUILayout.EndVertical();
             }
         }

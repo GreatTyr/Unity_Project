@@ -17,6 +17,13 @@ namespace UnityProject.Inventory
             EquipmentSlotType.Backpack
         };
 
+        [Header("Storage")]
+        [SerializeField] private ResourcesStorage resourcesStorage;
+        [SerializeField] private AlloyStorage alloyStorage;
+
+        public ResourcesStorage Resources => resourcesStorage;
+        public AlloyStorage Alloys => alloyStorage;
+
         [Header("Hotbar")]
         [SerializeField] private int hotbarSize = 4;
 
@@ -36,6 +43,11 @@ namespace UnityProject.Inventory
 
             equipment = new EquipmentSlots(equipmentSlotTypes);
             hotbar = new Hotbar(hotbarSize);
+
+            if (resourcesStorage == null)
+                resourcesStorage = GetComponent<ResourcesStorage>();
+            if (alloyStorage == null)
+                alloyStorage = GetComponent<AlloyStorage>();
         }
 
         public int AddItem(ItemDefinition definition, int quantity = 1)

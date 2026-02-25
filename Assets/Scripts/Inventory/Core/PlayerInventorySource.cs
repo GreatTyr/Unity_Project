@@ -9,6 +9,8 @@ namespace UnityProject.Inventory
         public string DisplayName => "Игрок";
         public Inventory MainInventory => playerInventory?.MainInventory;
         public bool IsAvailable => playerInventory != null;
+        public ResourcesStorage Resources => playerInventory?.Resources;
+        public AlloyStorage Alloys => playerInventory?.Alloys;
 
         public PlayerInventorySource(PlayerInventory inventory)
         {

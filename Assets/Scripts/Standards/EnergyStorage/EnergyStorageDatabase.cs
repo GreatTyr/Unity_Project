@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
-
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -9,6 +8,13 @@ using UnityEditor;
 public class EnergyStorageDatabase : ScriptableObject, IModuleDatabase
 {
     private static EnergyStorageDatabase _instance;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatic()
+    {
+        _instance = null;
+    }
+
     public static EnergyStorageDatabase Instance
     {
         get
@@ -17,6 +23,17 @@ public class EnergyStorageDatabase : ScriptableObject, IModuleDatabase
                 _instance = Resources.Load<EnergyStorageDatabase>("EnergyStorageDatabase");
             return _instance;
         }
+    }
+
+    private void OnEnable()
+    {
+        _instance = this;
+    }
+
+    private void OnDisable()
+    {
+        if (_instance == this)
+            _instance = null;
     }
 
     [Tooltip("Drag energy storage prefabs here. Each must have StandardEnergyStorage component.")]
@@ -106,8 +123,8 @@ public class EnergyStorageDatabaseEditor : Editor
                 string faction = string.IsNullOrEmpty(es.FactionShortName) ? "—" : es.FactionShortName;
                 EditorGUILayout.BeginVertical(EditorStyles.helpBox);
                 EditorGUILayout.LabelField(go.name, EditorStyles.boldLabel);
-                EditorGUILayout.LabelField($"  Faction: {faction}   Tier: {es.ModuleTier}   Capacity: {es.EnergyCapacity:F3}");
-                EditorGUILayout.LabelField($"  Eff.Vol: {es.EffectiveVolumeM3:F6} m³   Mass: {es.MassKg:F3} kg");
+                EditorGUILayout.LabelField($"  Faction: {faction}  Tier: {es.ModuleTier}  Capacity: {es.EnergyCapacity:F3}");
+                EditorGUILayout.LabelField($"  Eff.Vol: {es.EffectiveVolumeM3:F6} m³  Mass: {es.MassKg:F3} kg");
                 EditorGUILayout.EndVertical();
             }
         }

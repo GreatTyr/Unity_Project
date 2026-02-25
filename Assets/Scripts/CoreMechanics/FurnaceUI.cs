@@ -200,7 +200,8 @@ public class FurnaceUI : MonoBehaviour
 
         // Химикаты
         GUILayout.BeginHorizontal();
-        bool newChem = GUILayout.Toggle(currentUseChemicals, "Использовать химикаты (20% от металла)", GUILayout.Width(300));
+        bool newChem = GUILayout.Toggle(currentUseChemicals,
+            "Использовать химикаты (20% от металла)", GUILayout.Width(300));
         if (newChem != currentUseChemicals)
         {
             currentUseChemicals = newChem;
@@ -270,6 +271,7 @@ public class FurnaceUI : MonoBehaviour
         // ─── Очки ───
         int baseP = Smelting.BasePoints(currentMetalTier);
         int freeP = CalcFreePoints();
+
         GUILayout.BeginHorizontal();
         GUILayout.Label(string.Format("Базовые очки: {0}", baseP), GUILayout.Width(halfW));
         GUILayout.Label(string.Format("Свободные очки: {0}", freeP), GUILayout.Width(halfW));
@@ -320,7 +322,6 @@ public class FurnaceUI : MonoBehaviour
             GUIUtility.systemCopyBuffer = code;
         }
         GUILayout.EndHorizontal();
-
         GUILayout.Label(string.Format("Получаемый сплав: {0:F3} кг", outG / 1000.0));
         GUILayout.Label(string.Format("Затраты металла: {0:F3} кг (T{1})", currentMetalGrams / 1000.0, currentMetalTier));
         GUILayout.Label(string.Format("Затраты химикатов: {0:F3} кг (T{1})", currentChemicalsGrams / 1000.0, currentMetalTier));
@@ -335,12 +336,33 @@ public class FurnaceUI : MonoBehaviour
             currentFurnace.HasEnoughResources(currentMetalGrams, currentMetalTier,
                 currentChemicalsGrams, currentNanitesGrams, energy);
 
+        // ══════ ИСПРАВЛЕНИЕ 2: Валидация кода перед крафтом ══════
+        string craftError = null;
+        if (canCraft)
+        {
+            AlloyCode.ValidationResult vr = AlloyCode.ValidateForFurnace(code, currentFurnace.FurnaceTier);
+            if (!vr.isValid)
+            {
+                canCraft = false;
+                craftError = vr.error;
+            }
+        }
+
         if (!canCraft) GUI.enabled = false;
         if (GUILayout.Button("Изготовить", GUILayout.Height(30), GUILayout.Width(160)))
         {
             OnCraft();
         }
         GUI.enabled = true;
+
+        // Показать причину, если крафт невозможен из-за валидации
+        if (craftError != null)
+        {
+            Color prev = GUI.color;
+            GUI.color = Color.yellow;
+            GUILayout.Label(craftError, GUILayout.Width(160));
+            GUI.color = prev;
+        }
 
         GUILayout.Space(10);
 
@@ -385,10 +407,13 @@ public class FurnaceUI : MonoBehaviour
             if (int.TryParse(absStr, out int val))
             {
                 val = Math.Max(0, val);
-                int old = absorb;
+                // ══════ ИСПРАВЛЕНИЕ 1: Правильный расчёт максимума ══════
+                // Обнуляем текущее поглощение, чтобы CalcFreePoints вернул
+                // полный доступный бюджет без учёта этого поля
                 absorb = 0;
                 int fp = CalcFreePoints();
-                absorb = Math.Min(val, old + fp);
+                // Устанавливаем не больше, чем доступно свободных очков
+                absorb = Math.Min(val, fp);
             }
         }
         GUI.enabled = true;
@@ -436,12 +461,29 @@ public class FurnaceUI : MonoBehaviour
             if (float.TryParse(resStr, out float val))
             {
                 val = Mathf.Clamp(val, minRes, maxRes);
-                float oldVal = resist;
+                // ══════ ИСПРАВЛЕНИЕ 1: Правильный расчёт максимума для сопротивлений ══════
+                // Обнуляем текущее сопротивление, чтобы CalcFreePoints вернул
+                // полный доступный бюджет без учёта этого поля
+                float savedResist = resist;
+                resist = 0f;
+                int fp = CalcFreePoints();
+                resist = savedResist; // восстанавливаем на случай если val не пройдёт
+
+                // Для положительных сопротивлений: стоимость = val * 10 очков
+                // Максимально допустимое значение = fp / 10
+                if (val >= 0f)
+                {
+                    float maxByPoints = fp / 10f;
+                    // Округляем вниз до 0.1
+                    maxByPoints = (float)Math.Floor(maxByPoints * 10f) / 10f;
+                    val = Mathf.Min(val, Mathf.Min(maxRes, maxByPoints));
+                }
+                // Для отрицательных — они дают очки, а не тратят, поэтому просто clamp
                 resist = val;
-                if (CalcFreePoints() < 0) resist = oldVal;
+                // Финальная проверка: если всё равно перерасход — откатываем
+                if (CalcFreePoints() < 0) resist = savedResist;
             }
         }
-
         GUI.enabled = true;
         GUILayout.EndHorizontal();
     }
@@ -568,6 +610,15 @@ public class FurnaceUI : MonoBehaviour
     {
         if (currentFurnace == null || currentMetalGrams <= 0) return;
 
+        // ══════ ИСПРАВЛЕНИЕ 2: Валидация кода перед крафтом ══════
+        string code = BuildCurrentCode();
+        AlloyCode.ValidationResult vr = AlloyCode.ValidateForFurnace(code, currentFurnace.FurnaceTier);
+        if (!vr.isValid)
+        {
+            ShowError(vr.error);
+            return;
+        }
+
         long energy = Smelting.EnergyCost(currentFurnace.CapacityGrams, currentFurnace.FurnaceTier,
             currentMetalGrams, currentChemicalsGrams, currentNanitesGrams, currentMetalTier);
 
@@ -581,7 +632,6 @@ public class FurnaceUI : MonoBehaviour
         long outG = Smelting.OutputAlloyGrams(currentMetalGrams, currentChemicalsGrams, currentNanitesGrams,
             currentFurnace.FurnaceTier, currentMetalTier);
         double outKg = Math.Round(outG / 1000.0, 3);
-        string code = BuildCurrentCode();
 
         if (currentFurnace.ExecuteSmelt(currentMetalGrams, currentMetalTier,
             currentChemicalsGrams, currentNanitesGrams, energy, code, outKg))
@@ -619,7 +669,6 @@ public class FurnaceUI : MonoBehaviour
     }
 
     // ═══════════════ СТИЛЬ ═══════════════
-
     private GUIStyle _centeredBold;
     private GUIStyle GetCenteredBoldStyle()
     {
