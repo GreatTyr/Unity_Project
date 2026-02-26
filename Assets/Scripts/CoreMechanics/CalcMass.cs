@@ -19,9 +19,9 @@ public class CalcMass : MonoBehaviour
     [Range(0f, 100f)] public float VolumeCoefficientPercent = 100f;
 
     [Space]
-    [SerializeField, HideInInspector] private float fullAABBVolume = 0f; // m^3 (L*W*H)
-    [SerializeField, HideInInspector] private float effectiveVolume = 0f; // m^3 (after volume coefficient)
-    [SerializeField, HideInInspector] private float massKg = 0f; // kg
+    [SerializeField, HideInInspector] private float fullAABBVolume = 0f;
+    [SerializeField, HideInInspector] private float effectiveVolume = 0f;
+    [SerializeField, HideInInspector] private float massKg = 0f;
 
     public float LengthMeters => length;
     public float WidthMeters => width;
@@ -53,47 +53,11 @@ public class CalcMass : MonoBehaviour
 
     private void MeasureWorldDimensions()
     {
-        Renderer rend = GetComponentInChildren<Renderer>();
-        if (rend != null)
-        {
-            Vector3 ws = rend.bounds.size;
-            length = Mathf.Max(0f, ws.x);
-            height = Mathf.Max(0f, ws.y);
-            width = Mathf.Max(0f, ws.z);
-            return;
-        }
-
-        Collider col = GetComponentInChildren<Collider>();
-        if (col != null)
-        {
-            Vector3 ws = col.bounds.size;
-            length = Mathf.Max(0f, ws.x);
-            height = Mathf.Max(0f, ws.y);
-            width = Mathf.Max(0f, ws.z);
-            return;
-        }
-
-        MeshFilter mf = GetComponentInChildren<MeshFilter>();
-        if (mf != null && mf.sharedMesh != null)
-        {
-            Bounds b = mf.sharedMesh.bounds;
-            Vector3 localSize = b.size;
-            Transform meshT = mf.transform;
-            Vector3 ls = meshT.lossyScale;
-            Vector3 ws;
-            ws.x = Mathf.Abs(localSize.x * ls.x);
-            ws.y = Mathf.Abs(localSize.y * ls.y);
-            ws.z = Mathf.Abs(localSize.z * ls.z);
-            length = Mathf.Max(0f, ws.x);
-            height = Mathf.Max(0f, ws.y);
-            width = Mathf.Max(0f, ws.z);
-            return;
-        }
-
-        Vector3 approx = transform.lossyScale;
-        length = Mathf.Max(0f, Mathf.Abs(approx.x));
-        height = Mathf.Max(0f, Mathf.Abs(approx.y));
-        width = Mathf.Max(0f, Mathf.Abs(approx.z));
+        // 1. ИСПОЛЬЗУЕМ ЕДИНЫЙ УТИЛИТНЫЙ КЛАСС
+        Vector3 size = ModuleMeasurer.GetSize(this.gameObject);
+        length = size.x;
+        height = size.y;
+        width = size.z;
     }
 
     private void ComputeVolumesAndMass()

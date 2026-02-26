@@ -18,6 +18,18 @@
             "quantity": 1,
             "dataTypeName": "GeneratorData",
             "json": "{\"moduleType\":\"Generator\",\"moduleTier\":1,\"faction\":\"TESTF1\",\"referenceIndex\":0,\"referenceName\":\"StandardGenerator000\",\"alloyCode\":\"1C-K0/296-T0/000-C0/000-E0/000\",\"alloyTier\":1,\"shellPercent\":0.0010000000474974514,\"length\":1.0,\"width\":0.5,\"height\":0.75,\"aabbVolume\":0.375,\"realVolume\":0.3187499940395355,\"shellVolumeM3\":0.000003000000106112566,\"effectiveVolume\":0.31874701380729678,\"shellMassKg\":0.003000000026077032,\"innerMassKg\":254.9980010986328,\"totalMassKg\":255.00100708007813,\"durability\":0.003000000026077032,\"scaleFactor\":0.5,\"fillPercent\":80.0,\"moduleCode\":\"Generator-T1-m255.0-d0.003-1.000/0.500/0.750-TESTF1\\nP254.998-F0.0510-FT1\\n1C-K0/296-T0/000-C0/000-E0/000\",\"craftTimestamp\":\"2026-02-26T10:52:38.0823107Z\",\"dataVersion\":1,\"specificPower\":254.9980010986328,\"fuelKgPerS\":0.050999999046325687,\"fuelTier\":1,\"powerTimesTierPer0001\":1.0,\"fuelPer0001m3Tiered\":0.00019999999494757503,\"powerBy0001m3\":1.0,\"fuelBy0001m3Base\":0.00019999999494757503}"
+        },
+        {
+            "moduleCode": "Generator-T1-m271.5-d82.668-1.000/0.500/0.750-TESTF1\nP188.866-F0.0378-FT1\n1-K300/000-T0/000-C0/000-E0/000",
+            "quantity": 1,
+            "dataTypeName": "GeneratorData",
+            "json": "{\"moduleType\":\"Generator\",\"moduleTier\":1,\"faction\":\"TESTF1\",\"referenceIndex\":0,\"referenceName\":\"StandardGenerator000\",\"alloyCode\":\"1-K300/000-T0/000-C0/000-E0/000\",\"alloyTier\":1,\"shellPercent\":25.934999465942384,\"length\":1.0,\"width\":0.5,\"height\":0.75,\"aabbVolume\":0.375,\"realVolume\":0.3187499940395355,\"shellVolumeM3\":0.0826679989695549,\"effectiveVolume\":0.23608200252056123,\"shellMassKg\":82.66799926757813,\"innerMassKg\":188.86599731445313,\"totalMassKg\":271.53399658203127,\"durability\":82.66799926757813,\"scaleFactor\":0.5,\"fillPercent\":80.0,\"moduleCode\":\"Generator-T1-m271.5-d82.668-1.000/0.500/0.750-TESTF1\\nP188.866-F0.0378-FT1\\n1-K300/000-T0/000-C0/000-E0/000\",\"craftTimestamp\":\"2026-02-26T15:17:29.2389454Z\",\"dataVersion\":1,\"specificPower\":188.86599731445313,\"fuelKgPerS\":0.03779999911785126,\"fuelTier\":1,\"powerTimesTierPer0001\":1.0,\"fuelPer0001m3Tiered\":0.00019999999494757503,\"powerBy0001m3\":1.0,\"fuelBy0001m3Base\":0.00019999999494757503}"
+        },
+        {
+            "moduleCode": "Generator-T1-m258.2-d15.937-1.000/0.500/0.750-TESTF1\nP242.250-F0.0485-FT1\n1C-K0/296-T0/000-C0/000-E0/000",
+            "quantity": 1,
+            "dataTypeName": "GeneratorData",
+            "json": "{\"moduleType\":\"Generator\",\"moduleTier\":1,\"faction\":\"TESTF1\",\"referenceIndex\":0,\"referenceName\":\"StandardGenerator000\",\"alloyCode\":\"1C-K0/296-T0/000-C0/000-E0/000\",\"alloyTier\":1,\"shellPercent\":5.0,\"length\":1.0,\"width\":0.5,\"height\":0.75,\"aabbVolume\":0.375,\"realVolume\":0.3187499940395355,\"shellVolumeM3\":0.015937000513076783,\"effectiveVolume\":0.30281299352645876,\"shellMassKg\":15.937000274658204,\"innerMassKg\":242.25,\"totalMassKg\":258.18701171875,\"durability\":15.937000274658204,\"scaleFactor\":0.5,\"fillPercent\":80.0,\"moduleCode\":\"Generator-T1-m258.2-d15.937-1.000/0.500/0.750-TESTF1\\nP242.250-F0.0485-FT1\\n1C-K0/296-T0/000-C0/000-E0/000\",\"craftTimestamp\":\"2026-02-26T17:38:16.8286879Z\",\"dataVersion\":1,\"specificPower\":242.25,\"fuelKgPerS\":0.048500001430511478,\"fuelTier\":1,\"powerTimesTierPer0001\":1.0,\"fuelPer0001m3Tiered\":0.00019999999494757503,\"powerBy0001m3\":1.0,\"fuelBy0001m3Base\":0.00019999999494757503}"
         }
     ]
 }

@@ -6,57 +6,41 @@ using UnityEditor;
 [ExecuteAlways]
 public class StandardGenerator : MonoBehaviour
 {
-    // Вместо ModuleTypesDatabase.TYPE_GENERATOR
     public const string TYPE_GENERATOR = "Generator";
 
-    // ====================== Identity ======================
-
     [Header("Identity")]
-    [SerializeField, HideInInspector]
-    private string moduleType = TYPE_GENERATOR;
-
+    [SerializeField, HideInInspector] private string moduleType = TYPE_GENERATOR;
     [Range(1, 10)] public int ModuleTier = 1;
 
     [Header("Faction")]
-    [Tooltip("Short name of the faction this generator belongs to (from FactionDatabase).")]
     [SerializeField] private string factionShortName = "";
 
     [Header("Volume & Fill")]
     [Range(0f, 100f)] public float VolumeCoefficientPercent = 100f;
     [Range(0f, 100f)] public float ConstantFillPercent = 100f;
 
-    // --- Computed (measured/derived) ---
     [SerializeField, HideInInspector] private float length = 1f;
     [SerializeField, HideInInspector] private float width = 1f;
     [SerializeField, HideInInspector] private float height = 1f;
-
     [SerializeField, HideInInspector] private float aabbVolume;
     [SerializeField, HideInInspector] private float realVolume;
     [SerializeField, HideInInspector] private float effectiveVolume;
     [SerializeField, HideInInspector] private float fillPercentUsed;
     [SerializeField, HideInInspector] private float massKg;
 
-    // --- Generator-specific inputs ---
     [Header("Generator")]
     [Min(0f)] public float PowerBy0001m3 = 1f;
     [Range(1, 10)] public int FuelTier = 1;
     [Min(0f)] public float FuelBy0001m3_Base = 0.0001f;
 
-    // NEW THERMAL PARAMS
     [Header("Thermal Physics")]
-    [Tooltip("Base heating rate (degrees per second) at 100% load.")]
     [Min(0f)] public float BaseHeating = 10f;
-
-    [Tooltip("Heat Capacity Coefficient. Used to calculate Heat Capacity = Vol * Coeff * TierCoeff.")]
     [Min(0.001f)] public float HeatCapacityCoeff = 1000f;
 
-    // --- Outputs (stored rounded) ---
     [SerializeField, HideInInspector] private float powerTimesTierPer0001;
     [SerializeField, HideInInspector] private float fuelPer0001m3Tiered;
     [SerializeField, HideInInspector] private float specificPower;
     [SerializeField, HideInInspector] private float fuelKgPerS;
-
-    // ====================== Public getters ======================
 
     public string ModuleType => moduleType;
     public string FactionShortName => factionShortName;
@@ -84,37 +68,25 @@ public class StandardGenerator : MonoBehaviour
     public float SpecificPower => specificPower;
     public float FuelKgPerS => fuelKgPerS;
 
-    // ====================== Public setters ======================
-
-    public void SetFaction(string shortName)
-    {
-        factionShortName = shortName ?? "";
-    }
-
-    // ====================== Constants ======================
+    public void SetFaction(string shortName) => factionShortName = shortName ?? "";
 
     const double MIN_FUEL_PER0001_D = 1e-6;
     const float MIN_FUEL_DISPLAY_TOTAL = 0.0001f;
     const float EPS_ROUND = 1e-7f;
-
-    // ====================== Lifecycle ======================
 
     void OnEnable() => RecalculateAll();
 
     void OnValidate()
     {
         moduleType = TYPE_GENERATOR;
-
         ModuleTier = Mathf.Clamp(ModuleTier, 1, 10);
         FuelTier = Mathf.Clamp(FuelTier, 1, 10);
         VolumeCoefficientPercent = Mathf.Clamp(VolumeCoefficientPercent, 0f, 100f);
         ConstantFillPercent = Mathf.Clamp(ConstantFillPercent, 0f, 100f);
         PowerBy0001m3 = Mathf.Max(0f, PowerBy0001m3);
         FuelBy0001m3_Base = Mathf.Max(0f, FuelBy0001m3_Base);
-
         BaseHeating = Mathf.Max(0f, BaseHeating);
         HeatCapacityCoeff = Mathf.Max(0.001f, HeatCapacityCoeff);
-
         RecalculateAll();
     }
 
@@ -124,8 +96,6 @@ public class StandardGenerator : MonoBehaviour
         if (!Application.isPlaying) RecalculateAll();
     }
 #endif
-
-    // ====================== Calculation ======================
 
     public void RecalculateAll()
     {
@@ -137,45 +107,11 @@ public class StandardGenerator : MonoBehaviour
 
     private void MeasureWorldDimensions()
     {
-        var rend = GetComponentInChildren<Renderer>();
-        if (rend != null)
-        {
-            var s = rend.bounds.size;
-            length = Mathf.Max(0f, s.x);
-            height = Mathf.Max(0f, s.y);
-            width = Mathf.Max(0f, s.z);
-            return;
-        }
-
-        var col = GetComponentInChildren<Collider>();
-        if (col != null)
-        {
-            var s = col.bounds.size;
-            length = Mathf.Max(0f, s.x);
-            height = Mathf.Max(0f, s.y);
-            width = Mathf.Max(0f, s.z);
-            return;
-        }
-
-        var mf = GetComponentInChildren<MeshFilter>();
-        if (mf != null && mf.sharedMesh != null)
-        {
-            var b = mf.sharedMesh.bounds;
-            var ls = mf.transform.lossyScale;
-            var ws = new Vector3(
-                Mathf.Abs(b.size.x * ls.x),
-                Mathf.Abs(b.size.y * ls.y),
-                Mathf.Abs(b.size.z * ls.z));
-            length = Mathf.Max(0f, ws.x);
-            height = Mathf.Max(0f, ws.y);
-            width = Mathf.Max(0f, ws.z);
-            return;
-        }
-
-        var approx = transform.lossyScale;
-        length = Mathf.Max(0f, Mathf.Abs(approx.x));
-        height = Mathf.Max(0f, Mathf.Abs(approx.y));
-        width = Mathf.Max(0f, Mathf.Abs(approx.z));
+        // 1. ИСПОЛЬЗУЕМ ЕДИНЫЙ УТИЛИТНЫЙ КЛАСС
+        Vector3 size = ModuleMeasurer.GetSize(this.gameObject);
+        length = size.x;
+        height = size.y;
+        width = size.z;
     }
 
     private void ComputeVolumesAndMass()
@@ -190,26 +126,20 @@ public class StandardGenerator : MonoBehaviour
     private void ComputeGeneratorOutputs()
     {
         float unitsPer0001 = effectiveVolume * 1000f;
-
         float moduleCoeff = TierCoeffs.Get(ModuleTier);
         double rawPowerD = (double)PowerBy0001m3 * (double)unitsPer0001 * (double)moduleCoeff;
         specificPower = (float)rawPowerD;
 
         float fuelTierCoeff = TierCoeffs.Get(FuelTier);
-        double rawFuelPer0001D = (fuelTierCoeff > 0f)
-            ? (double)FuelBy0001m3_Base / (double)fuelTierCoeff
-            : 0.0;
+        double rawFuelPer0001D = (fuelTierCoeff > 0f) ? (double)FuelBy0001m3_Base / (double)fuelTierCoeff : 0.0;
         if (rawFuelPer0001D <= 0.0) rawFuelPer0001D = MIN_FUEL_PER0001_D;
         fuelPer0001m3Tiered = (float)rawFuelPer0001D;
 
         float powerTierCoeff = TierCoeffs.Get(ModuleTier);
-        double powerTimesTierD = (double)PowerBy0001m3 * (double)powerTierCoeff;
-        powerTimesTierPer0001 = (float)powerTimesTierD;
+        powerTimesTierPer0001 = (float)((double)PowerBy0001m3 * (double)powerTierCoeff);
 
         double totalFuelD = rawFuelPer0001D * (double)effectiveVolume * 1000.0;
-        float totalFuel = (float)totalFuelD;
-        if (totalFuel <= 0f) totalFuel = 0f;
-        fuelKgPerS = totalFuel;
+        fuelKgPerS = (float)Mathf.Max(0f, (float)totalFuelD);
     }
 
     private void RoundAndStoreResults()
@@ -227,8 +157,7 @@ public class StandardGenerator : MonoBehaviour
 
         powerTimesTierPer0001 = RoundToWithEps(powerTimesTierPer0001, 3);
 
-        double eff = (double)effectiveVolume;
-        double totalD = perD * eff * 1000.0;
+        double totalD = perD * (double)effectiveVolume * 1000.0;
         totalD = System.Math.Round(totalD * 10000.0) / 10000.0;
         if (totalD < MIN_FUEL_DISPLAY_TOTAL) totalD = MIN_FUEL_DISPLAY_TOTAL;
         fuelKgPerS = (float)totalD;
@@ -241,39 +170,32 @@ public class StandardGenerator : MonoBehaviour
     }
 }
 
-// ======================== CUSTOM EDITOR ========================
 #if UNITY_EDITOR
 [CustomEditor(typeof(StandardGenerator))]
 public class StandardGeneratorEditor : Editor
 {
     SerializedProperty pModuleTier, pVolumeCoeff, pConstantFill;
     SerializedProperty pPowerBy0001m3, pFuelTier, pFuelBy0001m3_Base;
-    SerializedProperty pFactionShortName;
-    SerializedProperty pBaseHeating, pHeatCapacityCoeff;
+    SerializedProperty pFactionShortName, pBaseHeating, pHeatCapacityCoeff;
 
     StandardGenerator t;
-
     private string[] factionDisplayNames;
     private string[] factionShortNames;
 
     void OnEnable()
     {
         t = target as StandardGenerator;
-        if (t == null) return;
+        if (t == null || serializedObject == null) return;
 
-        if (serializedObject != null)
-        {
-            pModuleTier = serializedObject.FindProperty(nameof(StandardGenerator.ModuleTier));
-            pVolumeCoeff = serializedObject.FindProperty(nameof(StandardGenerator.VolumeCoefficientPercent));
-            pConstantFill = serializedObject.FindProperty(nameof(StandardGenerator.ConstantFillPercent));
-            pPowerBy0001m3 = serializedObject.FindProperty(nameof(StandardGenerator.PowerBy0001m3));
-            pFuelTier = serializedObject.FindProperty(nameof(StandardGenerator.FuelTier));
-            pFuelBy0001m3_Base = serializedObject.FindProperty(nameof(StandardGenerator.FuelBy0001m3_Base));
-            pFactionShortName = serializedObject.FindProperty("factionShortName");
-            
-            pBaseHeating = serializedObject.FindProperty(nameof(StandardGenerator.BaseHeating));
-            pHeatCapacityCoeff = serializedObject.FindProperty(nameof(StandardGenerator.HeatCapacityCoeff));
-        }
+        pModuleTier = serializedObject.FindProperty(nameof(StandardGenerator.ModuleTier));
+        pVolumeCoeff = serializedObject.FindProperty(nameof(StandardGenerator.VolumeCoefficientPercent));
+        pConstantFill = serializedObject.FindProperty(nameof(StandardGenerator.ConstantFillPercent));
+        pPowerBy0001m3 = serializedObject.FindProperty(nameof(StandardGenerator.PowerBy0001m3));
+        pFuelTier = serializedObject.FindProperty(nameof(StandardGenerator.FuelTier));
+        pFuelBy0001m3_Base = serializedObject.FindProperty(nameof(StandardGenerator.FuelBy0001m3_Base));
+        pFactionShortName = serializedObject.FindProperty("factionShortName");
+        pBaseHeating = serializedObject.FindProperty(nameof(StandardGenerator.BaseHeating));
+        pHeatCapacityCoeff = serializedObject.FindProperty(nameof(StandardGenerator.HeatCapacityCoeff));
 
         RebuildFactionList();
     }
@@ -281,7 +203,6 @@ public class StandardGeneratorEditor : Editor
     private void RebuildFactionList()
     {
         var db = FactionDatabase.Instance;
-
         if (db == null || db.factions == null || db.factions.Count == 0)
         {
             factionDisplayNames = new string[] { "(None — no FactionDatabase)" };
@@ -292,7 +213,6 @@ public class StandardGeneratorEditor : Editor
         int count = db.factions.Count;
         factionDisplayNames = new string[count + 1];
         factionShortNames = new string[count + 1];
-
         factionDisplayNames[0] = "(None)";
         factionShortNames[0] = "";
 
@@ -308,20 +228,15 @@ public class StandardGeneratorEditor : Editor
 
     public override void OnInspectorGUI()
     {
-        if (t == null) { base.OnInspectorGUI(); return; }
-
+        if (t == null) return;
         serializedObject.Update();
 
-        // ---- Identity ----
         EditorGUILayout.LabelField("Identity", EditorStyles.boldLabel);
-
         GUI.enabled = false;
         EditorGUILayout.TextField("Module Type", t.ModuleType);
         GUI.enabled = true;
-
         EditorGUILayout.PropertyField(pModuleTier);
 
-        // ---- Faction ----
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Faction", EditorStyles.boldLabel);
 
@@ -331,32 +246,23 @@ public class StandardGeneratorEditor : Editor
             int selectedIndex = 0;
             for (int i = 0; i < factionShortNames.Length; i++)
             {
-                if (factionShortNames[i] == current)
-                {
-                    selectedIndex = i;
-                    break;
-                }
+                if (factionShortNames[i] == current) { selectedIndex = i; break; }
             }
 
             EditorGUI.BeginChangeCheck();
             int newIndex = EditorGUILayout.Popup("Faction", selectedIndex, factionDisplayNames);
-            if (EditorGUI.EndChangeCheck())
-            {
-                pFactionShortName.stringValue = factionShortNames[newIndex];
-            }
+            if (EditorGUI.EndChangeCheck()) pFactionShortName.stringValue = factionShortNames[newIndex];
         }
         else
         {
             EditorGUILayout.PropertyField(pFactionShortName, new GUIContent("Faction (short name)"));
         }
 
-        // ---- Volume & Fill ----
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Volume & Fill", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(pVolumeCoeff, new GUIContent("Volume Coeff %"));
         EditorGUILayout.PropertyField(pConstantFill, new GUIContent("Constant Fill %"));
 
-        // ---- Computed ----
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Computed", EditorStyles.boldLabel);
         EditorGUILayout.LabelField("Length (X, m)", t.LengthMeters.ToString("F3"));
@@ -368,7 +274,6 @@ public class StandardGeneratorEditor : Editor
         EditorGUILayout.LabelField("Fill % used (min)", t.FillPercentUsed.ToString("F3"));
         EditorGUILayout.LabelField("Mass (kg)", t.MassKg.ToString("F3"));
 
-        // ---- Generator (inputs) ----
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Generator (inputs)", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(pPowerBy0001m3, new GUIContent("Power by 0.001 m³ (energy/s)"));
@@ -380,7 +285,6 @@ public class StandardGeneratorEditor : Editor
         EditorGUILayout.PropertyField(pBaseHeating, new GUIContent("Base Heating (°/s)"));
         EditorGUILayout.PropertyField(pHeatCapacityCoeff, new GUIContent("Heat Capacity Coeff"));
 
-        // ---- Outputs ----
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Outputs", EditorStyles.boldLabel);
         EditorGUILayout.LabelField("Power*Tier by 0.001 m³ (energy/s)", t.PowerTimesTierBy0_001m3.ToString("F3"));
