@@ -3,59 +3,42 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-/// <summary>
-/// Базовый класс верстака крафта модулей (IMGUI).
-/// Реализует общий UI, масштабирование, оболочку, стоимость и спавн.
-/// Наследники реализуют специфику конкретного типа модуля.
-/// Путь: Assets/Scripts/CoreMechanics/BaseModuleWorkbench.cs
-/// </summary>
 public abstract class BaseModuleWorkbench : MonoBehaviour
 {
     [Header("Storage References")]
-    [Tooltip("Alloy storage to pick shell alloy from and consume on craft.")]
     public AlloyStorage alloyStorage;
-
-    [Tooltip("Resources storage to consume metal and energy on craft.")]
     public ResourcesStorage resourcesStorage;
-
-    [Tooltip("Module storage to save crafted modules.")]
     public ModuleStorage moduleStorage;
 
-    // ====================== State ======================
+    [Header("Workbench Dimensions (Microwave)")]
+    public float innerLength = 2f;
+    public float innerWidth = 2f;
+    public float innerHeight = 2f;
+
     protected bool panelOpen;
     private Rect windowRect;
     private bool windowRectInitialized;
     private Vector2 scrollPos;
 
-    // Масштабирование (композиция)
     protected ModuleScaler scaler = new ModuleScaler();
 
-    // Shell — строковый буфер
     private float shellPercent = 5f;
     private string shellPercentStr = "5.000";
 
-    // Alloy
     protected int selectedAlloyIndex;
     protected string[] alloyDisplayNames;
     protected string[] alloyCodes;
     protected bool alloyDecoded;
     protected AlloyCode.AlloyParams alloyParams;
 
-    // Code
     private string currentModuleCode = "";
     private string codeInputField = "";
 
-    // Error
     private string errorMessage = "";
     private float errorTimer;
 
-    // Crafted object
     private GameObject craftedInstance;
-
-    // Dropdown pending selections (IMGUI корректность)
     private Dictionary<string, int> _pendingSelections = new Dictionary<string, int>();
-
-    // ====================== Abstract (наследники реализуют) ======================
 
     protected abstract string ModuleTypeName { get; }
     protected abstract void RebuildReferenceList();
@@ -75,8 +58,6 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
     protected abstract ModuleData CreateSpecificModuleData();
     protected abstract ResourcesStorage.ResourceIndex GetMetalIndex();
 
-    // ====================== Open / Close ======================
-
     public void OpenPanel()
     {
         panelOpen = true;
@@ -90,15 +71,10 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
         WorkbenchPopup.Hide();
     }
 
-    // ====================== Unity Lifecycle ======================
-
     protected virtual void Update()
     {
-        if (panelOpen && Keyboard.current != null)
-        {
-            if (Keyboard.current.escapeKey.wasPressedThisFrame)
-                ClosePanel();
-        }
+        if (panelOpen && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+            ClosePanel();
 
         if (errorTimer > 0f)
         {
@@ -107,125 +83,146 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
         }
     }
 
+    // ================== ВИЗУАЛЬНАЯ ТЕМА (ГРАФИТ) ==================
+    private static Texture2D _bgTex;
+    private static Texture2D _panelTex;
+    private static Texture2D _sepTex;
+    private static GUIStyle _windowStyle;
+    private static GUIStyle _panelStyle;
+
+    private void InitStyles()
+    {
+        // Темно-графитовый фон
+        if (_bgTex == null) _bgTex = WorkbenchPopup.MakeTex(1, 1, new Color(0.15f, 0.15f, 0.15f, 0.98f));
+        // Панели чуть светлее
+        if (_panelTex == null) _panelTex = WorkbenchPopup.MakeTex(1, 1, new Color(0.2f, 0.2f, 0.2f, 0.9f));
+        // Нейтрально-серый разделитель
+        if (_sepTex == null) _sepTex = WorkbenchPopup.MakeTex(1, 1, new Color(0.35f, 0.35f, 0.35f, 0.5f));
+
+        if (_windowStyle == null)
+        {
+            _windowStyle = new GUIStyle(GUI.skin.window);
+            _windowStyle.normal.background = _bgTex;
+            _windowStyle.onNormal.background = _bgTex;
+            _windowStyle.normal.textColor = Color.white;
+            _windowStyle.fontSize = 14;
+            _windowStyle.fontStyle = FontStyle.Bold;
+        }
+
+        if (_panelStyle == null)
+        {
+            _panelStyle = new GUIStyle(GUI.skin.box);
+            _panelStyle.normal.background = _panelTex;
+            _panelStyle.normal.textColor = Color.white;
+            _panelStyle.padding = new RectOffset(10, 10, 10, 10);
+            _panelStyle.margin = new RectOffset(0, 0, 5, 5);
+        }
+
+        GUI.skin.label.richText = true;
+    }
+
+    private void DrawSeparator()
+    {
+        GUILayout.Space(5);
+        GUIStyle sep = new GUIStyle();
+        sep.normal.background = _sepTex;
+        GUILayout.Box(GUIContent.none, sep, GUILayout.Height(2), GUILayout.ExpandWidth(true));
+        GUILayout.Space(5);
+    }
+    // ==============================================================
+
     private void OnGUI()
     {
         if (!panelOpen) return;
+        InitStyles();
 
-        // Адаптация к экрану: окно занимает 96% ширины (макс 1200px) и 90% высоты
         if (!windowRectInitialized)
         {
-            float w = Mathf.Min(1200f, Screen.width * 0.96f);
+            float w = Mathf.Min(1100f, Screen.width * 0.96f);
             float h = Screen.height * 0.9f;
-            float x = (Screen.width - w) * 0.5f;
-            float y = (Screen.height - h) * 0.5f;
-            windowRect = new Rect(x, y, w, h);
+            windowRect = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.5f, w, h);
             windowRectInitialized = true;
         }
 
-        // Clamp to screen
         windowRect.x = Mathf.Clamp(windowRect.x, 0, Mathf.Max(0, Screen.width - windowRect.width));
         windowRect.y = Mathf.Clamp(windowRect.y, 0, Mathf.Max(0, Screen.height - windowRect.height));
 
-        // Закрытие popup по клику вне
         if (WorkbenchPopup.IsShowing && Event.current.type == EventType.MouseDown)
         {
-            Vector2 screenMouse = Event.current.mousePosition;
-            if (!WorkbenchPopup.PopupRect.Contains(screenMouse))
+            if (!WorkbenchPopup.PopupRect.Contains(Event.current.mousePosition))
             {
                 WorkbenchPopup.Hide();
                 Event.current.Use();
             }
         }
 
-        windowRect = GUI.Window(GetInstanceID(), windowRect, DrawWindow, $"{ModuleTypeName}Workbench");
+        // Оригинальное название окна
+        windowRect = GUI.Window(GetInstanceID(), windowRect, DrawWindow, $"{ModuleTypeName}Workbench", _windowStyle);
         WorkbenchPopup.DrawPopup();
     }
-
-    // ====================== Main Window ======================
 
     private void DrawWindow(int id)
     {
         GUI.DragWindow(new Rect(0, 0, 10000, 20));
-
-        // Отступ контента от краев окна (Padding)
         float padding = 20f;
         float contentWidth = windowRect.width - (padding * 2);
 
-        // Начало зоны с отступами
-        GUILayout.BeginArea(new Rect(padding, 25, contentWidth, windowRect.height - 35));
-
-        // Отключаем горизонтальный скролл (false, true для вертикального)
+        GUILayout.BeginArea(new Rect(padding, 35, contentWidth, windowRect.height - 45));
         scrollPos = GUILayout.BeginScrollView(scrollPos, false, true);
         GUILayout.BeginVertical();
 
-        // ─── Error ───
         if (!string.IsNullOrEmpty(errorMessage))
         {
-            Color prev = GUI.color;
-            GUI.color = Color.red;
-            GUILayout.Label(errorMessage, GetCenteredBoldStyle());
-            GUI.color = prev;
+            GUILayout.Label($"<color=#FF4444><b>⚠ ОШИБКА: {errorMessage}</b></color>", GetCenteredBoldStyle());
             GUILayout.Space(5);
         }
 
-        // ═══ 1. Код модуля (75% ширины, слева) ═══
-        float codeWidth = contentWidth * 0.75f;
-
+        // Блок кодов
         GUILayout.BeginHorizontal();
-        GUILayout.BeginVertical(GUILayout.Width(codeWidth));
-        DrawCompactCodeSection("Код модуля", ref currentModuleCode, true, "Копировать", () => {
-            if (!string.IsNullOrEmpty(currentModuleCode))
-                GUIUtility.systemCopyBuffer = currentModuleCode;
+        GUILayout.BeginVertical(GUILayout.Width(contentWidth * 0.75f));
+        DrawCompactCodeSection("ГЕНЕРАЦИЯ КОДА", ref currentModuleCode, true, "КОПИРОВАТЬ", () => {
+            if (!string.IsNullOrEmpty(currentModuleCode)) GUIUtility.systemCopyBuffer = currentModuleCode;
         });
         GUILayout.Space(5);
-        DrawCompactCodeSection("Вставить код", ref codeInputField, false, "Вставить", () => {
+        DrawCompactCodeSection("ВВОД ЧЕРТЕЖА", ref codeInputField, false, "ВСТАВИТЬ", () => {
             codeInputField = (GUIUtility.systemCopyBuffer ?? "").Trim();
-        }, "Применить", () => {
-            ShowError("Система кодов модулей в разработке");
-        });
+        }, "ПРИМЕНИТЬ", ApplyCodeFromInput);
         GUILayout.EndVertical();
-        GUILayout.FlexibleSpace(); // Заполняет пустоту справа
+        GUILayout.FlexibleSpace();
         GUILayout.EndHorizontal();
 
-        GUILayout.Space(10);
+        DrawSeparator();
 
-        // ═══ Основная рабочая зона (2 колонки) ═══
+        // Основная рабочая зона
         GUILayout.BeginHorizontal();
+        float leftW = (contentWidth - 30) * 0.55f;
 
-        // Учитываем отступ между колонками (10px) и скроллбар (20px)
-        float colSpace = 10f;
-        float availableW = contentWidth - colSpace - 20;
-        float leftW = availableW * 0.6f;
-
-        // Левая колонка (60%)
         GUILayout.BeginVertical(GUILayout.Width(leftW));
         DrawSelectionSection();
-        GUILayout.Space(5);
         DrawShellSection();
-        GUILayout.Space(5);
         DrawScalingSection();
         GUILayout.EndVertical();
 
-        GUILayout.Space(colSpace);
+        GUILayout.Space(10);
 
-        // Правая колонка (остаток)
         GUILayout.BeginVertical();
         DrawComputedSection();
         GUILayout.EndVertical();
 
         GUILayout.EndHorizontal();
 
-        GUILayout.Space(10);
+        DrawSeparator();
 
-        // ═══ Нижняя часть ═══
+        // Специфичная секция (генератор)
         DrawModuleSpecificSection();
 
-        GUILayout.Space(5);
+        DrawSeparator();
+
         DrawAlloyParamsSection();
 
-        GUILayout.Space(5);
+        DrawSeparator();
 
-        // Стоимость (75% ширины, слева)
+        // Стоимость и Крафт
         GUILayout.BeginHorizontal();
         GUILayout.BeginVertical(GUILayout.Width(contentWidth * 0.75f));
         DrawCostsAndButtons();
@@ -235,100 +232,106 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
 
         GUILayout.EndVertical();
         GUILayout.EndScrollView();
-
         GUILayout.EndArea();
     }
 
-    // ====================== Code Sections (Compact) ======================
-
     private void DrawCompactCodeSection(string title, ref string text, bool readOnly, string btn1Text, Action act1, string btn2Text = null, Action act2 = null)
     {
-        GUILayout.BeginVertical("box");
-        GUILayout.Label(title, GetBoldStyle());
+        GUILayout.BeginVertical(_panelStyle);
+        GUILayout.Label($"<color=#E0E0E0>{title}</color>", GetBoldStyle());
         GUILayout.BeginHorizontal();
 
-        // TextArea с увеличенным шрифтом (14)
         GUIStyle areaStyle = new GUIStyle(GUI.skin.textArea);
-        areaStyle.fontSize = 14;
-        areaStyle.normal.textColor = Color.white;
+        areaStyle.fontSize = 13;
+        areaStyle.normal.textColor = readOnly ? new Color(0.8f, 0.9f, 0.8f) : Color.white;
+        areaStyle.normal.background = WorkbenchPopup.MakeTex(1, 1, new Color(0.1f, 0.1f, 0.1f, 1f));
 
         if (readOnly) GUI.enabled = false;
-        text = GUILayout.TextArea(text, areaStyle, GUILayout.Height(60));
+        text = GUILayout.TextArea(text, areaStyle, GUILayout.Height(55));
         if (readOnly) GUI.enabled = true;
 
-        // Кнопки справа в столбик, ширина 100px чтобы текст влезал
-        GUILayout.BeginVertical(GUILayout.Width(100));
-        if (GUILayout.Button(btn1Text, GUILayout.Height(28))) act1?.Invoke();
-
-        if (btn2Text != null && act2 != null)
-        {
-            if (GUILayout.Button(btn2Text, GUILayout.Height(28))) act2.Invoke();
-        }
+        GUILayout.BeginVertical(GUILayout.Width(110));
+        if (GUILayout.Button(btn1Text, GUILayout.Height(25))) act1?.Invoke();
+        if (btn2Text != null && act2 != null && GUILayout.Button(btn2Text, GUILayout.Height(25))) act2.Invoke();
         GUILayout.EndVertical();
 
         GUILayout.EndHorizontal();
         GUILayout.EndVertical();
     }
 
-    // ====================== Selection Section ======================
+    private void ApplyCodeFromInput()
+    {
+        if (string.IsNullOrEmpty(codeInputField)) return;
+        string[] lines = codeInputField.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        if (lines.Length < 3) { ShowError("Неверный формат чертежа (нужно 3 строки)"); return; }
+
+        string[] parts = lines[0].Split('-');
+        if (parts.Length < 5) { ShowError("Неверная первая строка"); return; }
+        if (parts[0] != ModuleTypeName) { ShowError($"Чертеж не от {ModuleTypeName}"); return; }
+
+        string[] dims = parts[4].Split('/');
+        if (dims.Length != 3) { ShowError("Неверные габариты в коде"); return; }
+
+        float l = float.Parse(dims[0], System.Globalization.CultureInfo.InvariantCulture);
+
+        string alloyCode = lines[2].Trim();
+        int newAlloyIndex = Array.IndexOf(alloyCodes, alloyCode);
+        if (newAlloyIndex >= 0)
+        {
+            selectedAlloyIndex = newAlloyIndex;
+            OnAlloyChanged();
+        }
+
+        scaler.SetScaleMode(ModuleScaler.ScaleMode.Length);
+        scaler.HandleScaleInput(l.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        RecalculateAll();
+
+        if (currentModuleCode.Trim() != codeInputField.Trim())
+        {
+            ShowError("Чертеж поврежден или содержит невозможные параметры!");
+            ResetToDefaults();
+        }
+    }
 
     private void DrawSelectionSection()
     {
-        GUILayout.BeginVertical("box");
-        GUILayout.Label("Выбор эталона", GetBoldStyle());
-
+        GUILayout.BeginVertical(_panelStyle);
+        GUILayout.Label("<color=#E0E0E0>ВЫБОР ЭТАЛОНА</color>", GetBoldStyle());
         GUILayout.BeginHorizontal();
         if (GetReferenceCount() > 0)
         {
-            string[] refNames = GetReferenceNames();
             int curIdx = GetSelectedReferenceIndex();
-            int newIdx = DrawDropdown("wb_ref", curIdx, refNames);
-            if (newIdx != curIdx)
-            {
-                SelectReference(newIdx);
-                OnReferenceChanged();
-            }
+            int newIdx = DrawDropdown("wb_ref", curIdx, GetReferenceNames());
+            if (newIdx != curIdx) { SelectReference(newIdx); OnReferenceChanged(); }
         }
-        else
-        {
-            GUILayout.Label("(Нет эталонов)");
-        }
+        else GUILayout.Label("<color=#FF8888>(Нет эталонов в БД)</color>");
         GUILayout.EndHorizontal();
 
         if (GetReferenceCount() > 0)
         {
             string faction = string.IsNullOrEmpty(GetReferenceFaction()) ? "—" : GetReferenceFaction();
-            GUILayout.Label($"Тир: {GetReferenceTier()} | Фракция: {faction} | Fill: {GetReferenceFillPercent():F0}%", GUI.skin.label);
+            GUILayout.Label($"<color=#AAAAAA>Тир:</color> {GetReferenceTier()}  |  <color=#AAAAAA>Фракция:</color> {faction}  |  <color=#AAAAAA>Заполнение:</color> {GetReferenceFillPercent():F0}%");
         }
         GUILayout.EndVertical();
     }
 
-    // ====================== Shell Section ======================
-
     private void DrawShellSection()
     {
-        GUILayout.BeginVertical("box");
-        GUILayout.Label("Оболочка", GetBoldStyle());
+        GUILayout.BeginVertical(_panelStyle);
+        GUILayout.Label("<color=#E0E0E0>ОБОЛОЧКА</color>", GetBoldStyle());
 
-        // Shell percent: Label -> Input -> 0% -> Slider -> 100%
         GUILayout.BeginHorizontal();
         GUILayout.Label("Объем %:", GUILayout.Width(70));
-
         string newStr = GUILayout.TextField(shellPercentStr, GUILayout.Width(60));
-        if (newStr != shellPercentStr)
+        if (newStr != shellPercentStr && float.TryParse(newStr, out float val))
         {
+            shellPercent = Mathf.Clamp(val, 0.001f, 100f);
             shellPercentStr = newStr;
-            if (float.TryParse(shellPercentStr, out float val))
-            {
-                shellPercent = Mathf.Clamp(val, 0.001f, 100f);
-                scaler.SetShellPercent(shellPercent);
-                RecalculateAll();
-            }
+            scaler.SetShellPercent(shellPercent);
+            RecalculateAll();
         }
-
         GUILayout.Space(5);
         GUILayout.Label("0%", GUILayout.Width(25));
-
         float sliderVal = GUILayout.HorizontalSlider(shellPercent, 0.001f, 100f);
         if (Mathf.Abs(sliderVal - shellPercent) > 0.0005f)
         {
@@ -337,176 +340,136 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
             scaler.SetShellPercent(shellPercent);
             RecalculateAll();
         }
-
         GUILayout.Label("100%", GUILayout.Width(35));
         GUILayout.EndHorizontal();
 
-        // Alloy selection
         GUILayout.BeginHorizontal();
         GUILayout.Label("Сплав:", GUILayout.Width(70));
-
-        // Увеличиваем кнопку списка сплавов
         if (alloyDisplayNames != null && alloyDisplayNames.Length > 0)
         {
             int newIdx = DrawDropdown("wb_alloy", selectedAlloyIndex, alloyDisplayNames);
-            if (newIdx != selectedAlloyIndex)
-            {
-                selectedAlloyIndex = newIdx;
-                OnAlloyChanged();
-            }
+            if (newIdx != selectedAlloyIndex) { selectedAlloyIndex = newIdx; OnAlloyChanged(); }
         }
-        else
-        {
-            Color prev = GUI.color;
-            GUI.color = Color.yellow;
-            GUILayout.Label("(не выбран)", GUILayout.MinWidth(150));
-            GUI.color = prev;
-        }
+        else GUILayout.Label("<color=#FFCC00>(не выбран)</color>", GUILayout.MinWidth(150));
         GUILayout.EndHorizontal();
         GUILayout.EndVertical();
     }
-
-    // ====================== Scaling Section ======================
 
     private void DrawScalingSection()
     {
-        GUILayout.BeginVertical("box");
-        GUILayout.Label("Масштабирование", GetBoldStyle());
+        GUILayout.BeginVertical(_panelStyle);
+        GUILayout.Label("<color=#E0E0E0>МАСШТАБИРОВАНИЕ</color>", GetBoldStyle());
 
-        // Выбор режима
-        string[] modeNames = { "Длина", "Ширина", "Высота", "Масса", "Эфф.Объём" };
+        string[] modeNames = { "По Длине", "По Ширине", "По Высоте", "По Массе", "По Объёму" };
         int curMode = (int)scaler.CurrentScaleMode;
         int newMode = GUILayout.SelectionGrid(curMode, modeNames, 3);
-        if (newMode != curMode)
-        {
-            scaler.SetScaleMode((ModuleScaler.ScaleMode)newMode);
-        }
+        if (newMode != curMode) scaler.SetScaleMode((ModuleScaler.ScaleMode)newMode);
 
         GUILayout.Space(5);
-
-        // Поле ввода
         GUILayout.BeginHorizontal();
-        GUILayout.Label("Значение:", GUILayout.Width(80));
+        GUILayout.Label("Ввод:", GUILayout.Width(80));
         string currentStr = scaler.ScaleInputStr;
         string newScaleStr = GUILayout.TextField(currentStr);
-        if (newScaleStr != currentStr)
-        {
-            if (scaler.HandleScaleInput(newScaleStr))
-            {
-                RecalculateAll();
-            }
-        }
+        if (newScaleStr != currentStr && scaler.HandleScaleInput(newScaleStr)) RecalculateAll();
         GUILayout.EndHorizontal();
 
-        if (GUILayout.Button("Сброс масштаба"))
-        {
-            scaler.SetScaleFactor(1f);
-            RecalculateAll();
-        }
+        GUILayout.Space(5);
+        if (GUILayout.Button("СБРОСИТЬ МАСШТАБ", GUILayout.Height(24))) { scaler.SetScaleFactor(1f); RecalculateAll(); }
         GUILayout.EndVertical();
     }
 
-    // ====================== Computed Section ======================
+    private bool CheckFitsInWorkbench()
+    {
+        return scaler.CalcLength <= innerLength && scaler.CalcWidth <= innerWidth && scaler.CalcHeight <= innerHeight;
+    }
 
     private void DrawComputedSection()
     {
-        GUILayout.BeginVertical("box");
-        GUILayout.Label("Общие параметры", GetBoldStyle());
+        GUILayout.BeginVertical(_panelStyle);
+        GUILayout.Label("<color=#E0E0E0>ГЕОМЕТРИЯ И ФИЗИКА</color>", GetBoldStyle());
 
-        GUILayout.BeginHorizontal();
-        LabelVal("Длина:", $"{scaler.CalcLength:F3} м");
-        LabelVal("Ширина:", $"{scaler.CalcWidth:F3} м");
-        GUILayout.EndHorizontal();
-        LabelVal("Высота:", $"{scaler.CalcHeight:F3} м");
+        bool fits = CheckFitsInWorkbench();
+        string dimColor = fits ? "#00FF00" : "#FF4444";
 
-        GUILayout.Space(5);
+        DrawGridRow("Длина (X):", $"<color={dimColor}>{scaler.CalcLength:F3} м</color>", "Объём (Полный):", $"{scaler.CalcRealVolume:F4} м³");
+        DrawGridRow("Ширина (Z):", $"<color={dimColor}>{scaler.CalcWidth:F3} м</color>", "Объём (Стенки):", $"{scaler.CalcShellVolume:F4} м³");
+        DrawGridRow("Высота (Y):", $"<color={dimColor}>{scaler.CalcHeight:F3} м</color>", "Объём (Внутр.):", $"{scaler.CalcEffectiveVolume:F4} м³");
 
-        LabelVal("Объём (Real):", $"{scaler.CalcRealVolume:F6} м³");
-        LabelVal("Объём (Shell):", $"{scaler.CalcShellVolume:F6} м³");
-        LabelVal("Объём (Eff):", $"{scaler.CalcEffectiveVolume:F6} м³");
+        DrawSeparator();
 
-        GUILayout.Space(5);
+        DrawGridRow("Масса оболочки:", $"{scaler.CalcShellMass:F1} кг", "Прочность:", $"<color=#FFD700>{scaler.CalcDurability:F1}</color>");
+        DrawGridRow("Масса внутрянки:", $"{scaler.CalcInnerMass:F1} кг", "", "");
+        DrawGridRow("ОБЩАЯ МАССА:", $"<b>{scaler.CalcTotalMass:F1} кг</b>", "", "");
 
-        // Полные названия
-        LabelVal("Масса (Оболочка):", $"{scaler.CalcShellMass:F1} кг");
-        LabelVal("Масса (Внутренняя):", $"{scaler.CalcInnerMass:F1} кг");
-        LabelVal("Масса (Общая):", $"{scaler.CalcTotalMass:F1} кг");
-
-        GUILayout.Space(5);
-        Color prev = GUI.color;
-        GUI.color = Color.cyan;
-        LabelVal("Прочность:", $"{scaler.CalcDurability:F1}");
-        GUI.color = prev;
+        if (!fits)
+        {
+            GUILayout.Space(10);
+            GUILayout.Label($"<color=#FF4444><b>⚠ ГАБАРИТЫ ПРЕВЫШАЮТ КАМЕРУ ВЕРСТАКА (Макс: {innerLength}x{innerWidth}x{innerHeight})</b></color>", GetCenteredBoldStyle());
+        }
 
         GUILayout.EndVertical();
     }
 
-    private void LabelVal(string label, string val)
+    private void DrawGridRow(string l1, string v1, string l2, string v2)
     {
         GUILayout.BeginHorizontal();
-        GUILayout.Label(label, GUILayout.Width(140)); // Увеличена ширина лейбла
-        GUILayout.Label(val, GetBoldStyle());
+        GUILayout.Label($"<color=#AAAAAA>{l1}</color>", GUILayout.Width(120));
+        GUILayout.Label(v1, GUILayout.Width(100));
+        GUILayout.Label($"<color=#AAAAAA>{l2}</color>", GUILayout.Width(120));
+        GUILayout.Label(v2);
         GUILayout.EndHorizontal();
     }
 
-    // ====================== Alloy Params Section ======================
-
     private void DrawAlloyParamsSection()
     {
-        GUILayout.BeginVertical("box");
-        GUILayout.Label("Параметры сплава оболочки", GetBoldStyle());
+        GUILayout.BeginVertical(_panelStyle);
+        GUILayout.Label("<color=#E0E0E0>АНАЛИЗ ОБОЛОЧКИ</color>", GetBoldStyle());
 
         if (!alloyDecoded || alloyCodes == null || alloyCodes.Length == 0)
         {
-            GUILayout.Label("(Сплав не выбран или не распознан)");
+            GUILayout.Label("<color=#FFCC00>(Сплав не выбран или не распознан)</color>");
             GUILayout.EndVertical();
             return;
         }
 
-        // Красивое отображение тира и флагов
         GUILayout.BeginHorizontal();
-        GUILayout.Label($"Тир сплава: {alloyParams.tier}", GetBoldStyle(), GUILayout.Width(120));
-        GUILayout.Label($"Химикаты: {(alloyParams.useChemicals ? "Да" : "Нет")}", GUILayout.Width(120));
-        GUILayout.Label($"Наниты: {(alloyParams.useNanites ? "Да" : "Нет")}", GUILayout.Width(120));
+        GUILayout.Label($"<color=#AAAAAA>Тир сплава:</color> <b>{alloyParams.tier}</b>", GUILayout.Width(130));
+        GUILayout.Label($"<color=#AAAAAA>Химикаты:</color> {(alloyParams.useChemicals ? "<color=#00FF00>Да</color>" : "<color=#FF4444>Нет</color>")}", GUILayout.Width(120));
+        GUILayout.Label($"<color=#AAAAAA>Наниты:</color> {(alloyParams.useNanites ? "<color=#00FF00>Да</color>" : "<color=#FF4444>Нет</color>")}", GUILayout.Width(120));
         GUILayout.EndHorizontal();
 
-        float colW = (windowRect.width - 50) / 4f;
-
+        GUILayout.Space(5);
+        float colW = (windowRect.width - 70) / 4f;
         GUILayout.BeginHorizontal();
-        DrawAlloyCol("Кинетика", alloyParams.kineticAbsorption, alloyParams.kineticResistance, colW);
-        DrawAlloyCol("Термика", alloyParams.thermalAbsorption, alloyParams.thermalResistance, colW);
-        DrawAlloyCol("Химия", alloyParams.chemicalAbsorption, alloyParams.chemicalResistance, colW);
-        DrawAlloyCol("Энергия", alloyParams.energyAbsorption, alloyParams.energyResistance, colW);
+        DrawAlloyCol("КИНИТИКА", alloyParams.kineticAbsorption, alloyParams.kineticResistance, colW);
+        DrawAlloyCol("ТЕРМИКА", alloyParams.thermalAbsorption, alloyParams.thermalResistance, colW);
+        DrawAlloyCol("ХИМИЯ", alloyParams.chemicalAbsorption, alloyParams.chemicalResistance, colW);
+        DrawAlloyCol("ЭНЕРГИЯ", alloyParams.energyAbsorption, alloyParams.energyResistance, colW);
         GUILayout.EndHorizontal();
         GUILayout.EndVertical();
     }
 
     private void DrawAlloyCol(string title, int absorb, float resist, float width)
     {
-        GUILayout.BeginVertical(GUILayout.Width(width));
-        GUILayout.Label(title, GetBoldStyle());
-        GUILayout.Label($"Поглощение: {absorb}");
-        GUILayout.Label($"Сопротивление: {resist:F1}%");
+        GUILayout.BeginVertical("box", GUILayout.Width(width));
+        GUILayout.Label($"<color=#CCCCCC><b>{title}</b></color>");
+        GUILayout.Label($"Поглощ: <b>{absorb}</b>");
+        GUILayout.Label($"Резист: <b>{resist:F1}%</b>");
         GUILayout.EndVertical();
     }
 
-    // ====================== Costs & Buttons ======================
-
     private void DrawCostsAndButtons()
     {
-        GUILayout.BeginVertical("box");
-        GUILayout.Label("Стоимость изготовления", GetBoldStyle());
+        GUILayout.BeginVertical(_panelStyle);
+        GUILayout.Label("<color=#E0E0E0>ТРЕБОВАНИЯ ПРОИЗВОДСТВА</color>", GetBoldStyle());
 
         string alloyCode = GetSelectedAlloyCode();
-        float alloyAvailable = alloyCode != null && alloyStorage != null
-            ? (float)alloyStorage.GetMass(alloyCode) : 0f;
-        bool enoughAlloy = alloyCode != null && alloyStorage != null &&
-            alloyStorage.HasEnoughMass(alloyCode, scaler.CalcShellMass);
+        float alloyAvailable = alloyCode != null && alloyStorage != null ? (float)alloyStorage.GetMass(alloyCode) : 0f;
+        bool enoughAlloy = alloyCode != null && alloyStorage != null && alloyStorage.HasEnoughMass(alloyCode, scaler.CalcShellMass);
 
         int metalTier = GetReferenceTier();
         var metalIdx = GetMetalIndex();
-        float metalAvailable = resourcesStorage != null
-            ? (float)(resourcesStorage.GetGrams(metalIdx) / 1000.0) : 0f;
+        float metalAvailable = resourcesStorage != null ? (float)(resourcesStorage.GetGrams(metalIdx) / 1000.0) : 0f;
         float metalNeeded = scaler.CalcInnerMass;
         bool enoughMetal = metalAvailable >= metalNeeded - 0.001f;
 
@@ -514,55 +477,46 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
         long energyAvailable = resourcesStorage != null ? resourcesStorage.EnergyUnits : 0;
         bool enoughEnergy = energyAvailable >= energyNeeded;
 
-        // Вывод стоимости в 3 колонки
         GUILayout.BeginHorizontal();
-        DrawCostItem($"Сплав", scaler.CalcShellMass, alloyAvailable, "кг", enoughAlloy);
+        DrawCostItem("Сплав", scaler.CalcShellMass, alloyAvailable, "кг", enoughAlloy);
         GUILayout.FlexibleSpace();
         DrawCostItem($"Металл T{metalTier}", metalNeeded, metalAvailable, "кг", enoughMetal);
         GUILayout.FlexibleSpace();
-        DrawCostItem("Энергия", energyNeeded, energyAvailable, "E", enoughEnergy);
+        DrawCostItem("Энергия", energyNeeded, energyAvailable, "E", enoughEnergy, "#FFD700");
         GUILayout.EndHorizontal();
 
-        GUILayout.Space(10);
+        GUILayout.Space(15);
 
         GUILayout.BeginHorizontal();
-        bool canCraft = GetReferenceCount() > 0 &&
-                        alloyCode != null &&
-                        enoughAlloy && enoughMetal && enoughEnergy &&
-                        scaler.CalcEffectiveVolume > 0.000001f;
+        bool fits = CheckFitsInWorkbench();
+        bool canCraft = GetReferenceCount() > 0 && alloyCode != null && enoughAlloy && enoughMetal && enoughEnergy && scaler.CalcEffectiveVolume > 0.000001f && fits;
 
-        if (!canCraft) GUI.enabled = false;
-        if (GUILayout.Button("ИЗГОТОВИТЬ", GUILayout.Height(30)))
-        {
-            OnCraft();
-        }
+        Color oldBg = GUI.backgroundColor;
+        GUI.backgroundColor = canCraft ? new Color(0.2f, 0.6f, 0.3f) : new Color(0.4f, 0.2f, 0.2f);
+
+        GUI.enabled = canCraft;
+        if (GUILayout.Button("ИЗГОТОВИТЬ МОДУЛЬ", GUILayout.Height(35))) OnCraft();
         GUI.enabled = true;
+        GUI.backgroundColor = oldBg;
 
-        if (GUILayout.Button("СБРОС", GUILayout.Height(30)))
-        {
-            ResetToDefaults();
-        }
+        GUILayout.Space(10);
+        if (GUILayout.Button("СБРОС", GUILayout.Height(35), GUILayout.Width(100))) ResetToDefaults();
         GUILayout.EndHorizontal();
-
         GUILayout.EndVertical();
     }
 
-    private void DrawCostItem(string label, float needed, float available, string unit, bool enough)
+    private void DrawCostItem(string label, float needed, float available, string unit, bool enough, string highlightColor = "#FFFFFF")
     {
-        GUILayout.BeginVertical(GUILayout.MinWidth(100));
-        GUILayout.Label($"{label}: {needed:F1} {unit}", GetBoldStyle());
-
-        GUIStyle st = new GUIStyle(GUI.skin.label);
-        if (!enough) st.normal.textColor = Color.red;
-        GUILayout.Label($"(есть: {available:F1})", st);
+        GUILayout.BeginVertical(GUILayout.MinWidth(110));
+        GUILayout.Label($"<color=#AAAAAA>{label}:</color> <color={highlightColor}><b>{needed:F1} {unit}</b></color>");
+        string availStr = enough ? $"<color=#00FF00>{available:F1}</color>" : $"<color=#FF4444>{available:F1}</color>";
+        GUILayout.Label($"На складе: {availStr} {unit}", new GUIStyle(GUI.skin.label) { fontSize = 11 });
         GUILayout.EndVertical();
     }
-
-    // ====================== Craft ======================
 
     private void OnCraft()
     {
-        if (GetReferenceCount() == 0) return;
+        if (GetReferenceCount() == 0 || !CheckFitsInWorkbench()) return;
 
         string alloyCode = GetSelectedAlloyCode();
         if (string.IsNullOrEmpty(alloyCode)) { ShowError("Сплав не выбран"); return; }
@@ -572,82 +526,42 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
         float craftInnerMass = scaler.CalcInnerMass;
         float craftTotalMass = scaler.CalcTotalMass;
 
-        if (!alloyStorage.HasEnoughMass(alloyCode, craftShellMass))
-        {
-            ShowError("Недостаточно сплава для оболочки");
-            return;
-        }
+        if (!alloyStorage.HasEnoughMass(alloyCode, craftShellMass)) { ShowError("Недостаточно сплава для оболочки"); return; }
 
         var metalIdx = GetMetalIndex();
         long metalNeededG = (long)Math.Ceiling(craftInnerMass * 1000.0);
-        if (resourcesStorage.GetGrams(metalIdx) < metalNeededG)
-        {
-            ShowError("Недостаточно металла");
-            return;
-        }
+        if (resourcesStorage.GetGrams(metalIdx) < metalNeededG) { ShowError("Недостаточно металла"); return; }
 
         long energyNeeded = (long)Math.Ceiling(craftTotalMass);
-        if (resourcesStorage.EnergyUnits < energyNeeded)
-        {
-            ShowError("Недостаточно энергии");
-            return;
-        }
+        if (resourcesStorage.EnergyUnits < energyNeeded) { ShowError("Недостаточно энергии"); return; }
 
-        // ─── Create ModuleData ───
         ModuleData moduleData = CreateSpecificModuleData();
-        if (moduleData == null)
-        {
-            ShowError("Ошибка создания данных модуля");
-            return;
-        }
+        if (moduleData == null) { ShowError("Ошибка создания данных модуля"); return; }
 
         string faction = string.IsNullOrEmpty(GetReferenceFaction()) ? "NONE" : GetReferenceFaction();
         string refName = GetReferenceName() ?? "";
 
         moduleData.FillCommon(
-            ModuleTypeName,
-            GetReferenceTier(),
-            faction,
-            GetSelectedReferenceIndex(),
-            refName,
-            alloyCode,
-            alloyDecoded ? alloyParams.tier : 1,
-            shellPercent,
-            scaler.CurrentScaleFactor,
-            GetReferenceFillPercent(),
-            scaler.CalcLength, scaler.CalcWidth, scaler.CalcHeight,
+            ModuleTypeName, GetReferenceTier(), faction, GetSelectedReferenceIndex(), refName,
+            alloyCode, alloyDecoded ? alloyParams.tier : 1, shellPercent, scaler.CurrentScaleFactor,
+            GetReferenceFillPercent(), scaler.CalcLength, scaler.CalcWidth, scaler.CalcHeight,
             scaler.CalcAABBVolume, scaler.CalcRealVolume, scaler.CalcShellVolume, scaler.CalcEffectiveVolume,
-            craftShellMass, craftInnerMass, craftTotalMass,
-            scaler.CalcDurability,
-            craftCode
+            craftShellMass, craftInnerMass, craftTotalMass, scaler.CalcDurability, craftCode
         );
 
-        // ─── Consume resources ───
         alloyStorage.TryConsumeMass(alloyCode, craftShellMass);
         resourcesStorage.TryRemoveGrams(metalIdx, metalNeededG);
         resourcesStorage.TryConsumeEnergy(energyNeeded);
 
-        // ─── Destroy old ───
-        if (craftedInstance != null)
-        {
-            Destroy(craftedInstance);
-            craftedInstance = null;
-        }
+        if (craftedInstance != null) { Destroy(craftedInstance); craftedInstance = null; }
 
-        // ─── Instantiate ───
         GameObject prefab = GetReferencePrefab();
         if (prefab == null) { ShowError("Префаб эталона не найден"); return; }
 
         Vector3 spawnPos = transform.position + Vector3.up * 2f;
         craftedInstance = Instantiate(prefab, spawnPos, Quaternion.identity);
         craftedInstance.name = $"Crafted_{prefab.name}_T{GetReferenceTier()}";
-
-        float s = Mathf.Max(0.001f, scaler.CurrentScaleFactor);
-        craftedInstance.transform.localScale = prefab.transform.localScale * s;
-
-        // ─── Remove Standard* component, add CraftedModule ───
-        var oldES = craftedInstance.GetComponent<StandardEnergyStorage>();
-        if (oldES != null) Destroy(oldES);
+        craftedInstance.transform.localScale = prefab.transform.localScale * Mathf.Max(0.001f, scaler.CurrentScaleFactor);
 
         var oldGen = craftedInstance.GetComponent<StandardGenerator>();
         if (oldGen != null) Destroy(oldGen);
@@ -655,66 +569,43 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
         var craftedComp = craftedInstance.AddComponent<CraftedModule>();
         craftedComp.SetData(moduleData);
 
-        // ─── Save to ModuleStorage ───
         if (moduleStorage != null)
         {
             string mid = moduleStorage.AddModule(moduleData);
             Debug.Log($"[{ModuleTypeName}Workbench] Saved to ModuleStorage, ID: {mid}");
         }
-        else
-        {
-            Debug.LogWarning($"[{ModuleTypeName}Workbench] ModuleStorage not assigned!");
-        }
 
-        // ─── Refresh UI ───
         RebuildAlloyList();
         RecalculateAll();
-
-        Debug.Log($"[{ModuleTypeName}Workbench] Crafted: {craftedInstance.name}, Code: {craftCode}");
     }
-
-    // ====================== RecalculateAll ======================
 
     protected void RecalculateAll()
     {
-        int alloyTier = alloyDecoded ? alloyParams.tier : 1;
-        scaler.SetAlloyTier(alloyTier);
+        scaler.SetAlloyTier(alloyDecoded ? alloyParams.tier : 1);
         RecalculateSpecifics();
         currentModuleCode = BuildModuleCode();
     }
 
-    // ====================== Module Code (3 строки) ======================
-
     private string BuildModuleCode()
     {
         if (GetReferenceCount() == 0) return "";
-
         int tier = GetReferenceTier();
         string faction = string.IsNullOrEmpty(GetReferenceFaction()) ? "NONE" : GetReferenceFaction();
         string alloyCode = GetSelectedAlloyCode() ?? "NONE";
         string specific = GetSpecificCodeSegment();
 
-        string line1 = $"{ModuleTypeName}-T{tier}-m{scaler.CalcTotalMass:F1}-d{scaler.CalcDurability:F3}-{scaler.CalcLength:F3}/{scaler.CalcWidth:F3}/{scaler.CalcHeight:F3}-{faction}";
-        string line2 = specific;
-        string line3 = alloyCode;
-
-        return $"{line1}\n{line2}\n{line3}";
+        string line1 = $"{ModuleTypeName}-T{tier}-m{scaler.CalcTotalMass.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}-d{scaler.CalcDurability.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)}-{scaler.CalcLength.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)}/{scaler.CalcWidth.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)}/{scaler.CalcHeight.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)}-{faction}";
+        return $"{line1}\n{specific}\n{alloyCode}";
     }
 
-    // ====================== Callbacks ======================
-
-    private void OnReferenceChanged()
-    {
-        RecalculateAll();
-    }
+    private void OnReferenceChanged() => RecalculateAll();
 
     protected void OnAlloyChanged()
     {
         alloyDecoded = false;
         if (alloyCodes != null && selectedAlloyIndex >= 0 && selectedAlloyIndex < alloyCodes.Length)
         {
-            string code = alloyCodes[selectedAlloyIndex];
-            if (AlloyCode.Decode(code, out AlloyCode.AlloyParams p))
+            if (AlloyCode.Decode(alloyCodes[selectedAlloyIndex], out AlloyCode.AlloyParams p))
             {
                 alloyParams = p;
                 alloyDecoded = true;
@@ -723,25 +614,15 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
         RecalculateAll();
     }
 
-    // ====================== List Building ======================
-
-    private void RebuildAllLists()
-    {
-        RebuildReferenceList();
-        RebuildAlloyList();
-    }
+    private void RebuildAllLists() { RebuildReferenceList(); RebuildAlloyList(); }
 
     protected void RebuildAlloyList()
     {
         if (alloyStorage == null || alloyStorage.Count == 0)
         {
-            alloyDisplayNames = new string[0];
-            alloyCodes = new string[0];
-            selectedAlloyIndex = 0;
-            alloyDecoded = false;
-            return;
+            alloyDisplayNames = new string[0]; alloyCodes = new string[0];
+            selectedAlloyIndex = 0; alloyDecoded = false; return;
         }
-
         alloyDisplayNames = alloyStorage.GetDisplayNames();
         alloyCodes = alloyStorage.GetAllCodes();
         selectedAlloyIndex = 0;
@@ -755,96 +636,50 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
         return alloyCodes[selectedAlloyIndex];
     }
 
-    // ====================== Reset ======================
-
     private void ResetToDefaults()
     {
-        shellPercent = 5f;
-        shellPercentStr = "5.000";
-        selectedAlloyIndex = 0;
-        codeInputField = "";
-        errorMessage = "";
-        _pendingSelections.Clear();
-        WorkbenchPopup.Hide();
-
-        scaler.SetScaleFactor(1f);
-        scaler.SetShellPercent(5f);
-        scaler.SetScaleMode(ModuleScaler.ScaleMode.Mass);
-
-        RebuildAllLists();
-        RecalculateAll();
+        shellPercent = 5f; shellPercentStr = "5.000"; selectedAlloyIndex = 0;
+        codeInputField = ""; errorMessage = ""; _pendingSelections.Clear(); WorkbenchPopup.Hide();
+        scaler.SetScaleFactor(1f); scaler.SetShellPercent(5f); scaler.SetScaleMode(ModuleScaler.ScaleMode.Mass);
+        RebuildAllLists(); RecalculateAll();
     }
 
-    // ====================== Helpers ======================
-
-    protected void ShowError(string msg)
-    {
-        errorMessage = msg;
-        errorTimer = 3f;
-    }
-
-    // ====================== Dropdown ======================
+    protected void ShowError(string msg) { errorMessage = msg; errorTimer = 4f; }
 
     protected int DrawDropdown(string tag, int selected, string[] options)
     {
         if (options == null || options.Length == 0) return selected;
         selected = Mathf.Clamp(selected, 0, options.Length - 1);
 
-        string current = options[selected];
+        GUIStyle btnStyle = new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = FontStyle.Normal };
 
-        if (GUILayout.Button(current, GUI.skin.button, GUILayout.MinWidth(80)))
+        if (GUILayout.Button(options[selected], btnStyle, GUILayout.MinWidth(150), GUILayout.Height(25)))
         {
-            Vector2 screenPos = GUIUtility.GUIToScreenPoint(Event.current.mousePosition);
-            string capturedTag = tag;
-            string[] capturedOptions = options;
-
-            WorkbenchPopup.Show(capturedOptions, selected, screenPos, idx =>
-            {
-                _pendingSelections[capturedTag] = idx;
-            });
+            WorkbenchPopup.Show(options, selected, GUIUtility.GUIToScreenPoint(Event.current.mousePosition), idx => _pendingSelections[tag] = idx);
         }
-
         if (_pendingSelections.TryGetValue(tag, out int result))
         {
             _pendingSelections.Remove(tag);
             return Mathf.Clamp(result, 0, options.Length - 1);
         }
-
         return selected;
     }
-
-    // ====================== Styles ======================
 
     private GUIStyle _centeredBold;
     private GUIStyle GetCenteredBoldStyle()
     {
-        if (_centeredBold == null)
-        {
-            _centeredBold = new GUIStyle(GUI.skin.label)
-            {
-                alignment = TextAnchor.MiddleCenter,
-                fontStyle = FontStyle.Bold,
-                fontSize = 16
-            };
-        }
+        if (_centeredBold == null) _centeredBold = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, fontSize = 15 };
         return _centeredBold;
     }
 
     private GUIStyle _boldStyle;
     protected GUIStyle GetBoldStyle()
     {
-        if (_boldStyle == null)
-        {
-            _boldStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontStyle = FontStyle.Bold
-            };
-        }
+        if (_boldStyle == null) _boldStyle = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold };
         return _boldStyle;
     }
 }
 
-// ====================== Workbench Popup ======================
 public static class WorkbenchPopup
 {
     private static bool _showing;
@@ -861,36 +696,19 @@ public static class WorkbenchPopup
 
     public static void Show(string[] options, int current, Vector2 screenPos, Action<int> callback)
     {
-        _options = options;
-        _current = current;
-        _callback = callback;
-        _showing = true;
-        _scrollPos = Vector2.zero;
-        _showFrame = Time.frameCount;
-
+        _options = options; _current = current; _callback = callback; _showing = true;
+        _scrollPos = Vector2.zero; _showFrame = Time.frameCount;
         float itemHeight = 26f;
         float h = Mathf.Min(options.Length * itemHeight + 10, 400);
         float w = 350;
-
-        float maxX = Screen.width - w - 5;
-        float maxY = Screen.height - h - 5;
-        float px = Mathf.Clamp(screenPos.x, 5, Mathf.Max(5, maxX));
-        float py = Mathf.Clamp(screenPos.y, 5, Mathf.Max(5, maxY));
-
-        _popupRect = new Rect(px, py, w, h);
+        _popupRect = new Rect(Mathf.Clamp(screenPos.x, 5, Mathf.Max(5, Screen.width - w - 5)), Mathf.Clamp(screenPos.y, 5, Mathf.Max(5, Screen.height - h - 5)), w, h);
     }
 
-    public static void Hide()
-    {
-        _showing = false;
-        _options = null;
-        _callback = null;
-    }
+    public static void Hide() { _showing = false; _options = null; _callback = null; }
 
     public static void DrawPopup()
     {
         if (!_showing || _options == null) return;
-
         GUI.BringWindowToFront(_windowId);
         _popupRect = GUI.Window(_windowId, _popupRect, DrawPopupWindow, "", GUI.skin.box);
     }
@@ -898,69 +716,34 @@ public static class WorkbenchPopup
     private static void DrawPopupWindow(int id)
     {
         bool canInteract = Time.frameCount > _showFrame;
-
         _scrollPos = GUILayout.BeginScrollView(_scrollPos);
-
         for (int i = 0; i < _options.Length; i++)
         {
-            bool isCurrent = (i == _current);
-            GUIStyle style = isCurrent ? GetSelectedStyle() : GetNormalStyle();
-
-            if (GUILayout.Button(_options[i], style, GUILayout.Height(24)))
+            if (GUILayout.Button(_options[i], i == _current ? GetSelectedStyle() : GetNormalStyle(), GUILayout.Height(24)))
             {
-                if (canInteract)
-                {
-                    _callback?.Invoke(i);
-                    _showing = false;
-                    GUIUtility.ExitGUI();
-                    return;
-                }
+                if (canInteract) { _callback?.Invoke(i); _showing = false; GUIUtility.ExitGUI(); return; }
             }
         }
-
         GUILayout.EndScrollView();
     }
 
-    private static GUIStyle _normalStyle;
-    private static GUIStyle _selectedStyle;
-
+    private static GUIStyle _normalStyle, _selectedStyle;
     private static GUIStyle GetNormalStyle()
     {
-        if (_normalStyle == null)
-        {
-            _normalStyle = new GUIStyle(GUI.skin.label)
-            {
-                alignment = TextAnchor.MiddleLeft,
-                padding = new RectOffset(8, 4, 2, 2),
-                hover = { textColor = Color.white, background = MakeTex(1, 1, new Color(0.3f, 0.5f, 0.8f, 0.5f)) },
-                normal = { textColor = Color.white }
-            };
-        }
+        if (_normalStyle == null) _normalStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleLeft, padding = new RectOffset(8, 4, 2, 2), hover = { textColor = Color.white, background = MakeTex(1, 1, new Color(0.3f, 0.3f, 0.3f, 0.8f)) }, normal = { textColor = Color.white } };
         return _normalStyle;
     }
-
     private static GUIStyle GetSelectedStyle()
     {
-        if (_selectedStyle == null)
-        {
-            _selectedStyle = new GUIStyle(GUI.skin.label)
-            {
-                alignment = TextAnchor.MiddleLeft,
-                fontStyle = FontStyle.Bold,
-                padding = new RectOffset(8, 4, 2, 2),
-                normal = { textColor = Color.cyan, background = MakeTex(1, 1, new Color(0.2f, 0.4f, 0.6f, 0.4f)) }
-            };
-        }
+        if (_selectedStyle == null) _selectedStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleLeft, fontStyle = FontStyle.Bold, padding = new RectOffset(8, 4, 2, 2), normal = { textColor = Color.white, background = MakeTex(1, 1, new Color(0.25f, 0.25f, 0.25f, 0.9f)) } };
         return _selectedStyle;
     }
 
-    private static Texture2D MakeTex(int w, int h, Color col)
+    public static Texture2D MakeTex(int w, int h, Color col)
     {
         var pix = new Color[w * h];
         for (int i = 0; i < pix.Length; i++) pix[i] = col;
         var tex = new Texture2D(w, h);
-        tex.SetPixels(pix);
-        tex.Apply();
-        return tex;
+        tex.SetPixels(pix); tex.Apply(); return tex;
     }
 }

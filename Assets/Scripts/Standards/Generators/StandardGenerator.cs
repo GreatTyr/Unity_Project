@@ -6,11 +6,14 @@ using UnityEditor;
 [ExecuteAlways]
 public class StandardGenerator : MonoBehaviour
 {
+    // Вместо ModuleTypesDatabase.TYPE_GENERATOR
+    public const string TYPE_GENERATOR = "Generator";
+
     // ====================== Identity ======================
 
     [Header("Identity")]
     [SerializeField, HideInInspector]
-    private string moduleType = ModuleTypesDatabase.TYPE_GENERATOR;
+    private string moduleType = TYPE_GENERATOR;
 
     [Range(1, 10)] public int ModuleTier = 1;
 
@@ -100,7 +103,7 @@ public class StandardGenerator : MonoBehaviour
 
     void OnValidate()
     {
-        moduleType = ModuleTypesDatabase.TYPE_GENERATOR;
+        moduleType = TYPE_GENERATOR;
 
         ModuleTier = Mathf.Clamp(ModuleTier, 1, 10);
         FuelTier = Mathf.Clamp(FuelTier, 1, 10);
@@ -231,19 +234,12 @@ public class StandardGenerator : MonoBehaviour
         fuelKgPerS = (float)totalD;
     }
 
-    static float RoundTo(float v, int d)
-    {
-        float mul = Mathf.Pow(10f, d);
-        return Mathf.Round(v * mul) / mul;
-    }
-
     static float RoundToWithEps(float v, int d)
     {
         float mul = Mathf.Pow(10f, d);
         return Mathf.Round((v + EPS_ROUND) * mul) / mul;
     }
 }
-
 
 // ======================== CUSTOM EDITOR ========================
 #if UNITY_EDITOR
@@ -323,26 +319,6 @@ public class StandardGeneratorEditor : Editor
         EditorGUILayout.TextField("Module Type", t.ModuleType);
         GUI.enabled = true;
 
-        var mtDb = ModuleTypesDatabase.Instance;
-        if (mtDb != null)
-        {
-            if (!mtDb.Exists(t.ModuleType))
-            {
-                EditorGUILayout.HelpBox(
-                    $"Type \"{t.ModuleType}\" is NOT registered in ModuleTypesDatabase!\n" +
-                    "Open ModuleTypesDatabase and add it, or click 'Add Missing Standard Types' there.",
-                    MessageType.Error);
-            }
-        }
-        else
-        {
-            EditorGUILayout.HelpBox(
-                "ModuleTypesDatabase not found in Resources/.\n" +
-                "Create via: Assets → Create → Game → Module Types Database\n" +
-                "and place at Resources/ModuleTypesDatabase.asset",
-                MessageType.Warning);
-        }
-
         EditorGUILayout.PropertyField(pModuleTier);
 
         // ---- Faction ----
@@ -371,11 +347,6 @@ public class StandardGeneratorEditor : Editor
         }
         else
         {
-            EditorGUILayout.HelpBox(
-                "FactionDatabase not found in Resources/ or is empty.\n" +
-                "Create via: Assets → Create → Game → Faction Database\n" +
-                "and place at Resources/FactionDatabase.asset",
-                MessageType.Warning);
             EditorGUILayout.PropertyField(pFactionShortName, new GUIContent("Faction (short name)"));
         }
 

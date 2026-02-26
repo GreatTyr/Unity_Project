@@ -6946,6 +6946,148 @@ MonoBehaviour:
   fullAABBVolume: 0.24299993
   effectiveVolume: 0.24299993
   massKg: 242.99992
+--- !u!1 &753782727
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 753782733}
+  - component: {fileID: 753782732}
+  - component: {fileID: 753782731}
+  - component: {fileID: 753782730}
+  - component: {fileID: 753782729}
+  - component: {fileID: 753782728}
+  m_Layer: 0
+  m_Name: GeneratorTable
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &753782728
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 753782727}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 27091db3352b7d748a0bbabc5cc4c9bb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WorkbenchToggle
+  workbench: {fileID: 753782729}
+--- !u!114 &753782729
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 753782727}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3eaca590a5438b346b1b1e996d4ae8e6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GeneratorWorkbench
+  alloyStorage: {fileID: 2038256545}
+  resourcesStorage: {fileID: 2038256544}
+  moduleStorage: {fileID: 2038256543}
+  generatorDatabase: {fileID: 11400000, guid: 54121b5cadbab4f4c995cf32bd095521, type: 2}
+--- !u!65 &753782730
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 753782727}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!23 &753782731
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 753782727}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!33 &753782732
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 753782727}
+  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!4 &753782733
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 753782727}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -17.472, y: 2.093, z: -11.457}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &757749893
 GameObject:
   m_ObjectHideFlags: 0
@@ -14099,8 +14241,10 @@ GameObject:
   - component: {fileID: 1664926264}
   - component: {fileID: 1664926263}
   - component: {fileID: 1664926262}
+  - component: {fileID: 1664926267}
+  - component: {fileID: 1664926266}
   m_Layer: 0
-  m_Name: Furnace
+  m_Name: FurnaceStation
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -14198,6 +14342,35 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1664926266
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1664926261}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0e79f98ac8d2a9d4e82cbb047467c4c9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FurnaceUI
+--- !u!114 &1664926267
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1664926261}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ed93e5fca76cf1f47bd1bfdc7b064979, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FurnaceCore
+  capacityKg: 100
+  furnaceTier: 1
+  efficiencyPercent: 100
+  resourcesStorage: {fileID: 2038256544}
+  alloyStorage: {fileID: 2038256545}
 --- !u!114 &1675897866
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -16674,8 +16847,11 @@ GameObject:
   - component: {fileID: 2038256541}
   - component: {fileID: 2038256540}
   - component: {fileID: 2038256539}
+  - component: {fileID: 2038256544}
+  - component: {fileID: 2038256545}
+  - component: {fileID: 2038256543}
   m_Layer: 0
-  m_Name: Storage
+  m_Name: WorldStorage
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -16773,6 +16949,48 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2038256543
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2038256538}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a996196a6422e1f4d945fe1113be2b81, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ModuleStorage
+  autoSave: 1
+  entries: []
+--- !u!114 &2038256544
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2038256538}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 61135cf6b1b084a4b8dade7f43e71484, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ResourcesStorage
+  energyUnits: 1000000000
+  grams: 40420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f000000000040420f0000000000
+--- !u!114 &2038256545
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2038256538}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71d85df1d4d6a294e8b9402f93614d25, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AlloyStorage
+  entries: []
+  autoSave: 1
 --- !u!1 &2039619130
 GameObject:
   m_ObjectHideFlags: 0
@@ -17790,3 +18008,4 @@ SceneRoots:
   - {fileID: 1235336632}
   - {fileID: 1664926265}
   - {fileID: 2038256542}
+  - {fileID: 753782733}

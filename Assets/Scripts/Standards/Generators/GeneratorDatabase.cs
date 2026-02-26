@@ -5,7 +5,7 @@ using UnityEditor;
 #endif
 
 [CreateAssetMenu(fileName = "GeneratorDatabase", menuName = "Game/Generator Database")]
-public class GeneratorDatabase : ScriptableObject, IModuleDatabase
+public class GeneratorDatabase : ScriptableObject
 {
     private static GeneratorDatabase _instance;
 
@@ -39,14 +39,7 @@ public class GeneratorDatabase : ScriptableObject, IModuleDatabase
     [Tooltip("Drag generator prefabs here. Each must have StandardGenerator component.")]
     public List<GameObject> generators = new();
 
-    // ====================== IModuleDatabase ======================
-    public string ModuleType => ModuleTypesDatabase.TYPE_GENERATOR;
     public int Count => generators.Count;
-
-    public IModuleCalculator CreateCalculator()
-    {
-        return new GeneratorCalculator(this);
-    }
 
     // ====================== Access ======================
     public StandardGenerator GetByIndex(int index)
@@ -135,8 +128,7 @@ public class GeneratorDatabaseEditor : Editor
 
         EditorGUILayout.LabelField("Generator Database", EditorStyles.boldLabel);
         EditorGUILayout.HelpBox(
-            "Drag generator prefabs into the list.\nEach must have StandardGenerator component.\n" +
-            "Implements IModuleDatabase — assign this asset in ModuleTypesDatabase for type 'Generator'.",
+            "Drag generator prefabs into the list.\nEach must have StandardGenerator component.",
             MessageType.Info);
 
         EditorGUILayout.Space();

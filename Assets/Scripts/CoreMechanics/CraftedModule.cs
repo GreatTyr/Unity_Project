@@ -66,13 +66,11 @@ public class CraftedModule : MonoBehaviour
         // Сначала пробуем конкретные типы, потом базовый
         switch (typeName)
         {
-            case nameof(EnergyStorageData):
-                return JsonUtility.FromJson<EnergyStorageData>(json);
             case nameof(GeneratorData):
                 return JsonUtility.FromJson<GeneratorData>(json);
             // Будущие типы добавляются сюда:
-            // case nameof(FuelTankData):
-            //     return JsonUtility.FromJson<FuelTankData>(json);
+            // case nameof(EnergyStorageData):
+            //     return JsonUtility.FromJson<EnergyStorageData>(json);
             default:
                 return JsonUtility.FromJson<ModuleData>(json);
         }
@@ -125,13 +123,7 @@ public class CraftedModule : MonoBehaviour
             UnityEditor.EditorGUILayout.FloatField("Durability", data.durability);
 
             // Специфичные поля
-            if (data is EnergyStorageData esd)
-            {
-                UnityEditor.EditorGUILayout.Space();
-                UnityEditor.EditorGUILayout.LabelField("Energy Storage", UnityEditor.EditorStyles.boldLabel);
-                UnityEditor.EditorGUILayout.FloatField("Energy Capacity", esd.energyCapacity);
-            }
-            else if (data is GeneratorData gd)
+            if (data is GeneratorData gd)
             {
                 UnityEditor.EditorGUILayout.Space();
                 UnityEditor.EditorGUILayout.LabelField("Generator", UnityEditor.EditorStyles.boldLabel);

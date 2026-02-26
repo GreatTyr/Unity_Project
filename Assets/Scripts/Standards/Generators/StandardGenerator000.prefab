@@ -105,16 +105,16 @@ MonoBehaviour:
   moduleType: Generator
   ModuleTier: 1
   factionShortName: TESTF1
-  VolumeCoefficientPercent: 90
-  ConstantFillPercent: 85
+  VolumeCoefficientPercent: 85
+  ConstantFillPercent: 80
   length: 2
   width: 1
   height: 1.5000001
   aabbVolume: 3
-  realVolume: 2.7
-  effectiveVolume: 2.7
-  fillPercentUsed: 85
-  massKg: 2295
+  realVolume: 2.55
+  effectiveVolume: 2.55
+  fillPercentUsed: 80
+  massKg: 2040
   PowerBy0001m3: 1
   FuelTier: 1
   FuelBy0001m3_Base: 0.0002
@@ -122,5 +122,5 @@ MonoBehaviour:
   HeatCapacityCoeff: 1
   powerTimesTierPer0001: 1
   fuelPer0001m3Tiered: 0.0002
-  specificPower: 2700
-  fuelKgPerS: 0.54
+  specificPower: 2550
+  fuelKgPerS: 0.51
