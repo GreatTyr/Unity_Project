@@ -10,43 +10,43 @@ public class GeneratorDatabase : ScriptableObject
     private static GeneratorDatabase _instance;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    private static void ResetStatic()
-    {
-        _instance = null;
-    }
+    private static void ResetStatic() => _instance = null;
 
     public static GeneratorDatabase Instance
     {
         get
         {
-            if (_instance == null)
-                _instance = Resources.Load<GeneratorDatabase>("GeneratorDatabase");
+            if (_instance == null) _instance = Resources.Load<GeneratorDatabase>("GeneratorDatabase");
             return _instance;
         }
     }
 
-    private void OnEnable()
-    {
-        _instance = this;
-    }
+    private void OnEnable() => _instance = this;
+    private void OnDisable() { if (_instance == this) _instance = null; }
 
-    private void OnDisable()
-    {
-        if (_instance == this)
-            _instance = null;
-    }
-
-    [Tooltip("Drag generator prefabs here. Each must have StandardGenerator component.")]
+    [Tooltip("Drag generator prefabs here.")]
     public List<GameObject> generators = new();
 
     public int Count => generators.Count;
 
-    // ====================== Access ======================
     public StandardGenerator GetByIndex(int index)
     {
         if (index < 0 || index >= generators.Count) return null;
-        var go = generators[index];
-        return go != null ? go.GetComponent<StandardGenerator>() : null;
+        return generators[index] != null ? generators[index].GetComponent<StandardGenerator>() : null;
+    }
+
+    // НОВЫЙ МЕТОД ДЛЯ ПОИСКА ИЗ ВЕРСТАКА (ПО ЧЕРТЕЖУ)
+    public StandardGenerator GetByFactionAndBlueprintID(string factionShortName, string blueprintId)
+    {
+        foreach (var go in generators)
+        {
+            if (go == null) continue;
+            var sg = go.GetComponent<StandardGenerator>();
+            if (sg == null) continue;
+            if (sg.FactionShortName == factionShortName && sg.BlueprintId == blueprintId)
+                return sg;
+        }
+        return null;
     }
 
     public StandardGenerator GetByName(string prefabName)
@@ -125,42 +125,12 @@ public class GeneratorDatabaseEditor : Editor
     public override void OnInspectorGUI()
     {
         serializedObject.Update();
-
         EditorGUILayout.LabelField("Generator Database", EditorStyles.boldLabel);
-        EditorGUILayout.HelpBox(
-            "Drag generator prefabs into the list.\nEach must have StandardGenerator component.",
-            MessageType.Info);
-
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("generators"), true);
         EditorGUILayout.Space();
-
-        var prop = serializedObject.FindProperty("generators");
-        EditorGUILayout.PropertyField(prop, new GUIContent($"Generators ({db.generators.Count})"), true);
-
-        EditorGUILayout.Space();
-
-        bool hasIssues = false;
-        for (int i = 0; i < db.generators.Count; i++)
-        {
-            var go = db.generators[i];
-            if (go == null)
-            {
-                EditorGUILayout.HelpBox($"[{i}] — empty slot", MessageType.Warning);
-                hasIssues = true;
-                continue;
-            }
-            if (go.GetComponent<StandardGenerator>() == null)
-            {
-                EditorGUILayout.HelpBox($"[{i}] \"{go.name}\" — no StandardGenerator!", MessageType.Error);
-                hasIssues = true;
-            }
-        }
-
-        if (!hasIssues && db.generators.Count > 0)
-            EditorGUILayout.LabelField("✓ All entries valid", EditorStyles.miniLabel);
 
         if (db.generators.Count > 0)
         {
-            EditorGUILayout.Space();
             EditorGUILayout.LabelField("Summary", EditorStyles.boldLabel);
             for (int i = 0; i < db.generators.Count; i++)
             {
@@ -168,16 +138,15 @@ public class GeneratorDatabaseEditor : Editor
                 if (go == null) continue;
                 var sg = go.GetComponent<StandardGenerator>();
                 if (sg == null) continue;
-                string faction = string.IsNullOrEmpty(sg.FactionShortName) ? "—" : sg.FactionShortName;
+                string faction = string.IsNullOrEmpty(sg.FactionShortName) ? "NONE" : sg.FactionShortName;
                 EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-                EditorGUILayout.LabelField($"[{i}] {go.name}", EditorStyles.boldLabel);
-                EditorGUILayout.LabelField($"  Faction: {faction}  Module Tier: {sg.ModuleTier}  Fuel Tier: {sg.FuelTier}");
-                EditorGUILayout.LabelField($"  Power: {sg.SpecificPower:F3} energy/s  Fuel: {sg.FuelKgPerS:F4} kg/s  Mass: {sg.MassKg:F3} kg");
-                EditorGUILayout.LabelField($"  Eff. Volume: {sg.EffectiveVolumeM3:F6} m³  Fill: {sg.FillPercentUsed:F1}%");
+                
+                // ОТОБРАЖАЕМ ID
+                EditorGUILayout.LabelField($"[{i}] [{faction}-{sg.BlueprintId}] {go.name}", EditorStyles.boldLabel);
+                EditorGUILayout.LabelField($"  Tier: {sg.ModuleTier}  Fuel Tier: {sg.FuelTier}  Power: {sg.SpecificPower:F3}");
                 EditorGUILayout.EndVertical();
             }
         }
-
         EditorGUILayout.Space();
         if (GUILayout.Button("Remove Empty Slots"))
         {
@@ -185,7 +154,6 @@ public class GeneratorDatabaseEditor : Editor
             db.generators.RemoveAll(g => g == null);
             EditorUtility.SetDirty(db);
         }
-
         serializedObject.ApplyModifiedProperties();
     }
 }

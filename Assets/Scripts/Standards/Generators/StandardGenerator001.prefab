@@ -117,6 +117,7 @@ MonoBehaviour:
   moduleType: Generator
   ModuleTier: 2
   factionShortName: TESTF2
+  blueprintId: 002
   VolumeCoefficientPercent: 85
   ConstantFillPercent: 80
   length: 1
@@ -132,6 +133,7 @@ MonoBehaviour:
   FuelBy0001m3_Base: 0.0001
   BaseHeating: 1
   HeatCapacityCoeff: 1
+  CraftTimePerLiter: 0.5
   powerTimesTierPer0001: 1.837
   fuelPer0001m3Tiered: 0.00006
   specificPower: 259.721

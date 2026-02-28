@@ -9,9 +9,8 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b1f3bf4df25de8a438a0d6bf0a7a742a, type: 3}
+  m_Script: {fileID: 11500000, guid: 6eed7fc64d2e46042b4f56063e5c83ff, type: 3}
   m_Name: EnergyStorageDatabase
   m_EditorClassIdentifier: Assembly-CSharp::EnergyStorageDatabase
   storages:
-  - {fileID: 1432148994194066996, guid: 89cca87fc6db1a84f94b9f9db82e6a0c, type: 3}
-  - {fileID: 7910575959292749164, guid: 3d2b7b6a6ffe9dc4dae50a7492025f0b, type: 3}
+  - {fileID: 5540571141647029099, guid: eb49e9e910e19ba498ff44d62dbde216, type: 3}

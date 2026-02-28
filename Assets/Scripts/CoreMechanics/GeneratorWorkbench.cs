@@ -22,6 +22,8 @@ public class GeneratorWorkbench : BaseModuleWorkbench
     private float calcWallThicknessMm;
     private float calcHeatingRate;
 
+    private float calcCraftTimeSeconds;
+
     const double MIN_FUEL_PER0001_D = 1e-6;
     const float MIN_FUEL_DISPLAY_TOTAL = 0.0001f;
 
@@ -30,6 +32,7 @@ public class GeneratorWorkbench : BaseModuleWorkbench
     protected override void RebuildReferenceList()
     {
         allRefs.Clear();
+
         if (generatorDatabase == null)
         {
             refNames = new string[0];
@@ -45,8 +48,9 @@ public class GeneratorWorkbench : BaseModuleWorkbench
             var sg = allRefs[i];
             if (sg != null)
             {
-                string faction = string.IsNullOrEmpty(sg.FactionShortName) ? "" : sg.FactionShortName;
-                refNames[i] = $"{sg.gameObject.name} (T{sg.ModuleTier} {faction})";
+                string faction = string.IsNullOrEmpty(sg.FactionShortName) ? "NONE" : sg.FactionShortName;
+                string bp = string.IsNullOrEmpty(sg.BlueprintId) ? "000" : sg.BlueprintId;
+                refNames[i] = $"[{faction}-{bp}] {sg.gameObject.name} (T{sg.ModuleTier})";
             }
             else
             {
@@ -54,18 +58,42 @@ public class GeneratorWorkbench : BaseModuleWorkbench
             }
         }
 
-        if (selectedRefIndex >= allRefs.Count) selectedRefIndex = 0;
-        if (allRefs.Count > 0) SelectReference(selectedRefIndex);
-        else selectedRef = null;
+        if (selectedRefIndex >= allRefs.Count)
+            selectedRefIndex = 0;
+
+        if (allRefs.Count > 0)
+            SelectReference(selectedRefIndex);
+        else
+            selectedRef = null;
     }
 
     protected override string[] GetReferenceNames() => refNames;
     protected override int GetSelectedReferenceIndex() => selectedRefIndex;
     protected override int GetReferenceCount() => allRefs.Count;
 
+    protected override string GetReferenceBlueprintID()
+    {
+        return selectedRef != null ? selectedRef.BlueprintId : "000";
+    }
+
+    protected override bool TryFindAndSelectReference(string faction, string blueprintId)
+    {
+        if (generatorDatabase == null) return false;
+
+        var found = generatorDatabase.GetByFactionAndBlueprintID(faction, blueprintId);
+        if (found == null) return false;
+
+        int idx = allRefs.IndexOf(found);
+        if (idx < 0) return false;
+
+        SelectReference(idx);
+        return true;
+    }
+
     protected override void SelectReference(int index)
     {
         if (index < 0 || index >= allRefs.Count) return;
+
         selectedRefIndex = index;
         selectedRef = allRefs[index];
 
@@ -104,20 +132,19 @@ public class GeneratorWorkbench : BaseModuleWorkbench
 
         float fillFactor = selectedRef.ConstantFillPercent / 100f;
         float effectiveVolume = scaler.CalcEffectiveVolume * fillFactor;
-
-        // Перевод м³ в дм³ (умножение на 1000)
         float effectiveVolumeDm3 = effectiveVolume * 1000f;
 
         float moduleCoeff = TierCoeffs.Get(selectedRef.ModuleTier);
 
-        // Мощность = [Power*Tier by 0.001m3] * [Effective Volume в дм3]
         double powerTier = (double)selectedRef.PowerBy0001m3 * (double)moduleCoeff;
         calcPowerTimesTierPer0001 = R3((float)powerTier);
         calcSpecificPower = R3((float)(powerTier * effectiveVolumeDm3));
 
-        // Топливо = [Fuel*Tier by 0.001m3] * [Effective Volume в дм3]
         float fuelTierCoeff = TierCoeffs.Get(selectedRef.FuelTier);
-        double rawFuelPer0001D = (fuelTierCoeff > 0f) ? (double)selectedRef.FuelBy0001m3_Base / (double)fuelTierCoeff : 0.0;
+        double rawFuelPer0001D = (fuelTierCoeff > 0f)
+            ? (double)selectedRef.FuelBy0001m3_Base / (double)fuelTierCoeff
+            : 0.0;
+
         if (rawFuelPer0001D <= 0.0) rawFuelPer0001D = MIN_FUEL_PER0001_D;
         rawFuelPer0001D = Math.Round(rawFuelPer0001D * 1_000_000.0) / 1_000_000.0;
         calcFuelPer0001m3Tiered = (float)rawFuelPer0001D;
@@ -127,7 +154,6 @@ public class GeneratorWorkbench : BaseModuleWorkbench
         if (totalFuelD < MIN_FUEL_DISPLAY_TOTAL) totalFuelD = MIN_FUEL_DISPLAY_TOTAL;
         calcFuelKgPerS = (float)totalFuelD;
 
-        // Теплофизика
         float realVol = scaler.CalcRealVolume;
         float heatCoeff = selectedRef.HeatCapacityCoeff;
         calcHeatCapacity = R3(realVol * heatCoeff * moduleCoeff);
@@ -143,6 +169,8 @@ public class GeneratorWorkbench : BaseModuleWorkbench
         float thermResist = alloyDecoded ? alloyParams.thermalResistance : 0f;
         float heatingMult = Mathf.Max(0f, 1f - (thermResist / 100f));
         calcHeatingRate = R3(baseHeat * heatingMult);
+
+        calcCraftTimeSeconds = selectedRef.CraftTimePerLiter * effectiveVolumeDm3;
     }
 
     private void ResetCalculatedValues()
@@ -151,10 +179,13 @@ public class GeneratorWorkbench : BaseModuleWorkbench
         calcFuelKgPerS = 0f;
         calcPowerTimesTierPer0001 = 0f;
         calcFuelPer0001m3Tiered = 0f;
+
         calcHeatCapacity = 0f;
         calcMaxTemperature = 0f;
         calcWallThicknessMm = 0f;
         calcHeatingRate = 0f;
+
+        calcCraftTimeSeconds = 0f;
     }
 
     protected override void DrawModuleSpecificSection()
@@ -166,6 +197,7 @@ public class GeneratorWorkbench : BaseModuleWorkbench
         ParamBox("Мощность", $"{calcSpecificPower:F3} E/s");
         ParamBox("Топливо", $"{calcFuelKgPerS:F4} кг/с");
         ParamBox("Тир топлива", selectedRef != null ? selectedRef.FuelTier.ToString() : "-");
+        ParamBox("Время крафта", $"<color=#00FF00>{calcCraftTimeSeconds:F1} сек</color>");
         GUILayout.EndHorizontal();
 
         GUILayout.BeginHorizontal();
@@ -180,8 +212,8 @@ public class GeneratorWorkbench : BaseModuleWorkbench
 
     private void ParamBox(string label, string val)
     {
-        GUILayout.BeginVertical(GUILayout.Width(120));
-        GUILayout.Label(label, GUI.skin.label);
+        GUILayout.BeginVertical(GUILayout.Width(130));
+        GUILayout.Label($"<color=#AAAAAA>{label}</color>", new GUIStyle(GUI.skin.label) { fontSize = 12 });
         GUILayout.Label(val, GetBoldStyle());
         GUILayout.EndVertical();
     }
@@ -189,7 +221,6 @@ public class GeneratorWorkbench : BaseModuleWorkbench
     protected override string GetSpecificCodeSegment()
     {
         int fuelTier = selectedRef != null ? selectedRef.FuelTier : 1;
-        // Строка 2: P{мощность}-F{топливо}-FT{тир}
         return $"P{calcSpecificPower.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)}-F{calcFuelKgPerS.ToString("F4", System.Globalization.CultureInfo.InvariantCulture)}-FT{fuelTier}";
     }
 

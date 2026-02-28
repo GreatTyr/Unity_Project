@@ -68,6 +68,8 @@ public class CraftedModule : MonoBehaviour
         {
             case nameof(GeneratorData):
                 return JsonUtility.FromJson<GeneratorData>(json);
+            case nameof(EnergyStorageData):
+                return JsonUtility.FromJson<EnergyStorageData>(json);
             // Будущие типы добавляются сюда:
             // case nameof(EnergyStorageData):
             //     return JsonUtility.FromJson<EnergyStorageData>(json);
