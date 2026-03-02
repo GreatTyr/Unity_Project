@@ -4,12 +4,13 @@ using UnityEngine.InputSystem;
 public class TempFurnaceInteraction : MonoBehaviour
 {
     [SerializeField] private FurnaceCore furnace;
+    [SerializeField] private Key toggleKey = Key.O;
 
     private bool isOpen;
 
     private void Update()
     {
-        if (Keyboard.current == null || !Keyboard.current.oKey.wasPressedThisFrame)
+        if (Keyboard.current == null || !Keyboard.current[toggleKey].wasPressedThisFrame)
             return;
 
         Debug.Log("[TempFurnace] O pressed");

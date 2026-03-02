@@ -15,10 +15,15 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
     public float innerWidth = 2f;
     public float innerHeight = 2f;
 
-    [Header("Storage References")]
+    [Header("Storage References (legacy fallback)")]
     public AlloyStorage alloyStorage;
     public ResourcesStorage resourcesStorage;
     public ModuleStorage moduleStorage;
+
+    [Header("Storage Manager")]
+    [SerializeField] private bool useStorageManager = true;
+    [SerializeField] private StorageNode localStorageNode;
+    [SerializeField] private Transform actorTransform;
 
     protected bool panelOpen;
     private Rect windowRect;
@@ -44,8 +49,13 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
     private string successMessage = "";
     private float messageTimer;
 
-    private bool spawnInWorld = true;
-    private bool saveToStorage = true;
+    private enum CraftPlacementMode
+    {
+        SpawnInWorld = 0,
+        SaveToStorage = 1
+    }
+
+    [SerializeField] private CraftPlacementMode placementMode = CraftPlacementMode.SpawnInWorld;
 
     private Dictionary<string, int> _pendingSelections = new Dictionary<string, int>();
     private GameObject craftedInstance;
@@ -64,7 +74,7 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
     protected abstract string GetReferenceFaction();
     protected abstract float GetReferenceFillPercent();
 
-    // Возвращено для совместимости контракта и будущего использования.
+    // Для совместимости/будущих модулей
     protected virtual float GetReferenceVolumeCoeffPercent() => 100f;
 
     protected abstract string GetReferenceName();
@@ -104,72 +114,7 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
             }
         }
     }
-    private static bool TryParseInvariant(string value, out float result)
-    {
-        return float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out result);
-    }
 
-    private static bool TryParseMassPart(string massPart, out float massKg)
-    {
-        massKg = 0f;
-        if (string.IsNullOrEmpty(massPart) || massPart[0] != 'm')
-            return false;
-
-        return TryParseInvariant(massPart.Substring(1), out massKg) && massKg > 0f;
-    }
-
-    private bool TryApplyShellPercentFromMass(float targetMassKg)
-    {
-        // Формула:
-        // total = realVol*1000*(fill + shell*(1-fill))
-        // shell = (total/(realVol*1000) - fill) / (1-fill)
-        float realVol = scaler.CalcRealVolume;
-        if (realVol <= 0.000001f) return false;
-
-        float fill = Mathf.Clamp01(GetReferenceFillPercent() / 100f);
-        float denom = 1f - fill;
-
-        float shellFrac;
-        if (denom <= 0.000001f)
-        {
-            // fill=100% => масса почти не зависит от shell%; оставляем текущее значение
-            shellFrac = Mathf.Clamp01(shellPercent / 100f);
-        }
-        else
-        {
-            float normalized = targetMassKg / (realVol * 1000f);
-            shellFrac = (normalized - fill) / denom;
-        }
-
-        if (float.IsNaN(shellFrac) || float.IsInfinity(shellFrac))
-            return false;
-
-        // допустимый диапазон интерфейса: 0.001..100%
-        shellFrac = Mathf.Clamp(shellFrac, 0.00001f, 1f);
-        float newShellPercent = Mathf.Clamp(shellFrac * 100f, 0.001f, 100f);
-
-        shellPercent = (float)Math.Round(newShellPercent, 3);
-        shellPercentStr = shellPercent.ToString("F3", CultureInfo.InvariantCulture);
-        scaler.SetShellPercent(shellPercent);
-
-        RecalculateAll();
-
-        // Проверяем, что реально попали в массу с небольшой погрешностью
-        return Mathf.Abs(scaler.CalcTotalMass - targetMassKg) <= 0.2f;
-    }
-
-    private static string NormalizeCodeText(string text)
-    {
-        return (text ?? string.Empty).Trim().Replace("\r", "");
-    }
-
-    private static bool CompareFirstTwoLines(string a, string b)
-    {
-        string[] la = a.Split('\n');
-        string[] lb = b.Split('\n');
-        if (la.Length < 2 || lb.Length < 2) return false;
-        return la[0].Trim() == lb[0].Trim() && la[1].Trim() == lb[1].Trim();
-    }
     private static Texture2D _bgTex, _panelTex, _sepTex;
     private static GUIStyle _windowStyle, _panelStyle;
 
@@ -205,11 +150,7 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
     private void DrawSeparator()
     {
         GUILayout.Space(5);
-        GUILayout.Box(
-            GUIContent.none,
-            new GUIStyle { normal = { background = _sepTex } },
-            GUILayout.Height(2),
-            GUILayout.ExpandWidth(true));
+        GUILayout.Box(GUIContent.none, new GUIStyle { normal = { background = _sepTex } }, GUILayout.Height(2), GUILayout.ExpandWidth(true));
         GUILayout.Space(5);
     }
 
@@ -377,7 +318,6 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
             return;
         }
 
-        // Масса из mXXXX
         if (!TryParseMassPart(parts[2], out float targetMassKg))
         {
             ShowError("Неверная масса в первой строке чертежа");
@@ -433,18 +373,16 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
             return;
         }
 
-        // 1) применяем uniform scale из X/Y/Z
         float uniformScale = (sx + sy + sz) / 3f;
         scaler.SetScaleFactor(uniformScale);
 
-        // 2) восстанавливаем shell% из массы кода
         if (!TryApplyShellPercentFromMass(targetMassKg))
         {
             ShowError("Код поврежден: невозможная масса для выбранного эталона");
             return;
         }
 
-        // 3) применяем сплав
+        // Сплав
         string inputAlloyCode = lines[2].Trim();
         int newAlloyIndex = Array.IndexOf(alloyCodes, inputAlloyCode);
 
@@ -461,7 +399,6 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
             {
                 alloyParams = p;
                 alloyDecoded = true;
-                // Пересчет с tier из кода сплава
                 RecalculateAll();
             }
             else
@@ -471,21 +408,16 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
             }
         }
 
-        // 4) античит-проверка
+        // Семантическая валидация вместо жесткого string==string
         string cleanInput = NormalizeCodeText(codeInputField);
         string cleanGenerated = NormalizeCodeText(currentModuleCode);
 
         bool codeMatches;
         if (alloyPresentOnStorage)
-        {
-            // когда сплав есть на складе — сравниваем все 3 строки
-            codeMatches = (cleanInput == cleanGenerated);
-        }
+            codeMatches = IsBlueprintSemanticallyValid(cleanInput, cleanGenerated, ModuleTypeName);
         else
-        {
-            // когда сплава нет на складе — сравниваем только строки 1+2
-            codeMatches = CompareFirstTwoLines(cleanInput, cleanGenerated);
-        }
+            codeMatches = CompareFirstTwoLines(cleanInput, cleanGenerated) &&
+                          CompareFirstLineWithTolerance(cleanInput.Split('\n')[0], cleanGenerated.Split('\n')[0]);
 
         if (!codeMatches)
         {
@@ -499,7 +431,153 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
             ShowMessage("Чертеж применен, но указанного сплава нет на складе!", true);
     }
 
+    private bool IsBlueprintSemanticallyValid(string inputCode, string generatedCode, string moduleType)
+    {
+        string[] inLines = inputCode.Split('\n');
+        string[] genLines = generatedCode.Split('\n');
+        if (inLines.Length < 2 || genLines.Length < 2) return false;
 
+        if (!CompareFirstLineWithTolerance(inLines[0], genLines[0])) return false;
+
+        if (moduleType == "Generator")
+        {
+            if (!CompareGeneratorSecondLineWithTolerance(inLines[1], genLines[1])) return false;
+        }
+        else
+        {
+            if (inLines[1].Trim() != genLines[1].Trim()) return false;
+        }
+
+        // 3 строка проверяется вне этого метода по условию наличия сплава на складе.
+        return true;
+    }
+
+    private bool CompareFirstLineWithTolerance(string a, string b)
+    {
+        var pa = a.Split('-');
+        var pb = b.Split('-');
+        if (pa.Length < 7 || pb.Length < 7) return false;
+
+        if (pa[0] != pb[0]) return false; // type
+        if (pa[1] != pb[1]) return false; // tier
+        if (pa[^2] != pb[^2] || pa[^1] != pb[^1]) return false; // faction+bp
+
+        if (!TryParsePrefixedFloat(pa[2], 'm', out var ma) || !TryParsePrefixedFloat(pb[2], 'm', out var mb)) return false;
+        if (!TryParsePrefixedFloat(pa[3], 'd', out var da) || !TryParsePrefixedFloat(pb[3], 'd', out var db)) return false;
+
+        if (Mathf.Abs(ma - mb) > 0.25f) return false;
+        if (Mathf.Abs(da - db) > 1.0f) return false;
+
+        if (!TryParseDims(pa[4], out var aL, out var aW, out var aH)) return false;
+        if (!TryParseDims(pb[4], out var bL, out var bW, out var bH)) return false;
+
+        const float eps = 0.0025f;
+        if (Mathf.Abs(aL - bL) > eps) return false;
+        if (Mathf.Abs(aW - bW) > eps) return false;
+        if (Mathf.Abs(aH - bH) > eps) return false;
+
+        return true;
+    }
+
+    private bool CompareGeneratorSecondLineWithTolerance(string a, string b)
+    {
+        if (!TryParseGeneratorLine(a, out var p1, out var f1, out var t1)) return false;
+        if (!TryParseGeneratorLine(b, out var p2, out var f2, out var t2)) return false;
+
+        if (t1 != t2) return false;
+        if (Mathf.Abs(p1 - p2) > 0.01f) return false;
+        if (Mathf.Abs(f1 - f2) > 0.0002f) return false;
+
+        return true;
+    }
+
+    private static bool TryParseGeneratorLine(string line, out float p, out float f, out int ft)
+    {
+        p = 0f; f = 0f; ft = 0;
+
+        var parts = line.Split('-');
+        if (parts.Length != 3) return false;
+        if (!TryParsePrefixedFloat(parts[0], 'P', out p)) return false;
+        if (!TryParsePrefixedFloat(parts[1], 'F', out f)) return false;
+        if (!parts[2].StartsWith("FT")) return false;
+        return int.TryParse(parts[2].Substring(2), out ft);
+    }
+
+    private static bool TryParsePrefixedFloat(string s, char prefix, out float v)
+    {
+        v = 0f;
+        if (string.IsNullOrEmpty(s) || s[0] != prefix) return false;
+        return float.TryParse(s.Substring(1), NumberStyles.Float, CultureInfo.InvariantCulture, out v);
+    }
+
+    private static bool TryParseDims(string s, out float l, out float w, out float h)
+    {
+        l = w = h = 0f;
+        var d = s.Split('/');
+        if (d.Length != 3) return false;
+        return TryParseInvariant(d[0], out l) &&
+               TryParseInvariant(d[1], out w) &&
+               TryParseInvariant(d[2], out h);
+    }
+
+    private static bool CompareFirstTwoLines(string a, string b)
+    {
+        string[] la = a.Split('\n');
+        string[] lb = b.Split('\n');
+        if (la.Length < 2 || lb.Length < 2) return false;
+        return la[0].Trim() == lb[0].Trim() && la[1].Trim() == lb[1].Trim();
+    }
+
+    private static bool TryParseInvariant(string value, out float result)
+    {
+        return float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out result);
+    }
+
+    private static bool TryParseMassPart(string massPart, out float massKg)
+    {
+        massKg = 0f;
+        if (string.IsNullOrEmpty(massPart) || massPart[0] != 'm') return false;
+        return TryParseInvariant(massPart.Substring(1), out massKg) && massKg > 0f;
+    }
+
+    private bool TryApplyShellPercentFromMass(float targetMassKg)
+    {
+        float realVol = scaler.CalcRealVolume;
+        if (realVol <= 0.000001f) return false;
+
+        float fill = Mathf.Clamp01(GetReferenceFillPercent() / 100f);
+        float denom = 1f - fill;
+
+        float shellFrac;
+        if (denom <= 0.000001f)
+        {
+            shellFrac = Mathf.Clamp01(shellPercent / 100f);
+        }
+        else
+        {
+            float normalized = targetMassKg / (realVol * 1000f);
+            shellFrac = (normalized - fill) / denom;
+        }
+
+        if (float.IsNaN(shellFrac) || float.IsInfinity(shellFrac))
+            return false;
+
+        shellFrac = Mathf.Clamp(shellFrac, 0.00001f, 1f);
+        float newShellPercent = Mathf.Clamp(shellFrac * 100f, 0.001f, 100f);
+
+        shellPercent = (float)Math.Round(newShellPercent, 3);
+        shellPercentStr = shellPercent.ToString("F3", CultureInfo.InvariantCulture);
+        scaler.SetShellPercent(shellPercent);
+
+        RecalculateAll();
+
+        return Mathf.Abs(scaler.CalcTotalMass - targetMassKg) <= 0.25f;
+    }
+
+    private static string NormalizeCodeText(string text)
+    {
+        return (text ?? string.Empty).Trim().Replace("\r", "");
+    }
 
     private void DrawSelectionSection()
     {
@@ -540,9 +618,8 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
 
         GUILayout.BeginHorizontal();
         GUILayout.Label("Объем %:", GUILayout.Width(70));
-
         string newStr = GUILayout.TextField(shellPercentStr, GUILayout.Width(60));
-        if (newStr != shellPercentStr && float.TryParse(newStr, out float val))
+        if (newStr != shellPercentStr && float.TryParse(newStr, NumberStyles.Float, CultureInfo.InvariantCulture, out float val))
         {
             shellPercent = Mathf.Clamp(val, 0.001f, 100f);
             shellPercentStr = newStr;
@@ -557,7 +634,7 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
         if (Mathf.Abs(sliderVal - shellPercent) > 0.0005f)
         {
             shellPercent = (float)Math.Round(sliderVal, 3);
-            shellPercentStr = shellPercent.ToString("F3");
+            shellPercentStr = shellPercent.ToString("F3", CultureInfo.InvariantCulture);
             scaler.SetShellPercent(shellPercent);
             RecalculateAll();
         }
@@ -601,7 +678,8 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
         GUILayout.Label("Ввод:", GUILayout.Width(80));
         string currentStr = scaler.ScaleInputStr;
         string newScaleStr = GUILayout.TextField(currentStr);
-        if (newScaleStr != currentStr && scaler.HandleScaleInput(newScaleStr)) RecalculateAll();
+        if (newScaleStr != currentStr && scaler.HandleScaleInput(newScaleStr))
+            RecalculateAll();
         GUILayout.EndHorizontal();
 
         GUILayout.Space(5);
@@ -647,17 +725,13 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
         if (!fits)
         {
             GUILayout.Space(10);
-            GUILayout.Label(
-                $"<color=#FF4444><b>⚠ ГАБАРИТЫ ПРЕВЫШАЮТ КАМЕРУ ВЕРСТАКА (Макс: {innerLength}x{innerWidth}x{innerHeight})</b></color>",
-                GetCenteredBoldStyle());
+            GUILayout.Label($"<color=#FF4444><b>⚠ ГАБАРИТЫ ПРЕВЫШАЮТ КАМЕРУ ВЕРСТАКА (Макс: {innerLength}x{innerWidth}x{innerHeight})</b></color>", GetCenteredBoldStyle());
         }
 
         if (!CheckTierConstraints())
         {
             GUILayout.Space(5);
-            GUILayout.Label(
-                $"<color=#FF4444><b>⚠ ТИР ЭТАЛОНА (T{GetReferenceTier()}) ВЫШЕ ТИРА ВЕРСТАКА (T{workbenchTier})</b></color>",
-                GetCenteredBoldStyle());
+            GUILayout.Label($"<color=#FF4444><b>⚠ ТИР ЭТАЛОНА (T{GetReferenceTier()}) ВЫШЕ ТИРА ВЕРСТАКА (T{workbenchTier})</b></color>", GetCenteredBoldStyle());
         }
 
         GUILayout.EndVertical();
@@ -715,21 +789,24 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
 
     private void DrawCostsAndButtons()
     {
+        var resolvedAlloy = ResolveAlloyStorage();
+        var resolvedResources = ResolveResourcesStorage();
+
         GUILayout.BeginVertical(_panelStyle);
         GUILayout.Label("<color=#E0E0E0>ТРЕБОВАНИЯ ПРОИЗВОДСТВА</color>", GetBoldStyle());
 
         string alloyCode = GetSelectedAlloyCode();
-        float alloyAvailable = alloyCode != null && alloyStorage != null ? (float)alloyStorage.GetMass(alloyCode) : 0f;
-        bool enoughAlloy = alloyCode != null && alloyStorage != null && alloyStorage.HasEnoughMass(alloyCode, scaler.CalcShellMass);
+        float alloyAvailable = alloyCode != null && resolvedAlloy != null ? (float)resolvedAlloy.GetMass(alloyCode) : 0f;
+        bool enoughAlloy = alloyCode != null && resolvedAlloy != null && resolvedAlloy.HasEnoughMass(alloyCode, scaler.CalcShellMass);
 
         int metalTier = GetReferenceTier();
         var metalIdx = GetMetalIndex();
-        float metalAvailable = resourcesStorage != null ? (float)(resourcesStorage.GetGrams(metalIdx) / 1000.0) : 0f;
+        float metalAvailable = resolvedResources != null ? (float)(resolvedResources.GetGrams(metalIdx) / 1000.0) : 0f;
         float metalNeeded = scaler.CalcInnerMass;
         bool enoughMetal = metalAvailable >= metalNeeded - 0.001f;
 
         long energyNeeded = (long)Math.Ceiling(scaler.CalcTotalMass);
-        long energyAvailable = resourcesStorage != null ? resourcesStorage.EnergyUnits : 0;
+        long energyAvailable = resolvedResources != null ? resolvedResources.EnergyUnits : 0;
         bool enoughEnergy = energyAvailable >= energyNeeded;
 
         GUILayout.BeginHorizontal();
@@ -743,9 +820,11 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
         GUILayout.Space(15);
 
         GUILayout.BeginHorizontal();
-        GUILayout.Label("Размещение готового модуля: ", GUILayout.Width(200));
-        spawnInWorld = GUILayout.Toggle(spawnInWorld, "В сцену (Мир)", GUILayout.Width(120));
-        saveToStorage = GUILayout.Toggle(saveToStorage, "На склад (Storage)");
+        GUILayout.Label("Размещение готового модуля:", GUILayout.Width(220));
+        placementMode = (CraftPlacementMode)GUILayout.Toolbar(
+            (int)placementMode,
+            new[] { "В сцену (Мир)", "На склад (Storage)" },
+            GUILayout.Height(24));
         GUILayout.EndHorizontal();
 
         GUILayout.Space(10);
@@ -767,7 +846,6 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
         if (GUILayout.Button("◆ ИЗГОТОВИТЬ МОДУЛЬ ◆", GUILayout.Height(35)))
             OnCraft();
         GUI.enabled = true;
-
         GUI.backgroundColor = oldBg;
 
         GUILayout.Space(10);
@@ -792,16 +870,26 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
         if (GetReferenceCount() == 0 || !CheckFitsInWorkbench() || !CheckTierConstraints())
             return;
 
+        var resolvedAlloy = ResolveAlloyStorage();
+        var resolvedResources = ResolveResourcesStorage();
+        var resolvedModuleStorage = ResolveModuleStorage();
+
+        if (resolvedAlloy == null)
+        {
+            ShowError("AlloyStorage недоступен.");
+            return;
+        }
+
+        if (resolvedResources == null)
+        {
+            ShowError("ResourcesStorage недоступен.");
+            return;
+        }
+
         string alloyCode = GetSelectedAlloyCode();
         if (string.IsNullOrEmpty(alloyCode))
         {
             ShowError("Сплав не выбран");
-            return;
-        }
-
-        if (!spawnInWorld && !saveToStorage)
-        {
-            ShowError("Выберите место размещения модуля!");
             return;
         }
 
@@ -810,7 +898,7 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
         float craftInnerMass = scaler.CalcInnerMass;
         float craftTotalMass = scaler.CalcTotalMass;
 
-        if (!alloyStorage.HasEnoughMass(alloyCode, craftShellMass))
+        if (!resolvedAlloy.HasEnoughMass(alloyCode, craftShellMass))
         {
             ShowError("Недостаточно сплава для оболочки");
             return;
@@ -818,14 +906,14 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
 
         var metalIdx = GetMetalIndex();
         long metalNeededG = (long)Math.Ceiling(craftInnerMass * 1000.0);
-        if (resourcesStorage.GetGrams(metalIdx) < metalNeededG)
+        if (resolvedResources.GetGrams(metalIdx) < metalNeededG)
         {
             ShowError("Недостаточно металла");
             return;
         }
 
         long energyNeeded = (long)Math.Ceiling(craftTotalMass);
-        if (resourcesStorage.EnergyUnits < energyNeeded)
+        if (resolvedResources.EnergyUnits < energyNeeded)
         {
             ShowError("Недостаточно энергии");
             return;
@@ -849,11 +937,11 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
             craftShellMass, craftInnerMass, craftTotalMass, scaler.CalcDurability, craftCode
         );
 
-        alloyStorage.TryConsumeMass(alloyCode, craftShellMass);
-        resourcesStorage.TryRemoveGrams(metalIdx, metalNeededG);
-        resourcesStorage.TryConsumeEnergy(energyNeeded);
+        resolvedAlloy.TryConsumeMass(alloyCode, craftShellMass);
+        resolvedResources.TryRemoveGrams(metalIdx, metalNeededG);
+        resolvedResources.TryConsumeEnergy(energyNeeded);
 
-        if (spawnInWorld)
+        if (placementMode == CraftPlacementMode.SpawnInWorld)
         {
             if (craftedInstance != null)
             {
@@ -876,9 +964,16 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
                 craftedComp.SetData(moduleData);
             }
         }
+        else
+        {
+            if (resolvedModuleStorage == null)
+            {
+                ShowError("ModuleStorage недоступен.");
+                return;
+            }
 
-        if (saveToStorage && moduleStorage != null)
-            moduleStorage.AddModule(moduleData);
+            resolvedModuleStorage.AddModule(moduleData);
+        }
 
         ShowMessage("Модуль успешно изготовлен!", false);
         RebuildAlloyList();
@@ -930,7 +1025,8 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
 
     protected void RebuildAlloyList()
     {
-        if (alloyStorage == null || alloyStorage.Count == 0)
+        var resolvedAlloy = ResolveAlloyStorage();
+        if (resolvedAlloy == null || resolvedAlloy.Count == 0)
         {
             alloyDisplayNames = new string[0];
             alloyCodes = new string[0];
@@ -939,8 +1035,8 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
             return;
         }
 
-        alloyDisplayNames = alloyStorage.GetDisplayNames();
-        alloyCodes = alloyStorage.GetAllCodes();
+        alloyDisplayNames = resolvedAlloy.GetDisplayNames();
+        alloyCodes = resolvedAlloy.GetAllCodes();
         selectedAlloyIndex = 0;
         OnAlloyChanged();
     }
@@ -957,8 +1053,8 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
         shellPercent = 5f;
         shellPercentStr = "5.000";
         selectedAlloyIndex = 0;
-
         codeInputField = "";
+
         errorMessage = "";
         warningMessage = "";
         successMessage = "";
@@ -969,6 +1065,8 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
         scaler.SetScaleFactor(1f);
         scaler.SetShellPercent(5f);
         scaler.SetScaleMode(ModuleScaler.ScaleMode.Mass);
+
+        placementMode = CraftPlacementMode.SpawnInWorld;
 
         RebuildAllLists();
         RecalculateAll();
@@ -993,8 +1091,8 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
         else
         {
             successMessage = msg;
-            errorMessage = "";
             warningMessage = "";
+            errorMessage = "";
         }
 
         messageTimer = 4f;
@@ -1006,7 +1104,6 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
         selected = Mathf.Clamp(selected, 0, options.Length - 1);
 
         GUIStyle btnStyle = new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = FontStyle.Normal };
-
         if (GUILayout.Button(options[selected], btnStyle, GUILayout.MinWidth(150), GUILayout.Height(25)))
         {
             WorkbenchPopup.Show(options, selected, GUIUtility.GUIToScreenPoint(Event.current.mousePosition), idx => _pendingSelections[tag] = idx);
@@ -1019,6 +1116,61 @@ public abstract class BaseModuleWorkbench : MonoBehaviour
         }
 
         return selected;
+    }
+
+    private Transform ResolveActorTransform()
+    {
+        if (actorTransform != null) return actorTransform;
+        if (PlayerLocator.PlayerObject != null) return PlayerLocator.PlayerObject.transform;
+        return null;
+    }
+
+    private ResourcesStorage ResolveResourcesStorage()
+    {
+        if (useStorageManager && StorageManager.Instance != null)
+        {
+            if (StorageManager.Instance.TryGetResourcesStorage(
+                localStorageNode,
+                ResolveActorTransform(),
+                StorageAccessMode.CraftConsume | StorageAccessMode.Read,
+                out var rs,
+                out _))
+                return rs;
+        }
+
+        return resourcesStorage;
+    }
+
+    private AlloyStorage ResolveAlloyStorage()
+    {
+        if (useStorageManager && StorageManager.Instance != null)
+        {
+            if (StorageManager.Instance.TryGetAlloyStorage(
+                localStorageNode,
+                ResolveActorTransform(),
+                StorageAccessMode.CraftConsume | StorageAccessMode.Read,
+                out var a,
+                out _))
+                return a;
+        }
+
+        return alloyStorage;
+    }
+
+    private ModuleStorage ResolveModuleStorage()
+    {
+        if (useStorageManager && StorageManager.Instance != null)
+        {
+            if (StorageManager.Instance.TryGetModuleStorage(
+                localStorageNode,
+                ResolveActorTransform(),
+                StorageAccessMode.CraftProduce | StorageAccessMode.Write,
+                out var m,
+                out _))
+                return m;
+        }
+
+        return moduleStorage;
     }
 
     private GUIStyle _centeredBold;

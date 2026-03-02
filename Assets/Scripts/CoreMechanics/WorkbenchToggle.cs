@@ -1,15 +1,13 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-/// <summary>
-/// Временный скрипт для открытия/закрытия верстака по клавише P.
-/// Работает с любым наследником BaseModuleWorkbench (GeneratorWorkbench, EnergyStorageWorkbench и т.д.)
-/// Повесить на тот же GameObject, что и верстак, или любой другой.
-/// </summary>
 public class WorkbenchToggle : MonoBehaviour
 {
     [Tooltip("Ссылка на верстак. Если не назначена — ищет на этом же объекте.")]
     public BaseModuleWorkbench workbench;
+
+    [Header("Input")]
+    [SerializeField] private Key toggleKey = Key.P;
 
     private bool isOpen;
 
@@ -21,15 +19,11 @@ public class WorkbenchToggle : MonoBehaviour
 
     private void Update()
     {
-        if (workbench == null) return;
-        if (Keyboard.current == null) return;
-        if (!Keyboard.current.pKey.wasPressedThisFrame) return;
+        if (workbench == null || Keyboard.current == null) return;
+        if (!Keyboard.current[toggleKey].wasPressedThisFrame) return;
 
         isOpen = !isOpen;
-
-        if (isOpen)
-            workbench.OpenPanel();
-        else
-            workbench.ClosePanel();
+        if (isOpen) workbench.OpenPanel();
+        else workbench.ClosePanel();
     }
 }

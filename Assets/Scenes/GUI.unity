@@ -809,6 +809,9 @@ MonoBehaviour:
   efficiencyPercent: 100
   resourcesStorage: {fileID: 116770712}
   alloyStorage: {fileID: 116770713}
+  useStorageManager: 1
+  localStorageNode: {fileID: 0}
+  actorTransform: {fileID: 0}
 --- !u!114 &225074420
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -822,6 +825,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TempFurnaceInteraction
   furnace: {fileID: 225074419}
+  toggleKey: 29
 --- !u!1001 &229511506
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1925,7 +1929,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!65 &936839552
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -2031,6 +2035,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WorkbenchToggle
   workbench: {fileID: 936839557}
+  toggleKey: 39
 --- !u!114 &936839557
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2050,6 +2055,10 @@ MonoBehaviour:
   alloyStorage: {fileID: 116770713}
   resourcesStorage: {fileID: 116770712}
   moduleStorage: {fileID: 116770714}
+  useStorageManager: 1
+  localStorageNode: {fileID: 0}
+  actorTransform: {fileID: 0}
+  placementMode: 0
   energyStorageDatabase: {fileID: 11400000, guid: 7919acbaa0cd31b48a8a9851118e1ab9, type: 2}
 --- !u!1001 &940615895
 PrefabInstance:
@@ -2836,6 +2845,10 @@ MonoBehaviour:
   alloyStorage: {fileID: 116770713}
   resourcesStorage: {fileID: 116770712}
   moduleStorage: {fileID: 116770714}
+  useStorageManager: 1
+  localStorageNode: {fileID: 0}
+  actorTransform: {fileID: 0}
+  placementMode: 0
   generatorDatabase: {fileID: 11400000, guid: 54121b5cadbab4f4c995cf32bd095521, type: 2}
 --- !u!114 &1776640551
 MonoBehaviour:
@@ -2850,6 +2863,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WorkbenchToggle
   workbench: {fileID: 1776640550}
+  toggleKey: 30
 --- !u!1001 &1780860841
 PrefabInstance:
   m_ObjectHideFlags: 0
