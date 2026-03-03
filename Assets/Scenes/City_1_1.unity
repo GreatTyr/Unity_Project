@@ -2131,7 +2131,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1434132193}
   m_HandleRect: {fileID: 1434132192}
   m_Direction: 2
-  m_Value: 0
+  m_Value: 1
   m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:
@@ -6958,8 +6958,9 @@ GameObject:
   - component: {fileID: 753782732}
   - component: {fileID: 753782731}
   - component: {fileID: 753782730}
-  - component: {fileID: 753782729}
   - component: {fileID: 753782728}
+  - component: {fileID: 753782735}
+  - component: {fileID: 753782734}
   m_Layer: 0
   m_Name: GeneratorTable
   m_TagString: Untagged
@@ -6979,27 +6980,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 27091db3352b7d748a0bbabc5cc4c9bb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WorkbenchToggle
-  workbench: {fileID: 753782729}
---- !u!114 &753782729
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 753782727}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3eaca590a5438b346b1b1e996d4ae8e6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GeneratorWorkbench
-  workbenchTier: 1
-  innerLength: 2
-  innerWidth: 2
-  innerHeight: 2
-  alloyStorage: {fileID: 2038256545}
-  resourcesStorage: {fileID: 2038256544}
-  moduleStorage: {fileID: 2038256543}
-  generatorDatabase: {fileID: 11400000, guid: 54121b5cadbab4f4c995cf32bd095521, type: 2}
+  toggleKey: 30
 --- !u!65 &753782730
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -7092,6 +7073,39 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &753782734
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 753782727}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b99b92649cd1b3145b3d9f26b8493c1d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GeneratorWorkbenchUI
+--- !u!114 &753782735
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 753782727}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e71ccea8b762731469a30017f25a0472, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GeneratorWorkbenchController
+  workbenchTier: 1
+  innerLength: 2
+  innerWidth: 2
+  innerHeight: 2
+  generatorDatabase: {fileID: 11400000, guid: 54121b5cadbab4f4c995cf32bd095521, type: 2}
+  resourcesStorage: {fileID: 2038256544}
+  alloyStorage: {fileID: 2038256545}
+  moduleStorage: {fileID: 2038256543}
+  placementMode: 0
 --- !u!1 &757749893
 GameObject:
   m_ObjectHideFlags: 0
@@ -8771,6 +8785,80 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1004051694}
   m_CullTransparentMesh: 1
+--- !u!1001 &1044335997
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 1126603201}
+    m_Modifications:
+    - target: {fileID: 2555994334662333885, guid: 09456c7e42ba0b24daf1ac52eb6fec1a, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.023873417
+      objectReference: {fileID: 0}
+    - target: {fileID: 2555994334662333885, guid: 09456c7e42ba0b24daf1ac52eb6fec1a, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.78782284
+      objectReference: {fileID: 0}
+    - target: {fileID: 2555994334662333885, guid: 09456c7e42ba0b24daf1ac52eb6fec1a, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 0.013130378
+      objectReference: {fileID: 0}
+    - target: {fileID: 2555994334662333885, guid: 09456c7e42ba0b24daf1ac52eb6fec1a, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0.40161687
+      objectReference: {fileID: 0}
+    - target: {fileID: 2555994334662333885, guid: 09456c7e42ba0b24daf1ac52eb6fec1a, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 1.1555686
+      objectReference: {fileID: 0}
+    - target: {fileID: 2555994334662333885, guid: 09456c7e42ba0b24daf1ac52eb6fec1a, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0.19990334
+      objectReference: {fileID: 0}
+    - target: {fileID: 2555994334662333885, guid: 09456c7e42ba0b24daf1ac52eb6fec1a, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2555994334662333885, guid: 09456c7e42ba0b24daf1ac52eb6fec1a, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2555994334662333885, guid: 09456c7e42ba0b24daf1ac52eb6fec1a, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2555994334662333885, guid: 09456c7e42ba0b24daf1ac52eb6fec1a, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2555994334662333885, guid: 09456c7e42ba0b24daf1ac52eb6fec1a, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2555994334662333885, guid: 09456c7e42ba0b24daf1ac52eb6fec1a, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2555994334662333885, guid: 09456c7e42ba0b24daf1ac52eb6fec1a, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4996160268517572284, guid: 09456c7e42ba0b24daf1ac52eb6fec1a, type: 3}
+      propertyPath: m_Name
+      value: Crafted_StandardGenerator000_T1
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 09456c7e42ba0b24daf1ac52eb6fec1a, type: 3}
+--- !u!4 &1044335998 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 2555994334662333885, guid: 09456c7e42ba0b24daf1ac52eb6fec1a, type: 3}
+  m_PrefabInstance: {fileID: 1044335997}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1068702282
 GameObject:
   m_ObjectHideFlags: 0
@@ -9449,6 +9537,7 @@ Transform:
   m_LocalScale: {x: 3.2999995, y: 0.09999998, z: 6}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 1044335998}
   - {fileID: 1243910441}
   m_Father: {fileID: 1729860439}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -11536,7 +11625,6 @@ GameObject:
   - component: {fileID: 1371907998}
   - component: {fileID: 1371908001}
   - component: {fileID: 1371908000}
-  - component: {fileID: 1371908004}
   - component: {fileID: 1371908003}
   - component: {fileID: 1371908002}
   m_Layer: 3
@@ -11959,7 +12047,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ModuleStorage
   autoSave: 1
-  entries: []
+  entries:
+  - moduleCode: 'Generator-T1-m10.0-d1.220-0.337/0.168/0.253-TESTF1-001
+
+      P8.780-F0.0018-FT1
+
+      1-K1/000-T1/000-C0/000-E0/000'
+    quantity: 1
+    dataTypeName: GeneratorData
+    json: '{"moduleType":"Generator","moduleTier":1,"faction":"TESTF1","referenceIndex":0,"referenceName":"StandardGenerator000","alloyCode":"1-K1/000-T1/000-C0/000-E0/000","alloyTier":1,"shellPercent":10.0,"length":0.3370000123977661,"width":0.1679999977350235,"height":0.2529999911785126,"aabbVolume":0.014324000105261803,"realVolume":0.012195000424981118,"shellVolumeM3":0.0012199999764561654,"effectiveVolume":0.010975000448524952,"shellMassKg":1.2200000286102296,"innerMassKg":8.779999732971192,"totalMassKg":10.0,"durability":1.2200000286102296,"scaleFactor":0.16848011314868928,"fillPercent":80.0,"moduleCode":"Generator-T1-m10.0-d1.220-0.337/0.168/0.253-TESTF1-001\nP8.780-F0.0018-FT1\n1-K1/000-T1/000-C0/000-E0/000","craftTimestamp":"2026-03-03T05:40:42.3678374Z","dataVersion":1,"specificPower":8.779999732971192,"fuelKgPerS":0.0017999999690800906,"fuelTier":1,"powerTimesTierPer0001":1.0,"fuelPer0001m3Tiered":0.00019999999494757503,"powerBy0001m3":1.0,"fuelBy0001m3Base":0.00019999999494757503}'
 --- !u!114 &1371908003
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -11973,38 +12069,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AmmoStorage
   entries: []
---- !u!114 &1371908004
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1371907977}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c52858898ade6074ea8c670369c4807e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::StorageNode
-  ownerId: 
-  ownerType: 0
-  isPrimaryForOwnerType: 1
-  nodeEnabled: 1
-  gateMode: 0
-  maxUseDistance: 3.5
-  interactionGranted: 0
-  resourcesStorage: {fileID: 1371908001}
-  alloyStorage: {fileID: 1371908000}
-  moduleStorage: {fileID: 1371908002}
-  ammoStorage: {fileID: 1371908003}
-  permissions:
-  - kind: 0
-    allowedModes: 63
-  - kind: 1
-    allowedModes: 63
-  - kind: 2
-    allowedModes: 63
-  - kind: 3
-    allowedModes: 63
 --- !u!1 &1372729100
 GameObject:
   m_ObjectHideFlags: 0
@@ -13303,7 +13367,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!65 &1546713391
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -13404,7 +13468,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1546713390}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 77a364bd50564da4d9b8fb41b01eb321, type: 3}
   m_Name: 
@@ -14309,6 +14373,7 @@ GameObject:
   - component: {fileID: 1664926262}
   - component: {fileID: 1664926267}
   - component: {fileID: 1664926266}
+  - component: {fileID: 1664926268}
   m_Layer: 0
   m_Name: FurnaceStation
   m_TagString: Untagged
@@ -14437,6 +14502,20 @@ MonoBehaviour:
   efficiencyPercent: 100
   resourcesStorage: {fileID: 2038256544}
   alloyStorage: {fileID: 2038256545}
+--- !u!114 &1664926268
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1664926261}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4175591352cf1e7449e4291cc57d2501, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TempFurnaceInteraction
+  furnace: {fileID: 1664926267}
+  toggleKey: 29
 --- !u!114 &1675897866
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -15108,7 +15187,6 @@ GameObject:
   - component: {fileID: 1731843498}
   - component: {fileID: 1731843497}
   - component: {fileID: 1731843496}
-  - component: {fileID: 1731843495}
   m_Layer: 0
   m_Name: AmmoWorkbench
   m_TagString: Untagged
@@ -15116,38 +15194,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1731843495
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1731843494}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c52858898ade6074ea8c670369c4807e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::StorageNode
-  ownerId: 
-  ownerType: 2
-  isPrimaryForOwnerType: 0
-  nodeEnabled: 1
-  gateMode: 3
-  maxUseDistance: 3.5
-  interactionGranted: 1
-  resourcesStorage: {fileID: 2038256544}
-  alloyStorage: {fileID: 2038256545}
-  moduleStorage: {fileID: 2038256543}
-  ammoStorage: {fileID: 2038256547}
-  permissions:
-  - kind: 0
-    allowedModes: 63
-  - kind: 1
-    allowedModes: 63
-  - kind: 2
-    allowedModes: 63
-  - kind: 3
-    allowedModes: 63
 --- !u!114 &1731843496
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -15218,11 +15264,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f0db451cd3566b24fa5c97e3ab0b4457, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AmmoWorkbenchCore
-  resourcesStorage: {fileID: 0}
-  ammoStorage: {fileID: 0}
-  useStorageManager: 1
-  localStorageNode: {fileID: 1731843495}
-  actorTransform: {fileID: 1371907978}
+  resourcesStorage: {fileID: 2038256544}
+  ammoStorage: {fileID: 2038256547}
 --- !u!65 &1731843500
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -17139,7 +17182,6 @@ GameObject:
   - component: {fileID: 2038256544}
   - component: {fileID: 2038256545}
   - component: {fileID: 2038256543}
-  - component: {fileID: 2038256546}
   - component: {fileID: 2038256547}
   m_Layer: 0
   m_Name: StorageManager
@@ -17282,19 +17324,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AlloyStorage
   entries: []
   autoSave: 1
---- !u!114 &2038256546
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2038256538}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 391d26d0196231645b54c2598e307af4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::StorageManager
-  autoCreatePolicy: 1
 --- !u!114 &2038256547
 MonoBehaviour:
   m_ObjectHideFlags: 0

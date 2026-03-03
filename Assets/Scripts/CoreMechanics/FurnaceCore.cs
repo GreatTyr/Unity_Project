@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 
 /// <summary>
-/// Параметры конкретной печи.
+/// Параметры конкретной печи. Очищено от StorageManager.
 /// </summary>
 public class FurnaceCore : MonoBehaviour
 {
@@ -16,14 +16,9 @@ public class FurnaceCore : MonoBehaviour
     [Tooltip("Коэффициент эффективности (%). Заглушка.")]
     [SerializeField] private float efficiencyPercent = 100f;
 
-    [Header("Ссылки на хранилища (legacy fallback)")]
+    [Header("Ссылки на хранилища (Прямые)")]
     [SerializeField] private ResourcesStorage resourcesStorage;
     [SerializeField] private AlloyStorage alloyStorage;
-
-    [Header("Storage Manager")]
-    [SerializeField] private bool useStorageManager = true;
-    [SerializeField] private StorageNode localStorageNode;
-    [SerializeField] private Transform actorTransform;
 
     public double CapacityKg => capacityKg;
     public long CapacityGrams => (long)System.Math.Round(capacityKg * 1000.0);
@@ -31,30 +26,29 @@ public class FurnaceCore : MonoBehaviour
     public int FurnaceTier => furnaceTier;
     public float EfficiencyPercent => efficiencyPercent;
 
-    public ResourcesStorage Resources => ResolveResourcesStorage();
-    public AlloyStorage Alloys => ResolveAlloyStorage();
+    public ResourcesStorage Resources => resourcesStorage;
+    public AlloyStorage Alloys => alloyStorage;
 
     public bool HasEnoughResources(long metalGrams, int metalTier, long chemicalsGrams, long nanitesGrams, long energyCost)
     {
-        var rs = ResolveResourcesStorage();
-        if (rs == null) return false;
+        if (resourcesStorage == null) return false;
 
         var metalIdx = GetMetalIndex(metalTier);
-        if (rs.GetGrams(metalIdx) < metalGrams) return false;
+        if (resourcesStorage.GetGrams(metalIdx) < metalGrams) return false;
 
         if (chemicalsGrams > 0)
         {
             var chemIdx = GetChemicalsIndex(metalTier);
-            if (rs.GetGrams(chemIdx) < chemicalsGrams) return false;
+            if (resourcesStorage.GetGrams(chemIdx) < chemicalsGrams) return false;
         }
 
         if (nanitesGrams > 0)
         {
             var nanIdx = GetNanitesIndex(metalTier);
-            if (rs.GetGrams(nanIdx) < nanitesGrams) return false;
+            if (resourcesStorage.GetGrams(nanIdx) < nanitesGrams) return false;
         }
 
-        if (rs.EnergyUnits < energyCost) return false;
+        if (resourcesStorage.EnergyUnits < energyCost) return false;
         return true;
     }
 
@@ -62,62 +56,55 @@ public class FurnaceCore : MonoBehaviour
         long chemicalsGrams, long nanitesGrams, long energyCost,
         string alloyCode, double outputKg)
     {
-        var rs = ResolveResourcesStorage();
-        var als = ResolveAlloyStorage();
-
-        if (rs == null || als == null) return false;
+        if (resourcesStorage == null || alloyStorage == null) return false;
         if (!HasEnoughResources(metalGrams, metalTier, chemicalsGrams, nanitesGrams, energyCost))
             return false;
 
         var metalIdx = GetMetalIndex(metalTier);
-        rs.TryRemoveGrams(metalIdx, metalGrams);
+        resourcesStorage.TryRemoveGrams(metalIdx, metalGrams);
 
         if (chemicalsGrams > 0)
         {
             var chemIdx = GetChemicalsIndex(metalTier);
-            rs.TryRemoveGrams(chemIdx, chemicalsGrams);
+            resourcesStorage.TryRemoveGrams(chemIdx, chemicalsGrams);
         }
 
         if (nanitesGrams > 0)
         {
             var nanIdx = GetNanitesIndex(metalTier);
-            rs.TryRemoveGrams(nanIdx, nanitesGrams);
+            resourcesStorage.TryRemoveGrams(nanIdx, nanitesGrams);
         }
 
-        rs.TryConsumeEnergy(energyCost);
+        resourcesStorage.TryConsumeEnergy(energyCost);
 
         outputKg = System.Math.Round(outputKg, 3);
-        als.AddAlloy(alloyCode, outputKg);
+        alloyStorage.AddAlloy(alloyCode, outputKg);
 
         return true;
     }
 
     public long GetMetalOnStorageGrams(int tier)
     {
-        var rs = ResolveResourcesStorage();
-        if (rs == null) return 0;
-        return rs.GetGrams(GetMetalIndex(tier));
+        if (resourcesStorage == null) return 0;
+        return resourcesStorage.GetGrams(GetMetalIndex(tier));
     }
 
     public long GetChemicalsOnStorageGrams(int tier)
     {
-        var rs = ResolveResourcesStorage();
-        if (rs == null) return 0;
-        return rs.GetGrams(GetChemicalsIndex(tier));
+        if (resourcesStorage == null) return 0;
+        return resourcesStorage.GetGrams(GetChemicalsIndex(tier));
     }
 
     public long GetNanitesOnStorageGrams(int tier)
     {
-        var rs = ResolveResourcesStorage();
-        if (rs == null) return 0;
-        return rs.GetGrams(GetNanitesIndex(tier));
+        if (resourcesStorage == null) return 0;
+        return resourcesStorage.GetGrams(GetNanitesIndex(tier));
     }
 
     public long GetEnergyOnStorage()
     {
-        var rs = ResolveResourcesStorage();
-        if (rs == null) return 0;
-        return rs.EnergyUnits;
+        if (resourcesStorage == null) return 0;
+        return resourcesStorage.EnergyUnits;
     }
 
     public static ResourcesStorage.ResourceIndex GetMetalIndex(int tier)
@@ -133,44 +120,5 @@ public class FurnaceCore : MonoBehaviour
     public static ResourcesStorage.ResourceIndex GetNanitesIndex(int tier)
     {
         return (ResourcesStorage.ResourceIndex)(50 + tier - 1);
-    }
-
-    private Transform ResolveActorTransform()
-    {
-        if (actorTransform != null) return actorTransform;
-        if (PlayerLocator.PlayerObject != null) return PlayerLocator.PlayerObject.transform;
-        return null;
-    }
-
-    private ResourcesStorage ResolveResourcesStorage()
-    {
-        if (useStorageManager && StorageManager.Instance != null)
-        {
-            if (StorageManager.Instance.TryGetResourcesStorage(
-                localStorageNode,
-                ResolveActorTransform(),
-                StorageAccessMode.CraftConsume | StorageAccessMode.Read,
-                out var rs,
-                out _))
-                return rs;
-        }
-
-        return resourcesStorage;
-    }
-
-    private AlloyStorage ResolveAlloyStorage()
-    {
-        if (useStorageManager && StorageManager.Instance != null)
-        {
-            if (StorageManager.Instance.TryGetAlloyStorage(
-                localStorageNode,
-                ResolveActorTransform(),
-                StorageAccessMode.CraftProduce | StorageAccessMode.Write,
-                out var a,
-                out _))
-                return a;
-        }
-
-        return alloyStorage;
     }
 }

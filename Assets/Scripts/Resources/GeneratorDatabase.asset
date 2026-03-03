@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fdb0a9429d5fef1458dcc1dfcbc285bb, type: 3}
   m_Name: GeneratorDatabase
   m_EditorClassIdentifier: Assembly-CSharp::GeneratorDatabase
-  generators:
-  - {fileID: 406396205377248678, guid: 17d03eb4275120f47b02822b3e37cd1a, type: 3}
-  - {fileID: 2963866614151017785, guid: b4413b2403221d247b9825e9f734f36e, type: 3}
+  modules:
+  - {fileID: 406396205377248678, guid: f6cedfcae9c21fb4991e332d7f2126b3, type: 3}
+  - {fileID: 2963866614151017785, guid: 9b2231a07dcfd5548ba4a530303331e9, type: 3}

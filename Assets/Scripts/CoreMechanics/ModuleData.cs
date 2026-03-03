@@ -2,9 +2,59 @@
 using UnityEngine;
 
 /// <summary>
+/// Объект для безопасной передачи всех параметров крафта из Верстака в Данные.
+/// Избавляет от метода с 22 параметрами.
+/// </summary>
+public struct ModuleCraftDTO
+{
+    // Identity
+    public string moduleType;
+    public int moduleTier;
+    public string faction;
+    public int referenceIndex;
+    public string referenceName;
+
+    // Alloy & Shell
+    public string alloyCode;
+    public int alloyTier;
+    public float shellPercent;
+
+    // Scaler & Fill
+    public float scaleFactor;
+    public float fillPercent;
+
+    // Dimensions
+    public float length;
+    public float width;
+    public float height;
+
+    // Volumes
+    public float aabbVolume;
+    public float realVolume;
+    public float shellVolumeM3;
+    public float effectiveVolume;
+
+    // Mass & Durability
+    public float shellMassKg;
+    public float innerMassKg;
+    public float totalMassKg;
+    public float durability;
+
+    // String code
+    public string moduleCode;
+
+    // НОВЫЕ ПАРАМЕТРЫ УПРАВЛЕНИЯ
+    public bool canTurnOnOff;
+    public float turnOnOffTime;
+    public bool canPulseMode;
+    public float pulseInterval;
+    public bool isControllable;
+}
+
+/// <summary>
 /// Базовые данные изготовленного модуля.
 /// Наследники добавляют специфичные для типа поля.
-/// Все данные — readonly после крафта.
+/// Все данные — readonly после крафта (кроме случаев сохранения/загрузки).
 /// </summary>
 [Serializable]
 public class ModuleData
@@ -53,42 +103,56 @@ public class ModuleData
 
     // ── Meta ──
     public string craftTimestamp;       // ISO 8601 время крафта
-    public int dataVersion = 1;        // для миграции данных
+    public int dataVersion = 2;         // для миграции данных
+                                        // НОВЫЕ ПАРАМЕТРЫ УПРАВЛЕНИЯ
+    public bool canTurnOnOff;
+    public float turnOnOffTime;
+    public bool canPulseMode;
+    public float pulseInterval;
+    public bool isControllable;
 
-    /// <summary>Заполнить общие поля из данных верстака.</summary>
-    public void FillCommon(
-        string moduleType, int moduleTier, string faction,
-        int referenceIndex, string referenceName,
-        string alloyCode, int alloyTier,
-        float shellPercent, float scaleFactor, float fillPercent,
-        float length, float width, float height,
-        float aabbVolume, float realVolume, float shellVolumeM3, float effectiveVolume,
-        float shellMassKg, float innerMassKg, float totalMassKg,
-        float durability, string moduleCode)
+
+    /// <summary>
+    /// Заполнить общие поля из структурированного DTO (безопасный способ).
+    /// </summary>
+    public virtual void Initialize(ModuleCraftDTO dto)
     {
-        this.moduleType = moduleType;
-        this.moduleTier = moduleTier;
-        this.faction = faction;
-        this.referenceIndex = referenceIndex;
-        this.referenceName = referenceName;
-        this.alloyCode = alloyCode;
-        this.alloyTier = alloyTier;
-        this.shellPercent = shellPercent;
-        this.scaleFactor = scaleFactor;
-        this.fillPercent = fillPercent;
-        this.length = length;
-        this.width = width;
-        this.height = height;
-        this.aabbVolume = aabbVolume;
-        this.realVolume = realVolume;
-        this.shellVolumeM3 = shellVolumeM3;
-        this.effectiveVolume = effectiveVolume;
-        this.shellMassKg = shellMassKg;
-        this.innerMassKg = innerMassKg;
-        this.totalMassKg = totalMassKg;
-        this.durability = durability;
-        this.moduleCode = moduleCode;
+        this.moduleType = dto.moduleType;
+        this.moduleTier = dto.moduleTier;
+        this.faction = dto.faction;
+        this.referenceIndex = dto.referenceIndex;
+        this.referenceName = dto.referenceName;
+
+        this.alloyCode = dto.alloyCode;
+        this.alloyTier = dto.alloyTier;
+        this.shellPercent = dto.shellPercent;
+
+        this.scaleFactor = dto.scaleFactor;
+        this.fillPercent = dto.fillPercent;
+
+        this.length = dto.length;
+        this.width = dto.width;
+        this.height = dto.height;
+
+        this.aabbVolume = dto.aabbVolume;
+        this.realVolume = dto.realVolume;
+        this.shellVolumeM3 = dto.shellVolumeM3;
+        this.effectiveVolume = dto.effectiveVolume;
+
+        this.shellMassKg = dto.shellMassKg;
+        this.innerMassKg = dto.innerMassKg;
+        this.totalMassKg = dto.totalMassKg;
+        this.durability = dto.durability;
+
+        this.moduleCode = dto.moduleCode;
+
+        this.canTurnOnOff = dto.canTurnOnOff;
+        this.turnOnOffTime = dto.turnOnOffTime;
+        this.canPulseMode = dto.canPulseMode;
+        this.pulseInterval = dto.pulseInterval;
+        this.isControllable = dto.isControllable;
+
         this.craftTimestamp = DateTime.UtcNow.ToString("o");
-        this.dataVersion = 1;
+        this.dataVersion = 2;
     }
 }
