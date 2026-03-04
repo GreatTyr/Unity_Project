@@ -102,11 +102,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1e8d1e1597051444e9c566fda08cd0b3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StandardGenerator
-  moduleType: Generator
   ModuleTier: 1
   factionShortName: TESTF1
+  blueprintId: 001
   VolumeCoefficientPercent: 85
   ConstantFillPercent: 80
+  CraftCoefficient: 1
+  CanTurnOnOff: 1
+  TurnOnOffTime: 1
+  CanPulseMode: 0
+  PulseInterval: 0
+  IsControllable: 0
   length: 2
   width: 1
   height: 1.5000001
@@ -124,3 +130,4 @@ MonoBehaviour:
   fuelPer0001m3Tiered: 0.0002
   specificPower: 2550
   fuelKgPerS: 0.51
+  CapacityCoefficient: 1

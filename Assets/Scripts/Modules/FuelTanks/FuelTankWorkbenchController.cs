@@ -1,13 +1,16 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
 
 /// <summary>
-/// Контроллер Верстака Генераторов. Отвечает только за логику (MVP/MVC паттерн).
-/// Хранит состояние, проверяет ресурсы, выполняет крафт. Ничего не рисует!
+/// РљРѕРЅС‚СЂРѕР»Р»РµСЂ Р’РµСЂСЃС‚Р°РєР° РўРѕРїР»РёРІРЅС‹С… Р‘Р°РєРѕРІ. РћС‚РІРµС‡Р°РµС‚ С‚РѕР»СЊРєРѕ Р·Р° Р»РѕРіРёРєСѓ (MVP/MVC РїР°С‚С‚РµСЂРЅ).
+/// Р‘Р°Рє СЃРѕСЃС‚РѕРёС‚ С‚РѕР»СЊРєРѕ РёР· РѕР±РѕР»РѕС‡РєРё (СЃС‚РµРЅРєРё). РџРѕР»РѕСЃС‚СЊ вЂ” РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІРѕ РґР»СЏ С‚РѕРїР»РёРІР°.
+/// РЎРµСЂРґРµС‡РЅРёРєР° РЅРµС‚, innerMass = 0, РјРµС‚Р°Р»Р» С‚РёСЂР° РјРѕРґСѓР»СЏ РЅРµ С‚СЂРµР±СѓРµС‚СЃСЏ.
+/// РњРёРЅРёРјР°Р»СЊРЅС‹Р№ С‚РёСЂ СЃРїР»Р°РІР° РѕР±РѕР»РѕС‡РєРё = С‚РёСЂ СЌС‚Р°Р»РѕРЅР°.
 /// </summary>
-public class GeneratorWorkbenchController : MonoBehaviour
+public class FuelTankWorkbenchController : MonoBehaviour
 {
     public enum CraftPlacementMode { SpawnInWorld = 0, SaveToStorage = 1 }
 
@@ -18,7 +21,7 @@ public class GeneratorWorkbenchController : MonoBehaviour
     public float innerHeight = 2f;
 
     [Header("Databases & Storages")]
-    public GeneratorDatabase generatorDatabase;
+    public FuelTankDatabase fuelTankDatabase;
     public ResourcesStorage resourcesStorage;
     public AlloyStorage alloyStorage;
     public ModuleStorage moduleStorage;
@@ -26,15 +29,16 @@ public class GeneratorWorkbenchController : MonoBehaviour
     [Header("Settings")]
     public CraftPlacementMode placementMode = CraftPlacementMode.SpawnInWorld;
 
-    // ================= СОСТОЯНИЕ (STATE) =================
+    // ================= РЎРћРЎРўРћРЇРќРР• (STATE) =================
     public ModuleScaler Scaler { get; private set; } = new ModuleScaler();
 
-    public StandardGenerator SelectedRef { get; private set; }
+    public StandardFuelTank SelectedRef { get; private set; }
     public int SelectedRefIndex { get; private set; }
     public string[] RefNames { get; private set; } = new string[0];
 
     public float ShellPercent { get; private set; } = 5f;
 
+    // Р¤РёР»СЊС‚СЂРѕРІР°РЅРЅС‹Рµ СЃРїРёСЃРєРё СЃРїР»Р°РІРѕРІ (С‚РѕР»СЊРєРѕ С‚РёСЂ >= С‚РёСЂ СЌС‚Р°Р»РѕРЅР°)
     public int SelectedAlloyIndex { get; private set; }
     public string[] AlloyDisplayNames { get; private set; } = new string[0];
     public string[] AlloyCodes { get; private set; } = new string[0];
@@ -43,35 +47,29 @@ public class GeneratorWorkbenchController : MonoBehaviour
 
     public string CurrentModuleCode { get; private set; } = "";
 
-    // Специфичные расчеты генератора
-    public float CalcSpecificPower { get; private set; }
-    public float CalcFuelKgPerS { get; private set; }
+    // РЎРїРµС†РёС„РёС‡РЅС‹Рµ СЂР°СЃС‡РµС‚С‹ С‚РѕРїР»РёРІРЅРѕРіРѕ Р±Р°РєР°
+    public float CalcCapacity { get; private set; }
     public float CalcHeatCapacity { get; private set; }
     public float CalcMaxTemperature { get; private set; }
     public float CalcWallThicknessMm { get; private set; }
-    public float CalcHeatingRate { get; private set; }
-    public float CalcEnergyCapacity { get; private set; } // Новая емкость!
 
-    // Новые расчеты времени и энергии
+    // Р’СЂРµРјСЏ Рё СЌРЅРµСЂРіРёСЏ РєСЂР°С„С‚Р°
     public float CalcCraftTimeSeconds { get; private set; }
     public long CalcEnergyCost { get; private set; }
 
-    private float calcPowerTimesTierPer0001;
-    private float calcFuelPer0001m3Tiered;
-
-    // Сообщения для UI
+    // РЎРѕРѕР±С‰РµРЅРёСЏ РґР»СЏ UI
     public string ErrorMessage { get; private set; } = "";
     public string SuccessMessage { get; private set; } = "";
     public string WarningMessage { get; private set; } = "";
     private float messageTimer;
 
-    // Таймер крафта
+    // РўР°Р№РјРµСЂ РєСЂР°С„С‚Р°
     public bool IsCrafting { get; private set; } = false;
     public float CraftProgress { get; private set; } = 0f;
 
     private float InnerVolumeM3 => innerLength * innerWidth * innerHeight;
 
-    // ================= ЖИЗНЕННЫЙ ЦИКЛ =================
+    // ================= Р–РР—РќР•РќРќР«Р™ Р¦РРљР› =================
 
     public void Initialize()
     {
@@ -90,13 +88,13 @@ public class GeneratorWorkbenchController : MonoBehaviour
         }
     }
 
-    // ================= ПУБЛИЧНОЕ API (Для UI) =================
+    // ================= РџРЈР‘Р›РР§РќРћР• API (Р”Р»СЏ UI) =================
 
     public void SelectReference(int index)
     {
-        if (generatorDatabase == null || index < 0 || index >= generatorDatabase.Count) return;
+        if (fuelTankDatabase == null || index < 0 || index >= fuelTankDatabase.Count) return;
         SelectedRefIndex = index;
-        SelectedRef = generatorDatabase.GetByIndex(index);
+        SelectedRef = fuelTankDatabase.GetByIndex(index);
 
         if (SelectedRef != null)
         {
@@ -105,6 +103,9 @@ public class GeneratorWorkbenchController : MonoBehaviour
                 SelectedRef.RealVolumeM3, SelectedRef.ConstantFillPercent
             );
         }
+
+        // РџСЂРё СЃРјРµРЅРµ СЌС‚Р°Р»РѕРЅР° РїРµСЂРµСЃРѕР±РёСЂР°РµРј СЃРїРёСЃРѕРє СЃРїР»Р°РІРѕРІ (С„РёР»СЊС‚СЂ РїРѕ С‚РёСЂСѓ)
+        RebuildAlloyList();
         RecalculateAll();
     }
 
@@ -158,11 +159,11 @@ public class GeneratorWorkbenchController : MonoBehaviour
         RecalculateAll();
     }
 
-    // ================= ПАРСИНГ ЧЕРТЕЖА =================
+    // ================= РџРђР РЎРРќР“ Р§Р•Р РўР•Р–Рђ =================
 
     public void ApplyBlueprintCode(string code)
     {
-        var parsed = BlueprintParser.ParseFirstLine(code, StandardGenerator.TYPE_GENERATOR);
+        var parsed = BlueprintParser.ParseFirstLine(code, StandardFuelTank.TYPE_FUELTANK);
 
         if (!parsed.IsValid)
         {
@@ -172,27 +173,27 @@ public class GeneratorWorkbenchController : MonoBehaviour
 
         if (parsed.Tier > workbenchTier)
         {
-            ShowError($"Тир чертежа (T{parsed.Tier}) превышает уровень верстака (T{workbenchTier})!");
+            ShowError($"РўРёСЂ С‡РµСЂС‚РµР¶Р° (T{parsed.Tier}) РїСЂРµРІС‹С€Р°РµС‚ СѓСЂРѕРІРµРЅСЊ РІРµСЂСЃС‚Р°РєР° (T{workbenchTier})!");
             return;
         }
 
-        var foundRef = generatorDatabase.GetByFactionAndBlueprintID(parsed.Faction, parsed.BlueprintId);
+        var foundRef = fuelTankDatabase.GetByFactionAndBlueprintID(parsed.Faction, parsed.BlueprintId);
         if (foundRef == null)
         {
-            ShowError($"Эталон [{parsed.Faction}-{parsed.BlueprintId}] не найден в БД!");
+            ShowError($"Р­С‚Р°Р»РѕРЅ [{parsed.Faction}-{parsed.BlueprintId}] РЅРµ РЅР°Р№РґРµРЅ РІ Р‘Р”!");
             return;
         }
 
-        SelectReference(generatorDatabase.modules.IndexOf(foundRef.gameObject));
+        SelectReference(fuelTankDatabase.modules.IndexOf(foundRef.gameObject));
 
-        // Масштаб
+        // РњР°СЃС€С‚Р°Р±
         float sx = parsed.TargetLength / Scaler.RefLength;
         float sy = parsed.TargetWidth / Scaler.RefWidth;
         float sz = parsed.TargetHeight / Scaler.RefHeight;
         float uniformScale = (sx + sy + sz) / 3f;
         Scaler.SetScaleFactor(uniformScale);
 
-        // Оболочка (новый или старый формат)
+        // РћР±РѕР»РѕС‡РєР°
         if (parsed.ShellPercent > 0f)
         {
             SetShellPercent(parsed.ShellPercent);
@@ -202,7 +203,7 @@ public class GeneratorWorkbenchController : MonoBehaviour
             SetShellPercent(5f);
         }
 
-        // Сплав
+        // РЎРїР»Р°РІ
         string[] lines = BlueprintParser.NormalizeCodeText(code).Split('\n');
         if (lines.Length >= 3)
         {
@@ -213,9 +214,18 @@ public class GeneratorWorkbenchController : MonoBehaviour
             {
                 if (AlloyCode.Decode(inputAlloy, out var p))
                 {
-                    AlloyParams = p;
-                    IsAlloyDecoded = true;
-                    ShowMessage("Чертеж применен, но указанного сплава нет на складе!", true);
+                    // РџСЂРѕРІРµСЂСЏРµРј РјРёРЅРёРјР°Р»СЊРЅС‹Р№ С‚РёСЂ СЃРїР»Р°РІР°
+                    int minTier = SelectedRef != null ? SelectedRef.ModuleTier : 1;
+                    if (p.tier < minTier)
+                    {
+                        ShowMessage($"РўРёСЂ СЃРїР»Р°РІР° РІ С‡РµСЂС‚РµР¶Рµ ({p.tier}) РЅРёР¶Рµ РјРёРЅРёРјР°Р»СЊРЅРѕРіРѕ ({minTier})!", true);
+                    }
+                    else
+                    {
+                        AlloyParams = p;
+                        IsAlloyDecoded = true;
+                        ShowMessage("Р§РµСЂС‚РµР¶ РїСЂРёРјРµРЅРµРЅ, РЅРѕ СѓРєР°Р·Р°РЅРЅРѕРіРѕ СЃРїР»Р°РІР° РЅРµС‚ РЅР° СЃРєР»Р°РґРµ!", true);
+                    }
                 }
             }
         }
@@ -223,7 +233,7 @@ public class GeneratorWorkbenchController : MonoBehaviour
         RecalculateAll();
     }
 
-    // ================= ЛОГИКА РАСЧЕТОВ =================
+    // ================= Р›РћР“РРљРђ Р РђРЎР§Р•РўРћР’ =================
 
     private void RecalculateAll()
     {
@@ -232,47 +242,34 @@ public class GeneratorWorkbenchController : MonoBehaviour
         Scaler.SetAlloyTier(IsAlloyDecoded ? AlloyParams.tier : 1);
         Scaler.Recalculate();
 
-        CalculateGeneratorSpecifics();
+        CalculateFuelTankSpecifics();
         CurrentModuleCode = BuildModuleCode();
     }
 
-    private void CalculateGeneratorSpecifics()
+    private void CalculateFuelTankSpecifics()
     {
-        // Эффективный объём БЕЗ fillFactor — для функциональных расчётов
-        float effectiveVolume = Scaler.CalcEffectiveVolume;
-        float effectiveVolumeDm3 = effectiveVolume * 1000f;
+        // Р­С„С„РµРєС‚РёРІРЅС‹Р№ РѕР±СЉС‘Рј Р‘Р•Р— fillFactor вЂ” РґР»СЏ С„СѓРЅРєС†РёРѕРЅР°Р»СЊРЅС‹С… СЂР°СЃС‡С‘С‚РѕРІ
+        float effectiveVolumeDm3 = Scaler.CalcEffectiveVolume * 1000f;
         float moduleCoeff = TierCoeffs.Get(SelectedRef.ModuleTier);
         float wbCoeff = TierCoeffs.Get(workbenchTier);
 
-        // Мощность
-        double powerTier = (double)SelectedRef.PowerBy0001m3 * (double)moduleCoeff;
-        calcPowerTimesTierPer0001 = (float)Math.Round(powerTier, 3);
-        CalcSpecificPower = (float)Math.Round(powerTier * effectiveVolumeDm3, 3);
+        // РЃРјРєРѕСЃС‚СЊ Р±Р°РєР° = СЌС„С„. РѕР±СЉС‘Рј (РґРјВі) Г— РєРѕСЌС„С„. С‚РёСЂР° РјРѕРґСѓР»СЏ Г— РєРѕСЌС„С„. С‘РјРєРѕСЃС‚Рё
+        CalcCapacity = (float)Math.Round(
+            effectiveVolumeDm3 * moduleCoeff * SelectedRef.CapacityCoefficient, 3);
 
-        // Топливо
-        float fuelTierCoeff = TierCoeffs.Get(SelectedRef.FuelTier);
-        double rawFuelPer0001D = (fuelTierCoeff > 0f) ? (double)SelectedRef.FuelBy0001m3_Base / (double)fuelTierCoeff : 0.0;
-        if (rawFuelPer0001D <= 0.0) rawFuelPer0001D = 1e-6;
-        calcFuelPer0001m3Tiered = (float)Math.Round(rawFuelPer0001D, 6);
-
-        double totalFuelD = rawFuelPer0001D * effectiveVolumeDm3;
-        CalcFuelKgPerS = (float)Math.Round(Math.Max(totalFuelD, 0.0001), 4);
-
-        // Емкость
-        CalcEnergyCapacity = (float)Math.Round(effectiveVolumeDm3 * moduleCoeff * SelectedRef.CapacityCoefficient, 3);
-
-        // Тепло
-        CalcHeatCapacity = (float)Math.Round(Scaler.CalcRealVolume * SelectedRef.HeatCapacityCoeff * moduleCoeff, 1);
+        // РўРµРїР»Рѕ
+        CalcHeatCapacity = (float)Math.Round(
+            Scaler.CalcRealVolume * SelectedRef.HeatCapacityCoeff * moduleCoeff, 1);
         int thermAbsorb = IsAlloyDecoded ? AlloyParams.thermalAbsorption : 0;
         CalcMaxTemperature = 300f + thermAbsorb;
 
+        // РўРѕР»С‰РёРЅР° СЃС‚РµРЅРѕРє
         float surfArea = Scaler.CalcSurfaceArea;
-        CalcWallThicknessMm = surfArea > 0.000001f ? (float)Math.Round((Scaler.CalcShellVolume / surfArea) * 1000f, 1) : 0f;
+        CalcWallThicknessMm = surfArea > 0.000001f
+            ? (float)Math.Round((Scaler.CalcShellVolume / surfArea) * 1000f, 1)
+            : 0f;
 
-        float thermResist = IsAlloyDecoded ? AlloyParams.thermalResistance : 0f;
-        CalcHeatingRate = (float)Math.Round(SelectedRef.BaseHeating * Mathf.Max(0f, 1f - (thermResist / 100f)), 2);
-
-        // Время крафта и энергия
+        // Р’СЂРµРјСЏ РєСЂР°С„С‚Р° Рё СЌРЅРµСЂРіРёСЏ
         float innerVol = InnerVolumeM3 <= 0f ? 1f : InnerVolumeM3;
         CalcCraftTimeSeconds = (Scaler.CalcTotalMass * moduleCoeff * SelectedRef.CraftCoefficient) / (wbCoeff * innerVol);
         CalcEnergyCost = (long)Math.Ceiling(Scaler.CalcTotalMass * innerVol);
@@ -282,46 +279,52 @@ public class GeneratorWorkbenchController : MonoBehaviour
     {
         int tier = SelectedRef.ModuleTier;
         string faction = string.IsNullOrEmpty(SelectedRef.FactionShortName) ? "NONE" : SelectedRef.FactionShortName;
-        string alloyCode = (IsAlloyDecoded && AlloyCodes.Length > 0 && SelectedAlloyIndex >= 0) ? AlloyCodes[SelectedAlloyIndex] : "NONE";
+        string alloyCode = (IsAlloyDecoded && AlloyCodes.Length > 0 && SelectedAlloyIndex >= 0)
+            ? AlloyCodes[SelectedAlloyIndex]
+            : "NONE";
 
-        string line1 = $"{StandardGenerator.TYPE_GENERATOR}-T{tier}" +
-                       $"-m{FormatF(Scaler.CalcTotalMass, 3)}" +
-                       $"-d{FormatF(Scaler.CalcDurability, 3)}" +
-                       $"-{FormatF(Scaler.CalcLength, 3)}/{FormatF(Scaler.CalcWidth, 3)}/{FormatF(Scaler.CalcHeight, 3)}" +
-                       $"-sp{FormatF(ShellPercent, 3)}" +
-                       $"-{faction}-{SelectedRef.BlueprintId}";
+        string line1 = $"{StandardFuelTank.TYPE_FUELTANK}-T{tier}" +
+                        $"-m{FormatF(Scaler.CalcTotalMass, 3)}" +
+                        $"-d{FormatF(Scaler.CalcDurability, 3)}" +
+                        $"-{FormatF(Scaler.CalcLength, 3)}/{FormatF(Scaler.CalcWidth, 3)}/{FormatF(Scaler.CalcHeight, 3)}" +
+                        $"-sp{FormatF(ShellPercent, 3)}" +
+                        $"-{faction}-{SelectedRef.BlueprintId}";
 
-        string line2 = $"P{FormatF(CalcSpecificPower, 3)}-F{FormatF(CalcFuelKgPerS, 4)}-FT{SelectedRef.FuelTier}";
+        string line2 = $"C{FormatF(CalcCapacity, 3)}";
 
         return $"{line1}\n{line2}\n{alloyCode}";
     }
 
     private string FormatF(float v, int dec) => v.ToString($"F{dec}", CultureInfo.InvariantCulture);
 
-    // ================= КРАФТ (ТРАНЗАКЦИЯ) =================
+    // ================= РљР РђР¤Рў (РўР РђРќР—РђРљР¦РРЇ) =================
 
     public bool CanCraft(out string failReason)
     {
         failReason = "";
-        if (IsCrafting) { failReason = "Верстак уже занят!"; return false; }
-        if (SelectedRef == null) { failReason = "Эталон не выбран."; return false; }
-        if (alloyStorage == null || resourcesStorage == null) { failReason = "Склады не назначены."; return false; }
+        if (IsCrafting) { failReason = "Р’РµСЂСЃС‚Р°Рє СѓР¶Рµ Р·Р°РЅСЏС‚!"; return false; }
+        if (SelectedRef == null) { failReason = "Р­С‚Р°Р»РѕРЅ РЅРµ РІС‹Р±СЂР°РЅ."; return false; }
+        if (alloyStorage == null || resourcesStorage == null) { failReason = "РЎРєР»Р°РґС‹ РЅРµ РЅР°Р·РЅР°С‡РµРЅС‹."; return false; }
 
         if (Scaler.CalcLength > innerLength || Scaler.CalcWidth > innerWidth || Scaler.CalcHeight > innerHeight)
-        { failReason = "Габариты превышают размеры камеры верстака."; return false; }
+        { failReason = "Р“Р°Р±Р°СЂРёС‚С‹ РїСЂРµРІС‹С€Р°СЋС‚ СЂР°Р·РјРµСЂС‹ РєР°РјРµСЂС‹ РІРµСЂСЃС‚Р°РєР°."; return false; }
 
-        if (SelectedRef.ModuleTier > workbenchTier) { failReason = "Тир эталона выше тира верстака."; return false; }
+        if (SelectedRef.ModuleTier > workbenchTier)
+        { failReason = "РўРёСЂ СЌС‚Р°Р»РѕРЅР° РІС‹С€Рµ С‚РёСЂР° РІРµСЂСЃС‚Р°РєР°."; return false; }
+
+        // РџСЂРѕРІРµСЂСЏРµРј С‚РёСЂ СЃРїР»Р°РІР° >= С‚РёСЂ СЌС‚Р°Р»РѕРЅР°
+        if (!IsAlloyDecoded)
+        { failReason = "РЎРїР»Р°РІ РЅРµ РІС‹Р±СЂР°РЅ."; return false; }
+
+        if (AlloyParams.tier < SelectedRef.ModuleTier)
+        { failReason = $"РўРёСЂ СЃРїР»Р°РІР° ({AlloyParams.tier}) РЅРёР¶Рµ С‚РёСЂР° СЌС‚Р°Р»РѕРЅР° ({SelectedRef.ModuleTier})."; return false; }
 
         string alloyCode = AlloyCodes.Length > 0 ? AlloyCodes[SelectedAlloyIndex] : null;
         if (string.IsNullOrEmpty(alloyCode) || !alloyStorage.HasEnoughMass(alloyCode, Scaler.CalcShellMass))
-        { failReason = "Недостаточно сплава."; return false; }
-
-        var metalIdx = (ResourcesStorage.ResourceIndex)(20 + SelectedRef.ModuleTier - 1);
-        if (resourcesStorage.GetGrams(metalIdx) < (long)Math.Ceiling(Scaler.CalcInnerMass * 1000.0))
-        { failReason = "Недостаточно металла."; return false; }
+        { failReason = "РќРµРґРѕСЃС‚Р°С‚РѕС‡РЅРѕ СЃРїР»Р°РІР°."; return false; }
 
         if (resourcesStorage.EnergyUnits < CalcEnergyCost)
-        { failReason = "Недостаточно энергии."; return false; }
+        { failReason = "РќРµРґРѕСЃС‚Р°С‚РѕС‡РЅРѕ СЌРЅРµСЂРіРёРё."; return false; }
 
         return true;
     }
@@ -344,16 +347,13 @@ public class GeneratorWorkbenchController : MonoBehaviour
 
         string alloyCode = AlloyCodes[SelectedAlloyIndex];
         float craftShellMass = Scaler.CalcShellMass;
-        long metalNeededG = (long)Math.Ceiling(Scaler.CalcInnerMass * 1000.0);
         long energyNeeded = CalcEnergyCost;
-        var metalIdx = (ResourcesStorage.ResourceIndex)(20 + SelectedRef.ModuleTier - 1);
 
-        // Списываем ресурсы в начале крафта
+        // РЎРїРёСЃС‹РІР°РµРј СЂРµСЃСѓСЂСЃС‹
         alloyStorage.TryConsumeMass(alloyCode, craftShellMass);
-        resourcesStorage.TryRemoveGrams(metalIdx, metalNeededG);
         resourcesStorage.TryConsumeEnergy(energyNeeded);
 
-        // Таймер крафта
+        // РўР°Р№РјРµСЂ РєСЂР°С„С‚Р°
         float timer = 0f;
         while (timer < CalcCraftTimeSeconds)
         {
@@ -362,10 +362,10 @@ public class GeneratorWorkbenchController : MonoBehaviour
             yield return null;
         }
 
-        // 1. Создаем DTO (С добавлением новых галочек)
+        // 1. РЎРѕР·РґР°РµРј DTO
         var dto = new ModuleCraftDTO
         {
-            moduleType = StandardGenerator.TYPE_GENERATOR,
+            moduleType = StandardFuelTank.TYPE_FUELTANK,
             moduleTier = SelectedRef.ModuleTier,
             faction = string.IsNullOrEmpty(SelectedRef.FactionShortName) ? "NONE" : SelectedRef.FactionShortName,
             referenceIndex = SelectedRefIndex,
@@ -383,7 +383,7 @@ public class GeneratorWorkbenchController : MonoBehaviour
             shellVolumeM3 = Scaler.CalcShellVolume,
             effectiveVolume = Scaler.CalcEffectiveVolume,
             shellMassKg = craftShellMass,
-            innerMassKg = Scaler.CalcInnerMass,
+            innerMassKg = 0f,
             totalMassKg = Scaler.CalcTotalMass,
             durability = Scaler.CalcDurability,
             moduleCode = CurrentModuleCode,
@@ -395,11 +395,17 @@ public class GeneratorWorkbenchController : MonoBehaviour
             isControllable = SelectedRef.IsControllable
         };
 
-        // 2. Инициализируем данные (С добавлением температуры и емкости!)
-        var genData = new GeneratorData();
-        genData.Initialize(dto, CalcSpecificPower, CalcFuelKgPerS, SelectedRef.FuelTier, calcPowerTimesTierPer0001, calcFuelPer0001m3Tiered, SelectedRef.PowerBy0001m3, SelectedRef.FuelBy0001m3_Base, CalcMaxTemperature, CalcEnergyCapacity);
+        // 2. РРЅРёС†РёР°Р»РёР·РёСЂСѓРµРј РґР°РЅРЅС‹Рµ
+        var tankData = new FuelTankData();
+        tankData.Initialize(
+            dto,
+            CalcCapacity,
+            CalcMaxTemperature,
+            CalcHeatCapacity,
+            CalcWallThicknessMm
+        );
 
-        // 3. Размещаем
+        // 3. Р Р°Р·РјРµС‰Р°РµРј
         if (placementMode == CraftPlacementMode.SpawnInWorld)
         {
             Vector3 spawnPos = transform.position + Vector3.up * 2f;
@@ -407,38 +413,42 @@ public class GeneratorWorkbenchController : MonoBehaviour
             inst.name = $"Crafted_{SelectedRef.gameObject.name}_T{SelectedRef.ModuleTier}";
             inst.transform.localScale = SelectedRef.transform.localScale * Mathf.Max(0.001f, Scaler.CurrentScaleFactor);
 
-            Destroy(inst.GetComponent<StandardGenerator>()); // Удаляем эталон
+            Destroy(inst.GetComponent<StandardFuelTank>());
             var craftedComp = inst.AddComponent<CraftedModule>();
-            craftedComp.SetData(genData);
+            craftedComp.SetData(tankData);
         }
         else
         {
-            if (moduleStorage != null) moduleStorage.AddModule(genData);
+            if (moduleStorage != null) moduleStorage.AddModule(tankData);
         }
 
         IsCrafting = false;
         CraftProgress = 0f;
-        ShowMessage("Генератор успешно изготовлен!", false);
+        ShowMessage("РўРѕРїР»РёРІРЅС‹Р№ Р±Р°Рє СѓСЃРїРµС€РЅРѕ РёР·РіРѕС‚РѕРІР»РµРЅ!", false);
         RebuildAlloyList();
         RecalculateAll();
     }
 
-    // ================= ПОМОЩНИКИ =================
+    // ================= РџРћРњРћР©РќРРљР =================
 
     private void RebuildReferenceList()
     {
-        if (generatorDatabase == null) return;
-        var allRefs = generatorDatabase.GetAll();
+        if (fuelTankDatabase == null) return;
+        var allRefs = fuelTankDatabase.GetAll();
         RefNames = new string[allRefs.Count];
         for (int i = 0; i < allRefs.Count; i++)
         {
-            var sg = allRefs[i];
-            string faction = string.IsNullOrEmpty(sg.FactionShortName) ? "NONE" : sg.FactionShortName;
-            RefNames[i] = $"[{faction}-{sg.BlueprintId}] {sg.gameObject.name} (T{sg.ModuleTier})";
+            var sf = allRefs[i];
+            string faction = string.IsNullOrEmpty(sf.FactionShortName) ? "NONE" : sf.FactionShortName;
+            RefNames[i] = $"[{faction}-{sf.BlueprintId}] {sf.gameObject.name} (T{sf.ModuleTier})";
         }
         if (allRefs.Count > 0) SelectReference(0);
     }
 
+    /// <summary>
+    /// РџРµСЂРµСЃРѕР±РёСЂР°РµС‚ СЃРїРёСЃРѕРє СЃРїР»Р°РІРѕРІ, С„РёР»СЊС‚СЂСѓСЏ РїРѕ РјРёРЅРёРјР°Р»СЊРЅРѕРјСѓ С‚РёСЂСѓ СЌС‚Р°Р»РѕРЅР°.
+    /// РЎРїР»Р°РІС‹ СЃ С‚РёСЂРѕРј РЅРёР¶Рµ С‚РёСЂР° СЌС‚Р°Р»РѕРЅР° РЅРµ РѕС‚РѕР±СЂР°Р¶Р°СЋС‚СЃСЏ.
+    /// </summary>
     public void RebuildAlloyList()
     {
         if (alloyStorage == null || alloyStorage.Count == 0)
@@ -448,9 +458,41 @@ public class GeneratorWorkbenchController : MonoBehaviour
             IsAlloyDecoded = false;
             return;
         }
-        AlloyDisplayNames = alloyStorage.GetDisplayNames();
-        AlloyCodes = alloyStorage.GetAllCodes();
-        SelectAlloy(0);
+
+        int minTier = SelectedRef != null ? SelectedRef.ModuleTier : 1;
+
+        // РџРѕР»СѓС‡Р°РµРј РІСЃРµ СЃРїР»Р°РІС‹ СЃРѕ СЃРєР»Р°РґР°
+        string[] allCodes = alloyStorage.GetAllCodes();
+        string[] allNames = alloyStorage.GetDisplayNames();
+
+        // Р¤РёР»СЊС‚СЂСѓРµРј РїРѕ С‚РёСЂСѓ
+        var filteredCodes = new List<string>();
+        var filteredNames = new List<string>();
+
+        for (int i = 0; i < allCodes.Length; i++)
+        {
+            if (AlloyCode.Decode(allCodes[i], out AlloyCode.AlloyParams p))
+            {
+                if (p.tier >= minTier)
+                {
+                    filteredCodes.Add(allCodes[i]);
+                    filteredNames.Add(allNames[i]);
+                }
+            }
+        }
+
+        AlloyCodes = filteredCodes.ToArray();
+        AlloyDisplayNames = filteredNames.ToArray();
+
+        if (AlloyCodes.Length > 0)
+        {
+            SelectAlloy(0);
+        }
+        else
+        {
+            SelectedAlloyIndex = 0;
+            IsAlloyDecoded = false;
+        }
     }
 
     private void ShowError(string msg) { ErrorMessage = msg; SuccessMessage = ""; WarningMessage = ""; messageTimer = 4f; }
