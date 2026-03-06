@@ -24,20 +24,13 @@ public class StandardEnergyStorage : StandardModuleBase
         RecalculateAll();
     }
 
-    /// <summary>
-    /// Реализация абстрактного метода из базы. Считает только емкость энергии.
-    /// </summary>
     protected override void ComputeSpecificOutputs()
     {
         float effVolDm3 = effectiveVolume * 1000f;
         float tierCoeff = TierCoeffs.Get(ModuleTier);
-        // Добавлен CapacityCoefficient в формулу емкости!
         energyCapacity = effVolDm3 * tierCoeff * CapacityCoefficient;
     }
 
-    /// <summary>
-    /// Округление специфичных результатов.
-    /// </summary>
     protected override void RoundAndStoreSpecificResults()
     {
         energyCapacity = RoundToWithEps(energyCapacity, 3);
@@ -50,6 +43,7 @@ public class StandardEnergyStorageEditor : Editor
 {
     SerializedProperty pModuleTier, pVolumeCoeff, pConstantFill;
     SerializedProperty pFactionShortName, pBlueprintId, pCraftTime;
+    SerializedProperty pIsVolatile, pExplosionDamageType;
 
     StandardEnergyStorage t;
     private string[] factionDisplayNames;
@@ -65,9 +59,10 @@ public class StandardEnergyStorageEditor : Editor
         pConstantFill = serializedObject.FindProperty("ConstantFillPercent");
         pFactionShortName = serializedObject.FindProperty("factionShortName");
         pBlueprintId = serializedObject.FindProperty("blueprintId");
-        
-        // Исправлено здесь
         pCraftTime = serializedObject.FindProperty("CraftCoefficient");
+
+        pIsVolatile = serializedObject.FindProperty("IsVolatile");
+        pExplosionDamageType = serializedObject.FindProperty("ExplosionDamageType");
 
         RebuildFactionList();
     }
@@ -144,7 +139,6 @@ public class StandardEnergyStorageEditor : Editor
         EditorGUILayout.LabelField("Crafting", EditorStyles.boldLabel);
         if (pCraftTime != null) EditorGUILayout.PropertyField(pCraftTime, new GUIContent("Craft Coefficient"));
 
-        // Новые галочки
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Module Capabilities", EditorStyles.boldLabel);
         var pTurn = serializedObject.FindProperty("CanTurnOnOff");
@@ -158,6 +152,15 @@ public class StandardEnergyStorageEditor : Editor
         if (pPulse != null) EditorGUILayout.PropertyField(pPulse, new GUIContent("Can Pulse Mode"));
         if (pPulseInt != null) EditorGUILayout.PropertyField(pPulseInt, new GUIContent("Pulse Interval"));
         if (pControl != null) EditorGUILayout.PropertyField(pControl, new GUIContent("Is Controllable"));
+
+        // ВОЛАТИЛЬНОСТЬ
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("Destruction", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(pIsVolatile, new GUIContent("Is Volatile (Взрывоопасен)"));
+        if (pIsVolatile != null && pIsVolatile.boolValue)
+        {
+            EditorGUILayout.PropertyField(pExplosionDamageType, new GUIContent("Explosion Damage Type"));
+        }
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Computed Base", EditorStyles.boldLabel);

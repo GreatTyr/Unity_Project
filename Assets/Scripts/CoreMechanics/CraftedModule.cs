@@ -70,9 +70,12 @@ public class CraftedModule : MonoBehaviour
                 return JsonUtility.FromJson<GeneratorData>(json);
             case nameof(EnergyStorageData):
                 return JsonUtility.FromJson<EnergyStorageData>(json);
+            // ДОБАВЛЕНО: поддержка FuelTankData
+            case nameof(FuelTankData):
+                return JsonUtility.FromJson<FuelTankData>(json);
             // Будущие типы добавляются сюда:
-            // case nameof(EnergyStorageData):
-            //     return JsonUtility.FromJson<EnergyStorageData>(json);
+            // case nameof(RadarData):
+            //     return JsonUtility.FromJson<RadarData>(json);
             default:
                 return JsonUtility.FromJson<ModuleData>(json);
         }

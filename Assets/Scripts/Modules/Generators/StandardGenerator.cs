@@ -50,10 +50,6 @@ public class StandardGenerator : StandardModuleBase
         RecalculateAll();
     }
 
-    /// <summary>
-    /// Реализация абстрактного метода из базы.
-    /// Считает мощность и расход топлива.
-    /// </summary>
     protected override void ComputeSpecificOutputs()
     {
         float unitsPer0001 = effectiveVolume * 1000f;
@@ -74,9 +70,6 @@ public class StandardGenerator : StandardModuleBase
         fuelKgPerS = (float)Mathf.Max(0f, (float)totalFuelD);
     }
 
-    /// <summary>
-    /// Округление специфичных результатов.
-    /// </summary>
     protected override void RoundAndStoreSpecificResults()
     {
         specificPower = RoundToWithEps(specificPower, 3);
@@ -101,6 +94,9 @@ public class StandardGeneratorEditor : Editor
     SerializedProperty pModuleTier, pVolumeCoeff, pConstantFill;
     SerializedProperty pPowerBy0001m3, pFuelTier, pFuelBy0001m3_Base;
     SerializedProperty pFactionShortName, pBlueprintId, pBaseHeating, pHeatCapacityCoeff, pCraftTime;
+    
+    // Новые свойства волатильности
+    SerializedProperty pIsVolatile, pExplosionDamageType;
 
     StandardGenerator t;
     private string[] factionDisplayNames;
@@ -121,9 +117,10 @@ public class StandardGeneratorEditor : Editor
         pBlueprintId = serializedObject.FindProperty("blueprintId");
         pBaseHeating = serializedObject.FindProperty("BaseHeating");
         pHeatCapacityCoeff = serializedObject.FindProperty("HeatCapacityCoeff");
-        
-        // ВОТ ЗДЕСЬ БЫЛА ОШИБКА: Ищем правильное имя переменной
         pCraftTime = serializedObject.FindProperty("CraftCoefficient"); 
+
+        pIsVolatile = serializedObject.FindProperty("IsVolatile");
+        pExplosionDamageType = serializedObject.FindProperty("ExplosionDamageType");
 
         RebuildFactionList();
     }
@@ -210,7 +207,6 @@ public class StandardGeneratorEditor : Editor
         EditorGUILayout.PropertyField(pFuelTier);
         EditorGUILayout.PropertyField(pFuelBy0001m3_Base, new GUIContent("Fuel by 0.001 m³ (kg/s)"));
         
-        // Новое поле Емкости
         var pCap = serializedObject.FindProperty("CapacityCoefficient");
         if (pCap != null) EditorGUILayout.PropertyField(pCap, new GUIContent("Capacity Coefficient"));
 
@@ -221,10 +217,8 @@ public class StandardGeneratorEditor : Editor
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Crafting", EditorStyles.boldLabel);
-        // Защита от NullReference
         if (pCraftTime != null) EditorGUILayout.PropertyField(pCraftTime, new GUIContent("Craft Coefficient"));
 
-        // Новые галочки
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Module Capabilities", EditorStyles.boldLabel);
         var pTurn = serializedObject.FindProperty("CanTurnOnOff");
@@ -239,6 +233,15 @@ public class StandardGeneratorEditor : Editor
         if (pPulseInt != null) EditorGUILayout.PropertyField(pPulseInt, new GUIContent("Pulse Interval"));
         if (pControl != null) EditorGUILayout.PropertyField(pControl, new GUIContent("Is Controllable"));
 
+        // ВОЛАТИЛЬНОСТЬ
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("Destruction", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(pIsVolatile, new GUIContent("Is Volatile (Взрывоопасен)"));
+        if (pIsVolatile != null && pIsVolatile.boolValue)
+        {
+            EditorGUILayout.PropertyField(pExplosionDamageType, new GUIContent("Explosion Damage Type"));
+        }
+
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Outputs Specific", EditorStyles.boldLabel);
         EditorGUILayout.LabelField("Power*Tier by 0.001 m³ (energy/s)", t.PowerTimesTierBy0_001m3.ToString("0.###"));
@@ -248,7 +251,5 @@ public class StandardGeneratorEditor : Editor
 
         serializedObject.ApplyModifiedProperties();
     }
-    [Header("Destruction")]
-    public bool IsVolatile = false;
 }
 #endif

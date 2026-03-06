@@ -3,9 +3,6 @@ using System.Collections;
 using System.Globalization;
 using UnityEngine;
 
-/// <summary>
-/// Контроллер Верстака Хранилищ Энергии. Отвечает только за логику.
-/// </summary>
 public class EnergyStorageWorkbenchController : MonoBehaviour
 {
     public enum CraftPlacementMode { SpawnInWorld = 0, SaveToStorage = 1 }
@@ -25,7 +22,6 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
     [Header("Settings")]
     public CraftPlacementMode placementMode = CraftPlacementMode.SpawnInWorld;
 
-    // ================= СОСТОЯНИЕ =================
     public ModuleScaler Scaler { get; private set; } = new ModuleScaler();
 
     public StandardEnergyStorage SelectedRef { get; private set; }
@@ -42,26 +38,20 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
 
     public string CurrentModuleCode { get; private set; } = "";
 
-    // Специфичные расчеты
     public float CalcEnergyCapacity { get; private set; }
 
-    // Новые расчеты времени и энергии
     public float CalcCraftTimeSeconds { get; private set; }
     public long CalcEnergyCost { get; private set; }
 
-    // Сообщения
     public string ErrorMessage { get; private set; } = "";
     public string SuccessMessage { get; private set; } = "";
     public string WarningMessage { get; private set; } = "";
     private float messageTimer;
 
-    // Таймер крафта
     public bool IsCrafting { get; private set; } = false;
     public float CraftProgress { get; private set; } = 0f;
 
     private float InnerVolumeM3 => innerLength * innerWidth * innerHeight;
-
-    // ================= ЖИЗНЕННЫЙ ЦИКЛ =================
 
     public void Initialize()
     {
@@ -78,8 +68,6 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
             if (messageTimer <= 0f) ClearMessages();
         }
     }
-
-    // ================= ПУБЛИЧНОЕ API =================
 
     public void SelectReference(int index)
     {
@@ -133,8 +121,6 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
         RecalculateAll();
     }
 
-    // ================= ПАРСИНГ ЧЕРТЕЖА =================
-
     public void ApplyBlueprintCode(string code)
     {
         var parsed = BlueprintParser.ParseFirstLine(code, StandardEnergyStorage.TYPE_ENERGY_STORAGE);
@@ -147,7 +133,6 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
 
         SelectReference(database.modules.IndexOf(foundRef.gameObject));
 
-        // Масштаб
         float sx = parsed.TargetLength / Scaler.RefLength;
         float sy = parsed.TargetWidth / Scaler.RefWidth;
         float sz = parsed.TargetHeight / Scaler.RefHeight;
@@ -156,7 +141,6 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
         if (parsed.ShellPercent > 0f) SetShellPercent(parsed.ShellPercent);
         else SetShellPercent(5f);
 
-        // Сплав
         string[] lines = BlueprintParser.NormalizeCodeText(code).Split('\n');
         if (lines.Length >= 3)
         {
@@ -173,8 +157,6 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
         RecalculateAll();
     }
 
-    // ================= ЛОГИКА РАСЧЕТОВ =================
-
     private void RecalculateAll()
     {
         if (SelectedRef == null) return;
@@ -188,7 +170,6 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
 
         CalcEnergyCapacity = (float)Math.Round(effectiveVolumeDm3 * modCoeff * SelectedRef.CapacityCoefficient, 3);
 
-        // Формула времени и энергии
         float innerVol = InnerVolumeM3 <= 0f ? 1f : InnerVolumeM3;
         CalcCraftTimeSeconds = (Scaler.CalcTotalMass * modCoeff * SelectedRef.CraftCoefficient) / (wbCoeff * innerVol);
         CalcEnergyCost = (long)Math.Ceiling(Scaler.CalcTotalMass * innerVol);
@@ -214,8 +195,6 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
     }
 
     private string FormatF(float v, int dec) => v.ToString($"F{dec}", CultureInfo.InvariantCulture);
-
-    // ================= КРАФТ (ТРАНЗАКЦИЯ) =================
 
     public bool CanCraft(out string failReason)
     {
@@ -251,7 +230,6 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
             return;
         }
 
-        // Запускаем корутину крафта
         StartCoroutine(CraftRoutine());
     }
 
@@ -266,12 +244,10 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
         long energyNeeded = CalcEnergyCost;
         var metalIdx = (ResourcesStorage.ResourceIndex)(20 + SelectedRef.ModuleTier - 1);
 
-        // 1. Списываем ресурсы сразу
         alloyStorage.TryConsumeMass(alloyCode, craftShellMass);
         resourcesStorage.TryRemoveGrams(metalIdx, metalNeededG);
         resourcesStorage.TryConsumeEnergy(energyNeeded);
 
-        // 2. Ждем время крафта
         float timer = 0f;
         while (timer < CalcCraftTimeSeconds)
         {
@@ -280,7 +256,6 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
             yield return null;
         }
 
-        // 3. Создаем DTO (С добавлением новых галочек!)
         var dto = new ModuleCraftDTO
         {
             moduleType = StandardEnergyStorage.TYPE_ENERGY_STORAGE,
@@ -310,14 +285,16 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
             turnOnOffTime = SelectedRef.TurnOnOffTime,
             canPulseMode = SelectedRef.CanPulseMode,
             pulseInterval = SelectedRef.PulseInterval,
-            isControllable = SelectedRef.IsControllable
+            isControllable = SelectedRef.IsControllable,
+
+            // НОВЫЕ ПАРАМЕТРЫ ВОЛАТИЛЬНОСТИ
+            isVolatile = SelectedRef.IsVolatile,
+            explosionDamageType = SelectedRef.ExplosionDamageType
         };
 
-        // 4. Инициализируем данные (С добавлением емкости!)
         var data = new EnergyStorageData();
         data.Initialize(dto, CalcEnergyCapacity);
 
-        // 5. Размещаем
         if (placementMode == CraftPlacementMode.SpawnInWorld)
         {
             Vector3 spawnPos = transform.position + Vector3.up * 2f;
@@ -327,6 +304,13 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
 
             Destroy(inst.GetComponent<StandardEnergyStorage>());
             inst.AddComponent<CraftedModule>().SetData(data);
+
+            // НОВАЯ ЛОГИКА ВЗРЫВА ПРИ СПАВНЕ В МИР
+            if (SelectedRef.IsVolatile)
+            {
+                var volComp = inst.AddComponent<RuntimeVolatileModule>();
+                volComp.Initialize(Scaler.CalcTotalMass, SelectedRef.ModuleTier, Scaler.CalcEffectiveVolume, SelectedRef.ExplosionDamageType);
+            }
         }
         else
         {
@@ -339,8 +323,6 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
         RebuildAlloyList();
         RecalculateAll();
     }
-
-    // ================= ПОМОЩНИКИ =================
 
     private void RebuildReferenceList()
     {

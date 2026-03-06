@@ -113,6 +113,8 @@ MonoBehaviour:
   CanPulseMode: 0
   PulseInterval: 0
   IsControllable: 0
+  IsVolatile: 0
+  ExplosionDamageType: 1
   length: 2
   width: 1
   height: 1.5000001

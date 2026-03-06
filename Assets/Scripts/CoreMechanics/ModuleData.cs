@@ -49,6 +49,8 @@ public struct ModuleCraftDTO
     public bool canPulseMode;
     public float pulseInterval;
     public bool isControllable;
+    public bool isVolatile;
+    public DamageType explosionDamageType;
 }
 
 /// <summary>
@@ -110,7 +112,8 @@ public class ModuleData
     public bool canPulseMode;
     public float pulseInterval;
     public bool isControllable;
-
+    public bool isVolatile;
+    public DamageType explosionDamageType;
 
     /// <summary>
     /// Заполнить общие поля из структурированного DTO (безопасный способ).
@@ -151,8 +154,12 @@ public class ModuleData
         this.canPulseMode = dto.canPulseMode;
         this.pulseInterval = dto.pulseInterval;
         this.isControllable = dto.isControllable;
+        this.isVolatile = dto.isVolatile;
+        this.explosionDamageType = dto.explosionDamageType;
 
         this.craftTimestamp = DateTime.UtcNow.ToString("o");
         this.dataVersion = 2;
+
+
     }
 }

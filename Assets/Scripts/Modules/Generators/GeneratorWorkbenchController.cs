@@ -392,7 +392,11 @@ public class GeneratorWorkbenchController : MonoBehaviour
             turnOnOffTime = SelectedRef.TurnOnOffTime,
             canPulseMode = SelectedRef.CanPulseMode,
             pulseInterval = SelectedRef.PulseInterval,
-            isControllable = SelectedRef.IsControllable
+            isControllable = SelectedRef.IsControllable,
+
+            // НОВЫЕ ПАРАМЕТРЫ ВОЛАТИЛЬНОСТИ
+            isVolatile = SelectedRef.IsVolatile,
+            explosionDamageType = SelectedRef.ExplosionDamageType
         };
 
         // 2. Инициализируем данные (С добавлением температуры и емкости!)
@@ -406,6 +410,13 @@ public class GeneratorWorkbenchController : MonoBehaviour
             GameObject inst = Instantiate(SelectedRef.gameObject, spawnPos, Quaternion.identity);
             inst.name = $"Crafted_{SelectedRef.gameObject.name}_T{SelectedRef.ModuleTier}";
             inst.transform.localScale = SelectedRef.transform.localScale * Mathf.Max(0.001f, Scaler.CurrentScaleFactor);
+
+            // НОВАЯ ЛОГИКА ВЗРЫВА ПРИ СПАВНЕ В МИР
+            if (SelectedRef.IsVolatile)
+            {
+                var volComp = inst.AddComponent<RuntimeVolatileModule>();
+                volComp.Initialize(Scaler.CalcTotalMass, SelectedRef.ModuleTier, Scaler.CalcEffectiveVolume, SelectedRef.ExplosionDamageType);
+            }
 
             Destroy(inst.GetComponent<StandardGenerator>()); // Удаляем эталон
             var craftedComp = inst.AddComponent<CraftedModule>();

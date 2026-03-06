@@ -30,6 +30,10 @@ public abstract class StandardModuleBase : MonoBehaviour
 
     public bool IsControllable = false;
 
+    [Header("Destruction")]
+    public bool IsVolatile = false;
+    public DamageType ExplosionDamageType = DamageType.Kinetic;
+
     [SerializeField, HideInInspector] protected float length = 1f;
     [SerializeField, HideInInspector] protected float width = 1f;
     [SerializeField, HideInInspector] protected float height = 1f;

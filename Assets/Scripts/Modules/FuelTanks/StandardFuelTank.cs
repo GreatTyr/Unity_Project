@@ -32,10 +32,6 @@ public class StandardFuelTank : StandardModuleBase
         RecalculateAll();
     }
 
-    /// <summary>
-    /// Реализация абстрактного метода из базы.
-    /// Ёмкость = эффективный объём (дм³) × тир модуля × коэффициент ёмкости.
-    /// </summary>
     protected override void ComputeSpecificOutputs()
     {
         float effectiveVolumeDm3 = effectiveVolume * 1000f;
@@ -43,9 +39,6 @@ public class StandardFuelTank : StandardModuleBase
         capacity = effectiveVolumeDm3 * moduleCoeff * CapacityCoefficient;
     }
 
-    /// <summary>
-    /// Округление специфичных результатов.
-    /// </summary>
     protected override void RoundAndStoreSpecificResults()
     {
         capacity = RoundToWithEps(capacity, 3);
@@ -59,6 +52,7 @@ public class StandardFuelTankEditor : Editor
     SerializedProperty pModuleTier, pVolumeCoeff, pConstantFill;
     SerializedProperty pCapacityCoefficient;
     SerializedProperty pFactionShortName, pBlueprintId, pHeatCapacityCoeff, pCraftTime;
+    SerializedProperty pIsVolatile, pExplosionDamageType;
 
     StandardFuelTank t;
     private string[] factionDisplayNames;
@@ -77,6 +71,9 @@ public class StandardFuelTankEditor : Editor
         pBlueprintId = serializedObject.FindProperty("blueprintId");
         pHeatCapacityCoeff = serializedObject.FindProperty("HeatCapacityCoeff");
         pCraftTime = serializedObject.FindProperty("CraftCoefficient");
+
+        pIsVolatile = serializedObject.FindProperty("IsVolatile");
+        pExplosionDamageType = serializedObject.FindProperty("ExplosionDamageType");
 
         RebuildFactionList();
     }
@@ -169,7 +166,6 @@ public class StandardFuelTankEditor : Editor
         EditorGUILayout.LabelField("Crafting", EditorStyles.boldLabel);
         if (pCraftTime != null) EditorGUILayout.PropertyField(pCraftTime, new GUIContent("Craft Coefficient"));
 
-        // Галочки модуля
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Module Capabilities", EditorStyles.boldLabel);
         var pTurn = serializedObject.FindProperty("CanTurnOnOff");
@@ -183,6 +179,15 @@ public class StandardFuelTankEditor : Editor
         if (pPulse != null) EditorGUILayout.PropertyField(pPulse, new GUIContent("Can Pulse Mode"));
         if (pPulseInt != null) EditorGUILayout.PropertyField(pPulseInt, new GUIContent("Pulse Interval"));
         if (pControl != null) EditorGUILayout.PropertyField(pControl, new GUIContent("Is Controllable"));
+
+        // ВОЛАТИЛЬНОСТЬ
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("Destruction", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(pIsVolatile, new GUIContent("Is Volatile (Взрывоопасен)"));
+        if (pIsVolatile != null && pIsVolatile.boolValue)
+        {
+            EditorGUILayout.PropertyField(pExplosionDamageType, new GUIContent("Explosion Damage Type"));
+        }
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Outputs Specific", EditorStyles.boldLabel);

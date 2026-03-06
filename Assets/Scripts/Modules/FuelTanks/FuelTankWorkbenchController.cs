@@ -362,7 +362,6 @@ public class FuelTankWorkbenchController : MonoBehaviour
             yield return null;
         }
 
-        // 1. Создаем DTO
         var dto = new ModuleCraftDTO
         {
             moduleType = StandardFuelTank.TYPE_FUELTANK,
@@ -392,20 +391,16 @@ public class FuelTankWorkbenchController : MonoBehaviour
             turnOnOffTime = SelectedRef.TurnOnOffTime,
             canPulseMode = SelectedRef.CanPulseMode,
             pulseInterval = SelectedRef.PulseInterval,
-            isControllable = SelectedRef.IsControllable
+            isControllable = SelectedRef.IsControllable,
+
+            // НОВЫЕ ПАРАМЕТРЫ ВОЛАТИЛЬНОСТИ
+            isVolatile = SelectedRef.IsVolatile,
+            explosionDamageType = SelectedRef.ExplosionDamageType
         };
 
-        // 2. Инициализируем данные
         var tankData = new FuelTankData();
-        tankData.Initialize(
-            dto,
-            CalcCapacity,
-            CalcMaxTemperature,
-            CalcHeatCapacity,
-            CalcWallThicknessMm
-        );
+        tankData.Initialize(dto, CalcCapacity, CalcMaxTemperature, CalcHeatCapacity, CalcWallThicknessMm);
 
-        // 3. Размещаем
         if (placementMode == CraftPlacementMode.SpawnInWorld)
         {
             Vector3 spawnPos = transform.position + Vector3.up * 2f;
@@ -416,6 +411,13 @@ public class FuelTankWorkbenchController : MonoBehaviour
             Destroy(inst.GetComponent<StandardFuelTank>());
             var craftedComp = inst.AddComponent<CraftedModule>();
             craftedComp.SetData(tankData);
+
+            // НОВАЯ ЛОГИКА ВЗРЫВА ПРИ СПАВНЕ В МИР
+            if (SelectedRef.IsVolatile)
+            {
+                var volComp = inst.AddComponent<RuntimeVolatileModule>();
+                volComp.Initialize(Scaler.CalcTotalMass, SelectedRef.ModuleTier, Scaler.CalcEffectiveVolume, SelectedRef.ExplosionDamageType);
+            }
         }
         else
         {
@@ -428,8 +430,6 @@ public class FuelTankWorkbenchController : MonoBehaviour
         RebuildAlloyList();
         RecalculateAll();
     }
-
-    // ================= ПОМОЩНИКИ =================
 
     private void RebuildReferenceList()
     {
