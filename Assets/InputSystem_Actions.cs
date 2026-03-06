@@ -1764,9 +1764,47 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""BuilderMode"",
+                    ""type"": ""Button"",
+                    ""id"": ""281238e4-5857-4027-b5f3-e9c6a2cb5e15"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""RotateBuilderMode"",
+                    ""type"": ""Button"",
+                    ""id"": ""422c67b2-d64a-4296-8550-51879554a84f"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""ClickBuilderMode"",
+                    ""type"": ""PassThrough"",
+                    ""id"": ""f5c6a529-d171-473c-bd1e-607f0e999b0f"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": true
                 }
             ],
             ""bindings"": [
+                {
+                    ""name"": """",
+                    ""id"": ""74d0e8b9-8a2f-4bb7-83fa-11732c5c8204"",
+                    ""path"": ""<Mouse>/leftButton"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": "";Keyboard&Mouse"",
+                    ""action"": ""ClickBuilderMode"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
                 {
                     ""name"": """",
                     ""id"": ""b1aa58f4-b50d-4e7f-af0c-c996b190df1f"",
@@ -1808,6 +1846,28 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""groups"": "";Keyboard&Mouse;Gamepad"",
                     ""action"": ""Hotbar4"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""18d26c41-df1e-47f4-b51a-65928ab6b372"",
+                    ""path"": ""<Keyboard>/b"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": "";Keyboard&Mouse"",
+                    ""action"": ""BuilderMode"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""ee262164-ef4d-4099-b4c6-0d5260c83ba1"",
+                    ""path"": ""<Keyboard>/r"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": "";Keyboard&Mouse"",
+                    ""action"": ""RotateBuilderMode"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 }
@@ -1931,6 +1991,9 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         m_Gameplay_Hotbar2 = m_Gameplay.FindAction("Hotbar2", throwIfNotFound: true);
         m_Gameplay_Hotbar3 = m_Gameplay.FindAction("Hotbar3", throwIfNotFound: true);
         m_Gameplay_Hotbar4 = m_Gameplay.FindAction("Hotbar4", throwIfNotFound: true);
+        m_Gameplay_BuilderMode = m_Gameplay.FindAction("BuilderMode", throwIfNotFound: true);
+        m_Gameplay_RotateBuilderMode = m_Gameplay.FindAction("RotateBuilderMode", throwIfNotFound: true);
+        m_Gameplay_ClickBuilderMode = m_Gameplay.FindAction("ClickBuilderMode", throwIfNotFound: true);
     }
 
     ~@InputSystem_Actions()
@@ -2927,6 +2990,9 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
     private readonly InputAction m_Gameplay_Hotbar2;
     private readonly InputAction m_Gameplay_Hotbar3;
     private readonly InputAction m_Gameplay_Hotbar4;
+    private readonly InputAction m_Gameplay_BuilderMode;
+    private readonly InputAction m_Gameplay_RotateBuilderMode;
+    private readonly InputAction m_Gameplay_ClickBuilderMode;
     /// <summary>
     /// Provides access to input actions defined in input action map "Gameplay".
     /// </summary>
@@ -2954,6 +3020,18 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         /// Provides access to the underlying input action "Gameplay/Hotbar4".
         /// </summary>
         public InputAction @Hotbar4 => m_Wrapper.m_Gameplay_Hotbar4;
+        /// <summary>
+        /// Provides access to the underlying input action "Gameplay/BuilderMode".
+        /// </summary>
+        public InputAction @BuilderMode => m_Wrapper.m_Gameplay_BuilderMode;
+        /// <summary>
+        /// Provides access to the underlying input action "Gameplay/RotateBuilderMode".
+        /// </summary>
+        public InputAction @RotateBuilderMode => m_Wrapper.m_Gameplay_RotateBuilderMode;
+        /// <summary>
+        /// Provides access to the underlying input action "Gameplay/ClickBuilderMode".
+        /// </summary>
+        public InputAction @ClickBuilderMode => m_Wrapper.m_Gameplay_ClickBuilderMode;
         /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
@@ -2992,6 +3070,15 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
             @Hotbar4.started += instance.OnHotbar4;
             @Hotbar4.performed += instance.OnHotbar4;
             @Hotbar4.canceled += instance.OnHotbar4;
+            @BuilderMode.started += instance.OnBuilderMode;
+            @BuilderMode.performed += instance.OnBuilderMode;
+            @BuilderMode.canceled += instance.OnBuilderMode;
+            @RotateBuilderMode.started += instance.OnRotateBuilderMode;
+            @RotateBuilderMode.performed += instance.OnRotateBuilderMode;
+            @RotateBuilderMode.canceled += instance.OnRotateBuilderMode;
+            @ClickBuilderMode.started += instance.OnClickBuilderMode;
+            @ClickBuilderMode.performed += instance.OnClickBuilderMode;
+            @ClickBuilderMode.canceled += instance.OnClickBuilderMode;
         }
 
         /// <summary>
@@ -3015,6 +3102,15 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
             @Hotbar4.started -= instance.OnHotbar4;
             @Hotbar4.performed -= instance.OnHotbar4;
             @Hotbar4.canceled -= instance.OnHotbar4;
+            @BuilderMode.started -= instance.OnBuilderMode;
+            @BuilderMode.performed -= instance.OnBuilderMode;
+            @BuilderMode.canceled -= instance.OnBuilderMode;
+            @RotateBuilderMode.started -= instance.OnRotateBuilderMode;
+            @RotateBuilderMode.performed -= instance.OnRotateBuilderMode;
+            @RotateBuilderMode.canceled -= instance.OnRotateBuilderMode;
+            @ClickBuilderMode.started -= instance.OnClickBuilderMode;
+            @ClickBuilderMode.performed -= instance.OnClickBuilderMode;
+            @ClickBuilderMode.canceled -= instance.OnClickBuilderMode;
         }
 
         /// <summary>
@@ -3448,5 +3544,26 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnHotbar4(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "BuilderMode" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnBuilderMode(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "RotateBuilderMode" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnRotateBuilderMode(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "ClickBuilderMode" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnClickBuilderMode(InputAction.CallbackContext context);
     }
 }

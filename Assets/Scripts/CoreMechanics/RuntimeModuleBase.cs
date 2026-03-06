@@ -14,10 +14,16 @@ public struct RuntimeModuleStatus
     public float fuelDemandThisFrame;
     public float energyDemandThisFrame;
 
-    // ВЫДАЧА (Сколько произведено в ЭТОТ кадр)
+    // ВЫДАЧА (Сколько произведено в ПРОШЛОМ кадре)
     public float energyOutputThisFrame;
     public float heatOutputThisFrame;
     public float coolingOutputThisFrame;
+
+    // ХРАНИЛИЩА (Емкость и текущий запас)
+    public float currentEnergyStorage;
+    public float maxEnergyStorage;
+    public float currentFuelStorage;
+    public float maxFuelStorage;
 
     // ФИЗИКА
     public float massKg;

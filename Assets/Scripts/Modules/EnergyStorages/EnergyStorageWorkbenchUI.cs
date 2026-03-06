@@ -80,7 +80,6 @@ public class EnergyStorageWorkbenchUI : MonoBehaviour, IWorkbenchUI
         GUILayout.Label($"<color=#AAAAAA>Параметры Верстака:</color> Тир {controller.workbenchTier} | Вместимость: {controller.innerLength}×{controller.innerHeight}×{controller.innerWidth} м",
             new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
 
-        // Блокируем интерактив, пока идет крафт
         if (isCrafting) GUI.enabled = false;
 
         GUILayout.BeginHorizontal();
@@ -123,14 +122,13 @@ public class EnergyStorageWorkbenchUI : MonoBehaviour, IWorkbenchUI
         GUILayout.EndHorizontal();
 
         DrawSeparator();
-        DrawSpecificSection(); // ВАЖНО: не DrawGeneratorSpecificSection()
+        DrawSpecificSection();
 
         DrawSeparator();
         DrawAlloyParamsSection();
 
         DrawSeparator();
 
-        // Внизу снова включаем GUI, чтобы рисовать прогресс-бар/кнопки
         if (isCrafting) GUI.enabled = true;
 
         GUILayout.BeginHorizontal();
@@ -293,6 +291,7 @@ public class EnergyStorageWorkbenchUI : MonoBehaviour, IWorkbenchUI
         GUILayout.EndVertical();
     }
 
+    // НОВОЕ: Отрисовка списка ресурсов
     private void DrawCostsAndButtons(bool isCrafting)
     {
         GUILayout.BeginVertical(_panelStyle);
@@ -303,22 +302,33 @@ public class EnergyStorageWorkbenchUI : MonoBehaviour, IWorkbenchUI
             ? (float)controller.alloyStorage.GetMass(controller.AlloyCodes[controller.SelectedAlloyIndex])
             : 0f;
 
-        float metalReq = controller.Scaler.CalcInnerMass;
-        int metalTier = controller.SelectedRef != null ? controller.SelectedRef.ModuleTier : 1;
-        float metalAvail = controller.resourcesStorage != null
-            ? (float)(controller.resourcesStorage.GetGrams((ResourcesStorage.ResourceIndex)(20 + metalTier - 1)) / 1000.0)
-            : 0f;
-
         long energyReq = controller.CalcEnergyCost;
         long energyAvail = controller.resourcesStorage != null ? controller.resourcesStorage.EnergyUnits : 0;
 
         GUILayout.BeginHorizontal();
         DrawCostItem("Сплав", alloyReq, alloyAvail, "кг", alloyAvail >= alloyReq - 0.001f);
-        GUILayout.FlexibleSpace();
-        DrawCostItem($"Металл T{metalTier}", metalReq, metalAvail, "кг", metalAvail >= metalReq - 0.001f);
-        GUILayout.FlexibleSpace();
+        GUILayout.Space(15);
         DrawCostItem("Энергия", energyReq, energyAvail, "E", energyAvail >= energyReq, "#FFD700");
+        GUILayout.FlexibleSpace();
         GUILayout.EndHorizontal();
+
+        if (controller.RequiredInternalResources.Count > 0)
+        {
+            GUILayout.Space(8);
+            GUILayout.Label("<color=#AAAAAA>Внутренние компоненты (Рецепт):</color>", new GUIStyle(GUI.skin.label) { fontSize = 11 });
+            GUILayout.BeginHorizontal();
+            foreach (var kvp in controller.RequiredInternalResources)
+            {
+                float reqKg = kvp.Value / 1000f;
+                float availKg = controller.resourcesStorage != null ? controller.resourcesStorage.GetGrams(kvp.Key) / 1000f : 0f;
+                string resName = ResourcesStorage.ResourceFullName((int)kvp.Key);
+
+                DrawCostItem(resName, reqKg, availKg, "кг", availKg >= reqKg - 0.001f);
+                GUILayout.Space(10);
+            }
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+        }
 
         GUILayout.Space(6);
         GUILayout.Label($"<color=#AAAAAA>Время крафта:</color> <color=#00FF00><b>{controller.CalcCraftTimeSeconds:F1} сек</b></color>");
@@ -363,8 +373,6 @@ public class EnergyStorageWorkbenchUI : MonoBehaviour, IWorkbenchUI
         if (GUILayout.Button("СБРОС", GUILayout.Height(35), GUILayout.Width(100)))
         {
             controller.ResetToDefaults();
-            shellPercentStr = "5";
-            codeInputField = "";
         }
         GUI.enabled = true;
 
@@ -411,6 +419,16 @@ public class EnergyStorageWorkbenchUI : MonoBehaviour, IWorkbenchUI
         GUILayout.BeginVertical(GUILayout.MinWidth(110));
         GUILayout.Label($"<color=#AAAAAA>{label}:</color> <color={highlightColor}><b>{needed:F1} {unit}</b></color>");
         string availStr = enough ? $"<color=#00FF00>{available:F1}</color>" : $"<color=#FF4444>{available:F1}</color>";
+        GUILayout.Label($"На складе: {availStr} {unit}", new GUIStyle(GUI.skin.label) { fontSize = 11 });
+        GUILayout.EndVertical();
+    }
+
+    // Перегрузка для энергии
+    private void DrawCostItem(string label, long needed, long available, string unit, bool enough, string highlightColor = "#FFFFFF")
+    {
+        GUILayout.BeginVertical(GUILayout.MinWidth(110));
+        GUILayout.Label($"<color=#AAAAAA>{label}:</color> <color={highlightColor}><b>{needed} {unit}</b></color>");
+        string availStr = enough ? $"<color=#00FF00>{available}</color>" : $"<color=#FF4444>{available}</color>";
         GUILayout.Label($"На складе: {availStr} {unit}", new GUIStyle(GUI.skin.label) { fontSize = 11 });
         GUILayout.EndVertical();
     }

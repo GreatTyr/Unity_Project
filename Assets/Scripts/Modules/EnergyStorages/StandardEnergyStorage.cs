@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System;
+using System.Collections.Generic; // ДОБАВЛЕНО для List<ResourceCostPerLiter>
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -41,7 +42,7 @@ public class StandardEnergyStorage : StandardModuleBase
 [CustomEditor(typeof(StandardEnergyStorage))]
 public class StandardEnergyStorageEditor : Editor
 {
-    SerializedProperty pModuleTier, pVolumeCoeff, pConstantFill;
+    SerializedProperty pModuleTier, pVolumeCoeff, pInternalResourceCosts;
     SerializedProperty pFactionShortName, pBlueprintId, pCraftTime;
     SerializedProperty pIsVolatile, pExplosionDamageType;
 
@@ -56,7 +57,9 @@ public class StandardEnergyStorageEditor : Editor
 
         pModuleTier = serializedObject.FindProperty("ModuleTier");
         pVolumeCoeff = serializedObject.FindProperty("VolumeCoefficientPercent");
-        pConstantFill = serializedObject.FindProperty("ConstantFillPercent");
+        // НОВОЕ: Заменили ConstantFillPercent на ресурсы
+        pInternalResourceCosts = serializedObject.FindProperty("InternalResourceCosts");
+        
         pFactionShortName = serializedObject.FindProperty("factionShortName");
         pBlueprintId = serializedObject.FindProperty("blueprintId");
         pCraftTime = serializedObject.FindProperty("CraftCoefficient");
@@ -126,9 +129,10 @@ public class StandardEnergyStorageEditor : Editor
         EditorGUILayout.PropertyField(pBlueprintId, new GUIContent("Blueprint ID"));
 
         EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Volume & Fill", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("Volume & Recipe", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(pVolumeCoeff, new GUIContent("Volume Coeff %"));
-        EditorGUILayout.PropertyField(pConstantFill, new GUIContent("Constant Fill %"));
+        // НОВОЕ: Отрисовка списка ресурсов
+        EditorGUILayout.PropertyField(pInternalResourceCosts, new GUIContent("Resources per Liter (1 dm3)"), true);
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Capacity", EditorStyles.boldLabel);
@@ -151,7 +155,7 @@ public class StandardEnergyStorageEditor : Editor
         if (pTurnTime != null) EditorGUILayout.PropertyField(pTurnTime, new GUIContent("Turn On/Off Time"));
         if (pPulse != null) EditorGUILayout.PropertyField(pPulse, new GUIContent("Can Pulse Mode"));
         if (pPulseInt != null) EditorGUILayout.PropertyField(pPulseInt, new GUIContent("Pulse Interval"));
-        if (pControl != null) EditorGUILayout.PropertyField(pControl, new GUIContent("Is Controllable"));
+        if (pControl != null) EditorGUILayout.PropertyField(pControl, new GUIContent("IsControllable"));
 
         // ВОЛАТИЛЬНОСТЬ
         EditorGUILayout.Space();
@@ -170,8 +174,7 @@ public class StandardEnergyStorageEditor : Editor
         EditorGUILayout.LabelField("AABB Volume (m³)", t.AABBVolumeM3.ToString("F6"));
         EditorGUILayout.LabelField("Real Volume (m³)", t.RealVolumeM3.ToString("F6"));
         EditorGUILayout.LabelField("Effective Volume (m³)", t.EffectiveVolumeM3.ToString("F6"));
-        EditorGUILayout.LabelField("Fill % used", t.FillPercentUsed.ToString("0.###"));
-        EditorGUILayout.LabelField("Mass (kg)", t.MassKg.ToString("0.###"));
+        EditorGUILayout.LabelField("Base Inner Mass (kg)", t.MassKg.ToString("0.###")); // Заменили FillPercent на Inner Mass
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Outputs Specific", EditorStyles.boldLabel);

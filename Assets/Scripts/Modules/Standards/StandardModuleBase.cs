@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 [ExecuteAlways]
 public abstract class StandardModuleBase : MonoBehaviour
@@ -15,7 +16,10 @@ public abstract class StandardModuleBase : MonoBehaviour
 
     [Header("Volume & Fill")]
     [Range(0f, 100f)] public float VolumeCoefficientPercent = 100f;
-    [Range(0f, 100f)] public float ConstantFillPercent = 100f;
+
+    [Header("Crafting Costs (Per Liter of Effective Volume)")]
+    [Tooltip("Список ресурсов, необходимых для создания 1 литра (дм3) внутренностей модуля")]
+    public List<ResourceCostPerLiter> InternalResourceCosts = new List<ResourceCostPerLiter>();
 
     [Header("Crafting Parameters")]
     [Tooltip("Коэффициент крафта модуля для формулы времени.")]
@@ -41,7 +45,6 @@ public abstract class StandardModuleBase : MonoBehaviour
     [SerializeField, HideInInspector] protected float aabbVolume;
     [SerializeField, HideInInspector] protected float realVolume;
     [SerializeField, HideInInspector] protected float effectiveVolume;
-    [SerializeField, HideInInspector] protected float fillPercentUsed;
     [SerializeField, HideInInspector] protected float massKg;
 
     public abstract string ModuleType { get; }
@@ -63,7 +66,6 @@ public abstract class StandardModuleBase : MonoBehaviour
     public float AABBVolumeM3 => aabbVolume;
     public float RealVolumeM3 => realVolume;
     public float EffectiveVolumeM3 => effectiveVolume;
-    public float FillPercentUsed => fillPercentUsed;
     public float MassKg => massKg;
 
     protected const float EPS_ROUND = 1e-7f;
@@ -76,7 +78,6 @@ public abstract class StandardModuleBase : MonoBehaviour
     {
         ModuleTier = Mathf.Clamp(ModuleTier, 1, 10);
         VolumeCoefficientPercent = Mathf.Clamp(VolumeCoefficientPercent, 0f, 100f);
-        ConstantFillPercent = Mathf.Clamp(ConstantFillPercent, 0f, 100f);
         CraftCoefficient = Mathf.Max(0.01f, CraftCoefficient);
         RecalculateAll();
     }
@@ -108,8 +109,17 @@ public abstract class StandardModuleBase : MonoBehaviour
         aabbVolume = Mathf.Max(0f, length) * Mathf.Max(0f, width) * Mathf.Max(0f, height);
         realVolume = aabbVolume * Mathf.Clamp01(VolumeCoefficientPercent / 100f);
         effectiveVolume = realVolume;
-        fillPercentUsed = ConstantFillPercent;
-        massKg = realVolume * (fillPercentUsed / 100f) * 1000f;
+
+        // НОВОЕ: Подсчет базовой массы внутренностей через рецепт
+        float totalGramsPerLiter = 0f;
+        if (InternalResourceCosts != null)
+        {
+            foreach (var cost in InternalResourceCosts)
+                totalGramsPerLiter += cost.gramsPerLiter;
+        }
+
+        // Масса = Объем(м3) * 1000 (перевод в литры) * totalGramsPerLiter / 1000 (перевод в кг)
+        massKg = effectiveVolume * totalGramsPerLiter;
     }
 
     protected abstract void ComputeSpecificOutputs();
@@ -119,7 +129,6 @@ public abstract class StandardModuleBase : MonoBehaviour
         aabbVolume = RoundToWithEps(aabbVolume, 6);
         realVolume = RoundToWithEps(realVolume, 6);
         effectiveVolume = RoundToWithEps(effectiveVolume, 6);
-        fillPercentUsed = RoundToWithEps(fillPercentUsed, 3);
         massKg = RoundToWithEps(massKg, 3);
     }
 

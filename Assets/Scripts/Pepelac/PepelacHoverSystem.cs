@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// <summary>
 /// Вертикальная физика транспорта: hover PD-контроллер, прыжок, snap-режим.
-/// Читает данные из PepelacMain, PepelacInputHandler, PepelacGroundCheck.
+/// Читает данные из PepelacMovementConfig, PepelacInputHandler, PepelacGroundCheck.
 /// </summary>
 [DisallowMultipleComponent]
 public class PepelacHoverSystem : MonoBehaviour
@@ -18,7 +18,7 @@ public class PepelacHoverSystem : MonoBehaviour
     private float currentVerticalVelocity;
 
     // Зависимости (устанавливаются через Initialize)
-    private PepelacMain main;
+    private PepelacMovementConfig config;
     private PepelacInputHandler input;
     private PepelacGroundCheck groundCheck;
     private Rigidbody rb;
@@ -34,10 +34,10 @@ public class PepelacHoverSystem : MonoBehaviour
         set => currentVerticalVelocity = value;
     }
 
-    public void Initialize(PepelacMain pepelacMain, PepelacInputHandler inputHandler,
+    public void Initialize(PepelacMovementConfig movementConfig, PepelacInputHandler inputHandler,
                            PepelacGroundCheck ground, Rigidbody rigidbody)
     {
-        main = pepelacMain;
+        config = movementConfig;
         input = inputHandler;
         groundCheck = ground;
         rb = rigidbody;
@@ -66,20 +66,20 @@ public class PepelacHoverSystem : MonoBehaviour
     /// </summary>
     public void UpdateHoverInput(float dt)
     {
-        if (main == null || input == null) return;
+        if (config == null || input == null) return;
 
         bool isRising = input.RisePressed;
         bool isLowering = input.LowerPressed;
 
         if (isRising)
         {
-            targetHoverOffset += main.riseSpeed * dt;
-            if (targetHoverOffset > main.maxHoverOffset)
-                targetHoverOffset = main.maxHoverOffset;
+            targetHoverOffset += config.riseSpeed * dt;
+            if (targetHoverOffset > config.maxHoverOffset)
+                targetHoverOffset = config.maxHoverOffset;
         }
         else if (isLowering)
         {
-            targetHoverOffset -= main.lowerSpeed * dt;
+            targetHoverOffset -= config.lowerSpeed * dt;
             if (targetHoverOffset < 0f)
                 targetHoverOffset = 0f;
         }
@@ -105,12 +105,12 @@ public class PepelacHoverSystem : MonoBehaviour
             targetHoverOffset = Mathf.Clamp(
                 currentY - baseGroundY,
                 0f,
-                main != null ? main.maxHoverOffset : 50f);
+                config != null ? config.maxHoverOffset : 50f);
 
             currentVerticalVelocity = 0f;
 
-            if (main != null && main.snapOnRelease)
-                snapBoostUntil = Time.time + main.snapDuration;
+            if (config != null && config.snapOnRelease)
+                snapBoostUntil = Time.time + config.snapDuration;
 
             if (debugHover)
                 Debug.Log($"[HoverInput] Released -> targetOffset={targetHoverOffset:F2}");
@@ -122,17 +122,17 @@ public class PepelacHoverSystem : MonoBehaviour
     /// </summary>
     public void ProcessJump()
     {
-        if (main == null || input == null) return;
+        if (config == null || input == null) return;
         if (!input.JumpRequested) return;
 
         input.ConsumeJump();
 
-        if (rb != null && main.useRigidbody)
-            rb.AddForce(Vector3.up * main.jumpImpulse, ForceMode.VelocityChange);
+        if (rb != null && config.useRigidbody)
+            rb.AddForce(Vector3.up * config.jumpImpulse, ForceMode.VelocityChange);
         else
-            currentVerticalVelocity = main.jumpImpulse;
+            currentVerticalVelocity = config.jumpImpulse;
 
-        hoverLockUntil = Time.time + main.jumpBreaksHoverDuration;
+        hoverLockUntil = Time.time + config.jumpBreaksHoverDuration;
     }
 
     /// <summary>
@@ -140,12 +140,12 @@ public class PepelacHoverSystem : MonoBehaviour
     /// </summary>
     public void ApplyVerticalPhysics(float dt)
     {
-        if (rb == null || main == null) return;
+        if (rb == null || config == null) return;
 
         bool hoverBlocked = Time.time < hoverLockUntil;
         bool wantHover = targetHoverOffset > 0f;
 
-        if (!main.holdHoverPreventsGravity || !wantHover || hoverBlocked)
+        if (!config.holdHoverPreventsGravity || !wantHover || hoverBlocked)
             return;
 
         float targetY = baseGroundY + targetHoverOffset;
@@ -153,17 +153,17 @@ public class PepelacHoverSystem : MonoBehaviour
         float error = targetY - currentY;
         float velY = rb.linearVelocity.y;
 
-        float kp = main.verticalSpringKp;
-        float kd = main.verticalSpringKd;
+        float kp = config.verticalSpringKp;
+        float kd = config.verticalSpringKd;
 
-        if (main.snapOnRelease && Time.time < snapBoostUntil)
+        if (config.snapOnRelease && Time.time < snapBoostUntil)
         {
-            kp *= main.snapForceMultiplier;
-            kd *= main.snapForceMultiplier;
+            kp *= config.snapForceMultiplier;
+            kd *= config.snapForceMultiplier;
         }
 
         float forceY = kp * error - kd * velY;
-        forceY = Mathf.Clamp(forceY, -main.maxVerticalForce, main.maxVerticalForce);
+        forceY = Mathf.Clamp(forceY, -config.maxVerticalForce, config.maxVerticalForce);
 
         rb.AddForce(Vector3.up * forceY, ForceMode.Force);
 
@@ -180,12 +180,12 @@ public class PepelacHoverSystem : MonoBehaviour
     /// </summary>
     public float CalculateKinematicVertical(float dt, bool isGrounded)
     {
-        if (main == null) return 0f;
+        if (config == null) return 0f;
 
         bool hoverBlocked = Time.time < hoverLockUntil;
         bool wantHover = targetHoverOffset > 0f;
 
-        if (main.holdHoverPreventsGravity && wantHover && !hoverBlocked)
+        if (config.holdHoverPreventsGravity && wantHover && !hoverBlocked)
         {
             float targetY = baseGroundY + targetHoverOffset;
             Vector3 pos = transform.position;
@@ -201,7 +201,7 @@ public class PepelacHoverSystem : MonoBehaviour
         }
         else
         {
-            currentVerticalVelocity += main.gravity * dt;
+            currentVerticalVelocity += config.gravity * dt;
         }
 
         return currentVerticalVelocity;

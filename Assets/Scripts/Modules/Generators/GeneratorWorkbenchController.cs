@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
 
@@ -42,6 +43,9 @@ public class GeneratorWorkbenchController : MonoBehaviour
     public bool IsAlloyDecoded { get; private set; }
 
     public string CurrentModuleCode { get; private set; } = "";
+
+    // НОВОЕ: Словарь требуемых ресурсов за литр
+    public Dictionary<ResourcesStorage.ResourceIndex, long> RequiredInternalResources { get; private set; } = new Dictionary<ResourcesStorage.ResourceIndex, long>();
 
     // Специфичные расчеты генератора
     public float CalcSpecificPower { get; private set; }
@@ -100,9 +104,16 @@ public class GeneratorWorkbenchController : MonoBehaviour
 
         if (SelectedRef != null)
         {
+            float totalGramsPerLiter = 0f;
+            if (SelectedRef.InternalResourceCosts != null)
+            {
+                foreach (var cost in SelectedRef.InternalResourceCosts)
+                    totalGramsPerLiter += cost.gramsPerLiter;
+            }
+
             Scaler.SetReference(
                 SelectedRef.LengthMeters, SelectedRef.WidthMeters, SelectedRef.HeightMeters,
-                SelectedRef.RealVolumeM3, SelectedRef.ConstantFillPercent
+                SelectedRef.RealVolumeM3, totalGramsPerLiter
             );
         }
         RecalculateAll();
@@ -238,6 +249,21 @@ public class GeneratorWorkbenchController : MonoBehaviour
 
     private void CalculateGeneratorSpecifics()
     {
+        // НОВОЕ: Заполняем словарь
+        RequiredInternalResources.Clear();
+        if (SelectedRef.InternalResourceCosts != null)
+        {
+            float effVolLiters = Scaler.CalcEffectiveVolume * 1000f;
+            foreach (var cost in SelectedRef.InternalResourceCosts)
+            {
+                long grams = (long)Math.Ceiling(cost.gramsPerLiter * effVolLiters);
+                if (RequiredInternalResources.ContainsKey(cost.resourceType))
+                    RequiredInternalResources[cost.resourceType] += grams;
+                else
+                    RequiredInternalResources[cost.resourceType] = grams;
+            }
+        }
+
         // Эффективный объём БЕЗ fillFactor — для функциональных расчётов
         float effectiveVolume = Scaler.CalcEffectiveVolume;
         float effectiveVolumeDm3 = effectiveVolume * 1000f;
@@ -316,9 +342,15 @@ public class GeneratorWorkbenchController : MonoBehaviour
         if (string.IsNullOrEmpty(alloyCode) || !alloyStorage.HasEnoughMass(alloyCode, Scaler.CalcShellMass))
         { failReason = "Недостаточно сплава."; return false; }
 
-        var metalIdx = (ResourcesStorage.ResourceIndex)(20 + SelectedRef.ModuleTier - 1);
-        if (resourcesStorage.GetGrams(metalIdx) < (long)Math.Ceiling(Scaler.CalcInnerMass * 1000.0))
-        { failReason = "Недостаточно металла."; return false; }
+        // НОВОЕ: Проверка по словарю
+        foreach (var kvp in RequiredInternalResources)
+        {
+            if (resourcesStorage.GetGrams(kvp.Key) < kvp.Value)
+            {
+                failReason = $"Недостаточно: {ResourcesStorage.ResourceFullName((int)kvp.Key)}";
+                return false;
+            }
+        }
 
         if (resourcesStorage.EnergyUnits < CalcEnergyCost)
         { failReason = "Недостаточно энергии."; return false; }
@@ -344,14 +376,17 @@ public class GeneratorWorkbenchController : MonoBehaviour
 
         string alloyCode = AlloyCodes[SelectedAlloyIndex];
         float craftShellMass = Scaler.CalcShellMass;
-        long metalNeededG = (long)Math.Ceiling(Scaler.CalcInnerMass * 1000.0);
         long energyNeeded = CalcEnergyCost;
-        var metalIdx = (ResourcesStorage.ResourceIndex)(20 + SelectedRef.ModuleTier - 1);
 
         // Списываем ресурсы в начале крафта
         alloyStorage.TryConsumeMass(alloyCode, craftShellMass);
-        resourcesStorage.TryRemoveGrams(metalIdx, metalNeededG);
         resourcesStorage.TryConsumeEnergy(energyNeeded);
+
+        // НОВОЕ: Списание по словарю
+        foreach (var kvp in RequiredInternalResources)
+        {
+            resourcesStorage.TryRemoveGrams(kvp.Key, kvp.Value);
+        }
 
         // Таймер крафта
         float timer = 0f;
@@ -374,7 +409,7 @@ public class GeneratorWorkbenchController : MonoBehaviour
             alloyTier = AlloyParams.tier,
             shellPercent = ShellPercent,
             scaleFactor = Scaler.CurrentScaleFactor,
-            fillPercent = SelectedRef.ConstantFillPercent,
+            fillPercent = 0f,
             length = Scaler.CalcLength,
             width = Scaler.CalcWidth,
             height = Scaler.CalcHeight,
@@ -411,16 +446,16 @@ public class GeneratorWorkbenchController : MonoBehaviour
             inst.name = $"Crafted_{SelectedRef.gameObject.name}_T{SelectedRef.ModuleTier}";
             inst.transform.localScale = SelectedRef.transform.localScale * Mathf.Max(0.001f, Scaler.CurrentScaleFactor);
 
+            Destroy(inst.GetComponent<StandardGenerator>()); // Удаляем эталон
+            var craftedComp = inst.AddComponent<CraftedModule>();
+            craftedComp.SetData(genData);
+
             // НОВАЯ ЛОГИКА ВЗРЫВА ПРИ СПАВНЕ В МИР
             if (SelectedRef.IsVolatile)
             {
                 var volComp = inst.AddComponent<RuntimeVolatileModule>();
                 volComp.Initialize(Scaler.CalcTotalMass, SelectedRef.ModuleTier, Scaler.CalcEffectiveVolume, SelectedRef.ExplosionDamageType);
             }
-
-            Destroy(inst.GetComponent<StandardGenerator>()); // Удаляем эталон
-            var craftedComp = inst.AddComponent<CraftedModule>();
-            craftedComp.SetData(genData);
         }
         else
         {

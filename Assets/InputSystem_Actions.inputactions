@@ -1678,9 +1678,47 @@
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
+                },
+                {
+                    "name": "BuilderMode",
+                    "type": "Button",
+                    "id": "281238e4-5857-4027-b5f3-e9c6a2cb5e15",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "RotateBuilderMode",
+                    "type": "Button",
+                    "id": "422c67b2-d64a-4296-8550-51879554a84f",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "ClickBuilderMode",
+                    "type": "PassThrough",
+                    "id": "f5c6a529-d171-473c-bd1e-607f0e999b0f",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
                 }
             ],
             "bindings": [
+                {
+                    "name": "",
+                    "id": "74d0e8b9-8a2f-4bb7-83fa-11732c5c8204",
+                    "path": "<Mouse>/leftButton",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "ClickBuilderMode",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
                 {
                     "name": "",
                     "id": "b1aa58f4-b50d-4e7f-af0c-c996b190df1f",
@@ -1722,6 +1760,28 @@
                     "processors": "",
                     "groups": ";Keyboard&Mouse;Gamepad",
                     "action": "Hotbar4",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "18d26c41-df1e-47f4-b51a-65928ab6b372",
+                    "path": "<Keyboard>/b",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "BuilderMode",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "ee262164-ef4d-4099-b4c6-0d5260c83ba1",
+                    "path": "<Keyboard>/r",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "RotateBuilderMode",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

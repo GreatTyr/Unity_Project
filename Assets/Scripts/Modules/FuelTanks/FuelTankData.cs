@@ -15,7 +15,7 @@ public class FuelTankData : ModuleData
         float heatCapacity,
         float wallThicknessMm)
     {
-        base.Initialize(baseDto);
+        base.Initialize(baseDto); // Вызов заполнения базовых полей (включая волатильность)
         this.capacity = capacity;
         this.maxTemperature = maxTemperature;
         this.heatCapacity = heatCapacity;

@@ -100,7 +100,7 @@ public class FuelTankWorkbenchController : MonoBehaviour
         {
             Scaler.SetReference(
                 SelectedRef.LengthMeters, SelectedRef.WidthMeters, SelectedRef.HeightMeters,
-                SelectedRef.RealVolumeM3, SelectedRef.ConstantFillPercent
+                SelectedRef.RealVolumeM3, 0f // FuelTank не использует внутренние ресурсы, передаем 0
             );
         }
 
@@ -373,7 +373,7 @@ public class FuelTankWorkbenchController : MonoBehaviour
             alloyTier = AlloyParams.tier,
             shellPercent = ShellPercent,
             scaleFactor = Scaler.CurrentScaleFactor,
-            fillPercent = SelectedRef.ConstantFillPercent,
+            fillPercent = 0f,
             length = Scaler.CalcLength,
             width = Scaler.CalcWidth,
             height = Scaler.CalcHeight,

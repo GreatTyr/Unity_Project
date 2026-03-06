@@ -49,23 +49,25 @@ public class StandardFuelTank : StandardModuleBase
 [CustomEditor(typeof(StandardFuelTank))]
 public class StandardFuelTankEditor : Editor
 {
-    SerializedProperty pModuleTier, pVolumeCoeff, pConstantFill;
+    SerializedProperty pModuleTier, pVolumeCoeff;
     SerializedProperty pCapacityCoefficient;
     SerializedProperty pFactionShortName, pBlueprintId, pHeatCapacityCoeff, pCraftTime;
+    
+    // НОВЫЕ СВОЙСТВА ВОЛАТИЛЬНОСТИ
     SerializedProperty pIsVolatile, pExplosionDamageType;
 
     StandardFuelTank t;
     private string[] factionDisplayNames;
     private string[] factionShortNames;
 
-    void OnEnable()
+   void OnEnable()
     {
         t = target as StandardFuelTank;
         if (t == null || serializedObject == null) return;
 
         pModuleTier = serializedObject.FindProperty("ModuleTier");
         pVolumeCoeff = serializedObject.FindProperty("VolumeCoefficientPercent");
-        pConstantFill = serializedObject.FindProperty("ConstantFillPercent");
+        // Убрали pConstantFill
         pCapacityCoefficient = serializedObject.FindProperty("CapacityCoefficient");
         pFactionShortName = serializedObject.FindProperty("factionShortName");
         pBlueprintId = serializedObject.FindProperty("blueprintId");
@@ -141,7 +143,6 @@ public class StandardFuelTankEditor : Editor
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Volume & Fill", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(pVolumeCoeff, new GUIContent("Volume Coeff %"));
-        EditorGUILayout.PropertyField(pConstantFill, new GUIContent("Constant Fill %"));
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Computed Base", EditorStyles.boldLabel);
@@ -151,7 +152,6 @@ public class StandardFuelTankEditor : Editor
         EditorGUILayout.LabelField("AABB Volume (m³)", t.AABBVolumeM3.ToString("F6"));
         EditorGUILayout.LabelField("Real Volume (m³)", t.RealVolumeM3.ToString("F6"));
         EditorGUILayout.LabelField("Effective Volume (m³)", t.EffectiveVolumeM3.ToString("F6"));
-        EditorGUILayout.LabelField("Fill % used (min)", t.FillPercentUsed.ToString("0.###"));
         EditorGUILayout.LabelField("Mass (kg)", t.MassKg.ToString("0.###"));
 
         EditorGUILayout.Space();

@@ -8,6 +8,7 @@ using UnityEngine;
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Rigidbody))]
+[RequireComponent(typeof(PepelacMovementConfig))] // НОВОЕ: требует конфиг
 [RequireComponent(typeof(PepelacInputHandler))]
 [RequireComponent(typeof(PepelacGroundCheck))]
 [RequireComponent(typeof(PepelacHoverSystem))]
@@ -19,6 +20,7 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
     [SerializeField] private Rigidbody rb;
 
     // Подсистемы (GetComponent в Awake)
+    private PepelacMovementConfig config;
     private PepelacInputHandler inputHandler;
     private PepelacGroundCheck groundCheck;
     private PepelacHoverSystem hoverSystem;
@@ -37,26 +39,28 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
         if (rb == null) rb = GetComponent<Rigidbody>();
         if (main == null) main = GetComponent<PepelacMain>();
 
+        config = GetComponent<PepelacMovementConfig>();
+
         inputHandler = GetComponent<PepelacInputHandler>();
         groundCheck = GetComponent<PepelacGroundCheck>();
         hoverSystem = GetComponent<PepelacHoverSystem>();
         movement = GetComponent<PepelacMovement>();
 
-        // Инициализация подсистем
-        hoverSystem.Initialize(main, inputHandler, groundCheck, rb);
-        movement.Initialize(main, inputHandler, groundCheck, hoverSystem, rb);
+        // Инициализация подсистем с передачей КОНФИГА
+        hoverSystem.Initialize(config, inputHandler, groundCheck, rb);
+        movement.Initialize(config, inputHandler, groundCheck, hoverSystem, rb);
 
-        // Настройка Rigidbody
+        // Настройка Rigidbody (читает настройки из Config, а массу из Main)
+        if (config != null && rb != null)
+        {
+            if (config.freezeTiltAxes)
+                rb.constraints |= RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
+        }
+
         if (main != null && rb != null)
         {
-            if (main.centerOfMassOffset != Vector3.zero)
-                rb.centerOfMass += main.centerOfMassOffset;
-
-            if (main.freezeTiltAxes)
-                rb.constraints |= RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
-
-            main.RecalculateTotalMass();
-            rb.mass = main.currentTotalMass > 0f ? main.currentTotalMass : main.baseMass;
+            rb.mass = main.TotalMassKg > 0f ? main.TotalMassKg : 1f;
+            // Центр масс теперь вычисляется каждый кадр внутри PepelacMain.FixedUpdate
         }
     }
 
@@ -70,7 +74,7 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
 
     private void FixedUpdate()
     {
-        bool useRB = main != null ? main.useRigidbody : true;
+        bool useRB = config != null ? config.useRigidbody : true;
 
         // Прыжок — всегда обрабатываем если управление включено
         if (controlEnabled)
@@ -101,8 +105,7 @@ public class PepelacController : MonoBehaviour, IControllableVehicle
 
         if (main != null && rb != null)
         {
-            main.RecalculateTotalMass();
-            rb.mass = main.currentTotalMass > 0f ? main.currentTotalMass : main.baseMass;
+            rb.mass = main.TotalMassKg > 0f ? main.TotalMassKg : 1f;
             rb.isKinematic = false;
             rb.useGravity = true;
         }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
 
@@ -37,6 +38,9 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
     public bool IsAlloyDecoded { get; private set; }
 
     public string CurrentModuleCode { get; private set; } = "";
+
+    // НОВОЕ: Словарь требуемых ресурсов за литр
+    public Dictionary<ResourcesStorage.ResourceIndex, long> RequiredInternalResources { get; private set; } = new Dictionary<ResourcesStorage.ResourceIndex, long>();
 
     public float CalcEnergyCapacity { get; private set; }
 
@@ -77,9 +81,17 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
 
         if (SelectedRef != null)
         {
+            // НОВОЕ: Считаем суммарные граммы на литр для Scaler
+            float totalGramsPerLiter = 0f;
+            if (SelectedRef.InternalResourceCosts != null)
+            {
+                foreach (var cost in SelectedRef.InternalResourceCosts)
+                    totalGramsPerLiter += cost.gramsPerLiter;
+            }
+
             Scaler.SetReference(
                 SelectedRef.LengthMeters, SelectedRef.WidthMeters, SelectedRef.HeightMeters,
-                SelectedRef.RealVolumeM3, SelectedRef.ConstantFillPercent
+                SelectedRef.RealVolumeM3, totalGramsPerLiter
             );
         }
         RecalculateAll();
@@ -164,7 +176,23 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
         Scaler.SetAlloyTier(IsAlloyDecoded ? AlloyParams.tier : 1);
         Scaler.Recalculate();
 
-        float effectiveVolumeDm3 = Scaler.CalcEffectiveVolume * (SelectedRef.ConstantFillPercent / 100f) * 1000f;
+        // НОВОЕ: Заполняем словарь требуемых ресурсов
+        RequiredInternalResources.Clear();
+        if (SelectedRef.InternalResourceCosts != null)
+        {
+            float effVolLiters = Scaler.CalcEffectiveVolume * 1000f;
+            foreach (var cost in SelectedRef.InternalResourceCosts)
+            {
+                long grams = (long)Math.Ceiling(cost.gramsPerLiter * effVolLiters);
+                if (RequiredInternalResources.ContainsKey(cost.resourceType))
+                    RequiredInternalResources[cost.resourceType] += grams;
+                else
+                    RequiredInternalResources[cost.resourceType] = grams;
+            }
+        }
+
+        // Внимание: мы убрали ConstantFillPercent, поэтому емкость теперь просто от эффективного объема
+        float effectiveVolumeDm3 = Scaler.CalcEffectiveVolume * 1000f;
         float modCoeff = TierCoeffs.Get(SelectedRef.ModuleTier);
         float wbCoeff = TierCoeffs.Get(workbenchTier);
 
@@ -212,9 +240,15 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
         if (string.IsNullOrEmpty(alloyCode) || !alloyStorage.HasEnoughMass(alloyCode, Scaler.CalcShellMass))
         { failReason = "Недостаточно сплава."; return false; }
 
-        var metalIdx = (ResourcesStorage.ResourceIndex)(20 + SelectedRef.ModuleTier - 1);
-        if (resourcesStorage.GetGrams(metalIdx) < (long)Math.Ceiling(Scaler.CalcInnerMass * 1000.0))
-        { failReason = "Недостаточно металла."; return false; }
+        // НОВОЕ: Проверка по словарю ресурсов
+        foreach (var kvp in RequiredInternalResources)
+        {
+            if (resourcesStorage.GetGrams(kvp.Key) < kvp.Value)
+            {
+                failReason = $"Недостаточно: {ResourcesStorage.ResourceFullName((int)kvp.Key)}";
+                return false;
+            }
+        }
 
         if (resourcesStorage.EnergyUnits < CalcEnergyCost)
         { failReason = "Недостаточно энергии."; return false; }
@@ -240,13 +274,17 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
 
         string alloyCode = AlloyCodes[SelectedAlloyIndex];
         float craftShellMass = Scaler.CalcShellMass;
-        long metalNeededG = (long)Math.Ceiling(Scaler.CalcInnerMass * 1000.0);
         long energyNeeded = CalcEnergyCost;
-        var metalIdx = (ResourcesStorage.ResourceIndex)(20 + SelectedRef.ModuleTier - 1);
 
+        // Списываем сплав и энергию
         alloyStorage.TryConsumeMass(alloyCode, craftShellMass);
-        resourcesStorage.TryRemoveGrams(metalIdx, metalNeededG);
         resourcesStorage.TryConsumeEnergy(energyNeeded);
+
+        // НОВОЕ: Списание ресурсов по словарю
+        foreach (var kvp in RequiredInternalResources)
+        {
+            resourcesStorage.TryRemoveGrams(kvp.Key, kvp.Value);
+        }
 
         float timer = 0f;
         while (timer < CalcCraftTimeSeconds)
@@ -267,7 +305,7 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
             alloyTier = AlloyParams.tier,
             shellPercent = ShellPercent,
             scaleFactor = Scaler.CurrentScaleFactor,
-            fillPercent = SelectedRef.ConstantFillPercent,
+            fillPercent = 0f,
             length = Scaler.CalcLength,
             width = Scaler.CalcWidth,
             height = Scaler.CalcHeight,
@@ -305,7 +343,7 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
             Destroy(inst.GetComponent<StandardEnergyStorage>());
             inst.AddComponent<CraftedModule>().SetData(data);
 
-            // НОВАЯ ЛОГИКА ВЗРЫВА ПРИ СПАВНЕ В МИР
+            // НОВАЯ ЛОГИКА ВЗРЫВА ПРИ СПАВНЕ
             if (SelectedRef.IsVolatile)
             {
                 var volComp = inst.AddComponent<RuntimeVolatileModule>();

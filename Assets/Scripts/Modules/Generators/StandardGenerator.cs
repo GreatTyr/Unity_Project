@@ -91,7 +91,7 @@ public class StandardGenerator : StandardModuleBase
 [CustomEditor(typeof(StandardGenerator))]
 public class StandardGeneratorEditor : Editor
 {
-    SerializedProperty pModuleTier, pVolumeCoeff, pConstantFill;
+    SerializedProperty pModuleTier, pVolumeCoeff, pInternalResourceCosts;
     SerializedProperty pPowerBy0001m3, pFuelTier, pFuelBy0001m3_Base;
     SerializedProperty pFactionShortName, pBlueprintId, pBaseHeating, pHeatCapacityCoeff, pCraftTime;
     
@@ -109,7 +109,8 @@ public class StandardGeneratorEditor : Editor
 
         pModuleTier = serializedObject.FindProperty("ModuleTier");
         pVolumeCoeff = serializedObject.FindProperty("VolumeCoefficientPercent");
-        pConstantFill = serializedObject.FindProperty("ConstantFillPercent");
+        pInternalResourceCosts = serializedObject.FindProperty("InternalResourceCosts");
+        
         pPowerBy0001m3 = serializedObject.FindProperty("PowerBy0001m3");
         pFuelTier = serializedObject.FindProperty("FuelTier");
         pFuelBy0001m3_Base = serializedObject.FindProperty("FuelBy0001m3_Base");
@@ -186,9 +187,9 @@ public class StandardGeneratorEditor : Editor
         EditorGUILayout.PropertyField(pBlueprintId, new GUIContent("Blueprint ID"));
 
         EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Volume & Fill", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("Volume & Recipe", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(pVolumeCoeff, new GUIContent("Volume Coeff %"));
-        EditorGUILayout.PropertyField(pConstantFill, new GUIContent("Constant Fill %"));
+        EditorGUILayout.PropertyField(pInternalResourceCosts, new GUIContent("Resources per Liter (1 dm3)"), true);
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Computed Base", EditorStyles.boldLabel);
@@ -198,8 +199,7 @@ public class StandardGeneratorEditor : Editor
         EditorGUILayout.LabelField("AABB Volume (m³)", t.AABBVolumeM3.ToString("F6"));
         EditorGUILayout.LabelField("Real Volume (m³)", t.RealVolumeM3.ToString("F6"));
         EditorGUILayout.LabelField("Effective Volume (m³)", t.EffectiveVolumeM3.ToString("F6"));
-        EditorGUILayout.LabelField("Fill % used (min)", t.FillPercentUsed.ToString("0.###"));
-        EditorGUILayout.LabelField("Mass (kg)", t.MassKg.ToString("0.###"));
+        EditorGUILayout.LabelField("Base Inner Mass (kg)", t.MassKg.ToString("0.###"));
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Generator (inputs)", EditorStyles.boldLabel);

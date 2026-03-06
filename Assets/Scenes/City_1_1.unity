@@ -2131,7 +2131,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1434132193}
   m_HandleRect: {fileID: 1434132192}
   m_Direction: 2
-  m_Value: 1
+  m_Value: 0
   m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:
@@ -4011,7 +4011,8 @@ Transform:
   m_LocalPosition: {x: -12.76727, y: 1.45789, z: -2.28458}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 749076895}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &553550290
@@ -4838,6 +4839,20 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 557317190}
   m_CullTransparentMesh: 1
+--- !u!114 &566904710
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc1515ab76e54f068e2f2207940fab32, type: 3}
+  m_Name: Gameplay/RotateBuilderMode
+  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.InputActionReference
+  m_Asset: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  m_ActionId: 422c67b2-d64a-4296-8550-51879554a84f
 --- !u!114 &579421984
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5792,7 +5807,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 58b848cfbf6669247b5f25f2669209f7, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: 3.64
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 58b848cfbf6669247b5f25f2669209f7, type: 3}
       propertyPath: m_LocalRotation.w
@@ -6946,6 +6961,52 @@ MonoBehaviour:
   fullAABBVolume: 0.24299993
   effectiveVolume: 0.24299993
   massKg: 242.99992
+--- !u!1 &749076893
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 749076895}
+  - component: {fileID: 749076894}
+  m_Layer: 0
+  m_Name: BuilderUI_Temp
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!114 &749076894
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 749076893}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 11b4d7c98b5beac4b8c4b849e6031c89, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PepelacBuilderUI
+  moduleStorage: {fileID: 2038256543}
+  gridBuilder: {fileID: 888782133}
+--- !u!4 &749076895
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 749076893}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 553550289}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &753782727
 GameObject:
   m_ObjectHideFlags: 0
@@ -7218,6 +7279,20 @@ Transform:
   m_Children: []
   m_Father: {fileID: 334130204}
   m_LocalEulerAnglesHint: {x: 30, y: 0, z: 0}
+--- !u!114 &771077175
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc1515ab76e54f068e2f2207940fab32, type: 3}
+  m_Name: Gameplay/BuilderMode
+  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.InputActionReference
+  m_Asset: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  m_ActionId: 281238e4-5857-4027-b5f3-e9c6a2cb5e15
 --- !u!1 &774624396
 GameObject:
   m_ObjectHideFlags: 0
@@ -7788,6 +7863,106 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1080166589}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &888782128
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 888782129}
+  - component: {fileID: 888782132}
+  - component: {fileID: 888782130}
+  - component: {fileID: 888782133}
+  - component: {fileID: 888782134}
+  m_Layer: 0
+  m_Name: GridSurface
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &888782129
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 888782128}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 0.31, y: 0.6, z: 0.62}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1080166589}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &888782130
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 888782128}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7fb0bd14d65fffd409a7a286dc093ec8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PepelacGrid
+  gridWidth: 10
+  gridHeight: 8
+  cellSize: 1
+--- !u!33 &888782132
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 888782128}
+  m_Mesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &888782133
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 888782128}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7cc2b4de43c086d41953d941564a9c4e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PepelacGridBuilder
+  builderCamera: {fileID: 152312870}
+  moduleStorage: {fileID: 2038256543}
+  generatorDb: {fileID: 11400000, guid: 54121b5cadbab4f4c995cf32bd095521, type: 2}
+  energyStorageDb: {fileID: 11400000, guid: 7919acbaa0cd31b48a8a9851118e1ab9, type: 2}
+  fuelTankDb: {fileID: 11400000, guid: 23db244920ac00f45bd8a8a5a05a874b, type: 2}
+  validGhostMaterial: {fileID: 2100000, guid: 9e5e9eaa4c5aa9d468753f513dea7e01, type: 2}
+  invalidGhostMaterial: {fileID: 2100000, guid: 46722c6cd83c7cd49a902f84ce29cba0, type: 2}
+  rotateAction: {fileID: 566904710}
+  clickAction: {fileID: 1727174743}
+--- !u!65 &888782134
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 888782128}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 10.45, y: 0.97, z: 9.73}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &898473207
 GameObject:
   m_ObjectHideFlags: 0
@@ -9150,6 +9325,10 @@ GameObject:
   m_Component:
   - component: {fileID: 1080166589}
   - component: {fileID: 1080166586}
+  - component: {fileID: 1080166596}
+  - component: {fileID: 1080166598}
+  - component: {fileID: 1080166599}
+  - component: {fileID: 1080166597}
   - component: {fileID: 1080166588}
   - component: {fileID: 1080166587}
   - component: {fileID: 1080166591}
@@ -9177,39 +9356,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9ed460297c775d7409fe74c4c38787bd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PepelacMain
-  forwardSpeed: 51.6
-  strafeSpeed: 6
-  maxHorizontalAcceleration: 33.1
-  turnSpeed: 103.1
-  rotationSlerpSpeed: 25
-  jumpImpulse: 5
-  gravity: -9.81
-  riseSpeed: 8
-  lowerSpeed: 9
-  maxHoverOffset: 50
-  verticalSpringKp: 1000
-  verticalSpringKd: 400
-  maxVerticalForce: 3000
-  jumpBreaksHoverDuration: 0.6
-  holdHoverPreventsGravity: 1
-  snapOnRelease: 0
-  snapForceMultiplier: 39.5
-  snapDuration: 0.15
-  useBaseGroundY: 0
-  baseMass: 100
-  useRigidbody: 1
-  freezeTiltAxes: 1
-  centerOfMassOffset: {x: 0, y: 0, z: 0}
+  systems: {fileID: 1080166598}
+  grid: {fileID: 888782130}
+  hullMassKg: 1000
+  hullCenterOfMassOffset: {x: 0, y: 0, z: 0}
   maxCarryWeight: 500
-  maxFuel: 100
-  fuelConsumptionBase: 0.1
-  fuelConsumptionThrustMultiplier: 0.5
-  maxEnergy: 100
-  energyConsumptionPerShot: 5
-  currentFuel: 0
-  currentEnergy: 0
   currentCarryWeight: 0
-  currentTotalMass: 0
 --- !u!114 &1080166587
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9274,6 +9426,8 @@ Transform:
   - {fileID: 1710506314}
   - {fileID: 888129387}
   - {fileID: 169181474}
+  - {fileID: 888782129}
+  - {fileID: 1612656635}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!65 &1080166590
@@ -9384,6 +9538,82 @@ MonoBehaviour:
   strafeAxisAction: {fileID: 404964209}
   riseAction: {fileID: 474327966}
   lowerAction: {fileID: 384873563}
+--- !u!114 &1080166596
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1080166585}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c6f9a1eb9b90284d88edd461212618b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PepelacMovementConfig
+  forwardSpeed: 8
+  strafeSpeed: 6
+  maxHorizontalAcceleration: 20
+  turnSpeed: 90
+  rotationSlerpSpeed: 10
+  jumpImpulse: 5
+  gravity: -9.81
+  riseSpeed: 2
+  lowerSpeed: 3
+  maxHoverOffset: 50
+  verticalSpringKp: 300
+  verticalSpringKd: 40
+  maxVerticalForce: 5000
+  jumpBreaksHoverDuration: 0.6
+  holdHoverPreventsGravity: 1
+  snapOnRelease: 0
+  snapForceMultiplier: 3
+  snapDuration: 0.15
+  useBaseGroundY: 1
+  useRigidbody: 1
+  freezeTiltAxes: 1
+--- !u!114 &1080166597
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1080166585}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0de3cc38ebe3587419adc11cf9c06c17, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PepelacBuilderMode
+  toggleBuildModeAction: {fileID: 771077175}
+  builderCamera: {fileID: 1612656636}
+  gridBuilder: {fileID: 888782133}
+  builderUI: {fileID: 749076893}
+--- !u!114 &1080166598
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1080166585}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65d3fe1ffe00a534d92abd53eef38a42, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PepelacSystems
+--- !u!114 &1080166599
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1080166585}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7fb0bd14d65fffd409a7a286dc093ec8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PepelacGrid
+  gridWidth: 10
+  gridHeight: 8
+  cellSize: 1
 --- !u!1 &1117667915
 GameObject:
   m_ObjectHideFlags: 0
@@ -14061,6 +14291,81 @@ Transform:
   - {fileID: 445601762}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1612656634
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1612656635}
+  - component: {fileID: 1612656636}
+  m_Layer: 0
+  m_Name: PepelacBuilderCamera
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1612656635
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1612656634}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.49780047, y: 0.5021899, z: -0.5021899, w: 0.49780047}
+  m_LocalPosition: {x: 0, y: 10, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1080166589}
+  m_LocalEulerAnglesHint: {x: 90, y: 90.589, z: 0.086}
+--- !u!114 &1612656636
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1612656634}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f9dfa5b682dcd46bda6128250e975f58, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineCamera
+  Priority:
+    Enabled: 1
+    m_Value: 0
+  OutputChannel: 1
+  StandbyUpdate: 2
+  m_StreamingVersion: 20241001
+  m_LegacyPriority: 0
+  Target:
+    TrackingTarget: {fileID: 0}
+    LookAtTarget: {fileID: 0}
+    CustomLookAtTarget: 0
+  Lens:
+    FieldOfView: 60.000004
+    OrthographicSize: 5
+    NearClipPlane: 0.3
+    FarClipPlane: 1000
+    Dutch: 0
+    ModeOverride: 1
+    PhysicalProperties:
+      GateFit: 2
+      SensorSize: {x: 21.946, y: 16.002}
+      LensShift: {x: 0, y: 0}
+      FocusDistance: 10
+      Iso: 200
+      ShutterSpeed: 0.005
+      Aperture: 16
+      BladeCount: 5
+      Curvature: {x: 2, y: 11}
+      BarrelClipping: 0.25
+      Anamorphism: 0
+  BlendHint: 0
 --- !u!114 &1617870048
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -14910,6 +15215,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.InputActionReference
   m_Asset: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_ActionId: 30580f4c-3999-4584-aff9-03e786572b40
+--- !u!114 &1727174743
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc1515ab76e54f068e2f2207940fab32, type: 3}
+  m_Name: Gameplay/ClickBuilderMode
+  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.InputActionReference
+  m_Asset: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  m_ActionId: f5c6a529-d171-473c-bd1e-607f0e999b0f
 --- !u!114 &1727574043
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -14942,6 +15261,7 @@ GameObject:
   - component: {fileID: 1729860442}
   - component: {fileID: 1729860441}
   - component: {fileID: 1729860440}
+  - component: {fileID: 1729860444}
   m_Layer: 0
   m_Name: Pepelac (1)
   m_TagString: Untagged
@@ -15009,39 +15329,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9ed460297c775d7409fe74c4c38787bd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PepelacMain
-  forwardSpeed: 8
-  strafeSpeed: 6
-  maxHorizontalAcceleration: 20
-  turnSpeed: 90
-  rotationSlerpSpeed: 10
-  jumpImpulse: 5
-  gravity: -9.81
-  riseSpeed: 2
-  lowerSpeed: 3
-  maxHoverOffset: 50
-  verticalSpringKp: 300
-  verticalSpringKd: 40
-  maxVerticalForce: 5000
-  jumpBreaksHoverDuration: 0.6
-  holdHoverPreventsGravity: 1
-  snapOnRelease: 0
-  snapForceMultiplier: 3
-  snapDuration: 0.15
-  useBaseGroundY: 1
-  baseMass: 1000
-  useRigidbody: 1
-  freezeTiltAxes: 1
-  centerOfMassOffset: {x: 0, y: 0, z: 0}
+  systems: {fileID: 0}
+  grid: {fileID: 0}
+  hullMassKg: 1000
+  hullCenterOfMassOffset: {x: 0, y: 0, z: 0}
   maxCarryWeight: 500
-  maxFuel: 100
-  fuelConsumptionBase: 0.1
-  fuelConsumptionThrustMultiplier: 0.5
-  maxEnergy: 100
-  energyConsumptionPerShot: 5
-  currentFuel: 0
-  currentEnergy: 0
   currentCarryWeight: 0
-  currentTotalMass: 0
 --- !u!114 &1729860437
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -15171,6 +15464,39 @@ MonoBehaviour:
   strafeAxisAction: {fileID: 424786705}
   riseAction: {fileID: 1727574043}
   lowerAction: {fileID: 1774131286}
+--- !u!114 &1729860444
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1729860433}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c6f9a1eb9b90284d88edd461212618b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PepelacMovementConfig
+  forwardSpeed: 8
+  strafeSpeed: 6
+  maxHorizontalAcceleration: 20
+  turnSpeed: 90
+  rotationSlerpSpeed: 10
+  jumpImpulse: 5
+  gravity: -9.81
+  riseSpeed: 2
+  lowerSpeed: 3
+  maxHoverOffset: 50
+  verticalSpringKp: 300
+  verticalSpringKd: 40
+  maxVerticalForce: 5000
+  jumpBreaksHoverDuration: 0.6
+  holdHoverPreventsGravity: 1
+  snapOnRelease: 0
+  snapForceMultiplier: 3
+  snapDuration: 0.15
+  useBaseGroundY: 1
+  useRigidbody: 1
+  freezeTiltAxes: 1
 --- !u!1 &1731843494
 GameObject:
   m_ObjectHideFlags: 0
@@ -16869,7 +17195,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 272133854}
   m_HandleRect: {fileID: 272133853}
   m_Direction: 2
-  m_Value: 0
+  m_Value: 1
   m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:
