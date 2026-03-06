@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 using System;
-using System.Collections.Generic; // ДОБАВЛЕНО для List<ResourceCostPerLiter>
+using System.Collections.Generic; // ДОБАВЛЕНО: Для List<ResourceCostPerLiter>
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -44,7 +44,10 @@ public class StandardEnergyStorageEditor : Editor
 {
     SerializedProperty pModuleTier, pVolumeCoeff, pInternalResourceCosts;
     SerializedProperty pFactionShortName, pBlueprintId, pCraftTime;
+    
+    // Новые свойства волатильности
     SerializedProperty pIsVolatile, pExplosionDamageType;
+    SerializedProperty pExplosionRadiusCoeff, pExplosionPenetrationCoeff, pExplosionDamageCoeff;
 
     StandardEnergyStorage t;
     private string[] factionDisplayNames;
@@ -57,7 +60,6 @@ public class StandardEnergyStorageEditor : Editor
 
         pModuleTier = serializedObject.FindProperty("ModuleTier");
         pVolumeCoeff = serializedObject.FindProperty("VolumeCoefficientPercent");
-        // НОВОЕ: Заменили ConstantFillPercent на ресурсы
         pInternalResourceCosts = serializedObject.FindProperty("InternalResourceCosts");
         
         pFactionShortName = serializedObject.FindProperty("factionShortName");
@@ -66,6 +68,10 @@ public class StandardEnergyStorageEditor : Editor
 
         pIsVolatile = serializedObject.FindProperty("IsVolatile");
         pExplosionDamageType = serializedObject.FindProperty("ExplosionDamageType");
+        
+        pExplosionRadiusCoeff = serializedObject.FindProperty("ExplosionRadiusCoefficient");
+        pExplosionPenetrationCoeff = serializedObject.FindProperty("ExplosionPenetrationCoefficient");
+        pExplosionDamageCoeff = serializedObject.FindProperty("ExplosionDamageCoefficient");
 
         RebuildFactionList();
     }
@@ -131,7 +137,6 @@ public class StandardEnergyStorageEditor : Editor
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Volume & Recipe", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(pVolumeCoeff, new GUIContent("Volume Coeff %"));
-        // НОВОЕ: Отрисовка списка ресурсов
         EditorGUILayout.PropertyField(pInternalResourceCosts, new GUIContent("Resources per Liter (1 dm3)"), true);
 
         EditorGUILayout.Space();
@@ -155,7 +160,7 @@ public class StandardEnergyStorageEditor : Editor
         if (pTurnTime != null) EditorGUILayout.PropertyField(pTurnTime, new GUIContent("Turn On/Off Time"));
         if (pPulse != null) EditorGUILayout.PropertyField(pPulse, new GUIContent("Can Pulse Mode"));
         if (pPulseInt != null) EditorGUILayout.PropertyField(pPulseInt, new GUIContent("Pulse Interval"));
-        if (pControl != null) EditorGUILayout.PropertyField(pControl, new GUIContent("IsControllable"));
+        if (pControl != null) EditorGUILayout.PropertyField(pControl, new GUIContent("Is Controllable"));
 
         // ВОЛАТИЛЬНОСТЬ
         EditorGUILayout.Space();
@@ -164,6 +169,9 @@ public class StandardEnergyStorageEditor : Editor
         if (pIsVolatile != null && pIsVolatile.boolValue)
         {
             EditorGUILayout.PropertyField(pExplosionDamageType, new GUIContent("Explosion Damage Type"));
+            EditorGUILayout.PropertyField(pExplosionRadiusCoeff, new GUIContent("Radius Coefficient"));
+            EditorGUILayout.PropertyField(pExplosionPenetrationCoeff, new GUIContent("Penetration Coefficient"));
+            EditorGUILayout.PropertyField(pExplosionDamageCoeff, new GUIContent("Damage Coefficient"));
         }
 
         EditorGUILayout.Space();
@@ -174,7 +182,7 @@ public class StandardEnergyStorageEditor : Editor
         EditorGUILayout.LabelField("AABB Volume (m³)", t.AABBVolumeM3.ToString("F6"));
         EditorGUILayout.LabelField("Real Volume (m³)", t.RealVolumeM3.ToString("F6"));
         EditorGUILayout.LabelField("Effective Volume (m³)", t.EffectiveVolumeM3.ToString("F6"));
-        EditorGUILayout.LabelField("Base Inner Mass (kg)", t.MassKg.ToString("0.###")); // Заменили FillPercent на Inner Mass
+        EditorGUILayout.LabelField("Base Inner Mass (kg)", t.MassKg.ToString("0.###"));
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Outputs Specific", EditorStyles.boldLabel);

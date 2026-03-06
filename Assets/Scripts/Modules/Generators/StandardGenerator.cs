@@ -63,6 +63,7 @@ public class StandardGenerator : StandardModuleBase
         if (rawFuelPer0001D <= 0.0) rawFuelPer0001D = MIN_FUEL_PER0001_D;
         fuelPer0001m3Tiered = (float)rawFuelPer0001D;
 
+        // ИСПРАВЛЕНИЕ: Вернул переменную powerTierCoeff
         float powerTierCoeff = TierCoeffs.Get(ModuleTier);
         powerTimesTierPer0001 = (float)((double)PowerBy0001m3 * (double)powerTierCoeff);
 
@@ -97,6 +98,7 @@ public class StandardGeneratorEditor : Editor
     
     // Новые свойства волатильности
     SerializedProperty pIsVolatile, pExplosionDamageType;
+    SerializedProperty pExplosionRadiusCoeff, pExplosionPenetrationCoeff, pExplosionDamageCoeff;
 
     StandardGenerator t;
     private string[] factionDisplayNames;
@@ -122,6 +124,9 @@ public class StandardGeneratorEditor : Editor
 
         pIsVolatile = serializedObject.FindProperty("IsVolatile");
         pExplosionDamageType = serializedObject.FindProperty("ExplosionDamageType");
+        pExplosionRadiusCoeff = serializedObject.FindProperty("ExplosionRadiusCoefficient");
+        pExplosionPenetrationCoeff = serializedObject.FindProperty("ExplosionPenetrationCoefficient");
+        pExplosionDamageCoeff = serializedObject.FindProperty("ExplosionDamageCoefficient");
 
         RebuildFactionList();
     }
@@ -196,8 +201,11 @@ public class StandardGeneratorEditor : Editor
         EditorGUILayout.LabelField("Length (X, m)", t.LengthMeters.ToString("0.###"));
         EditorGUILayout.LabelField("Width  (Z, m)", t.WidthMeters.ToString("0.###"));
         EditorGUILayout.LabelField("Height (Y, m)", t.HeightMeters.ToString("0.###"));
+        
+        // ИСПРАВЛЕНИЕ: Вернул поля AABB Volume и Real Volume
         EditorGUILayout.LabelField("AABB Volume (m³)", t.AABBVolumeM3.ToString("F6"));
         EditorGUILayout.LabelField("Real Volume (m³)", t.RealVolumeM3.ToString("F6"));
+        
         EditorGUILayout.LabelField("Effective Volume (m³)", t.EffectiveVolumeM3.ToString("F6"));
         EditorGUILayout.LabelField("Base Inner Mass (kg)", t.MassKg.ToString("0.###"));
 
@@ -240,6 +248,9 @@ public class StandardGeneratorEditor : Editor
         if (pIsVolatile != null && pIsVolatile.boolValue)
         {
             EditorGUILayout.PropertyField(pExplosionDamageType, new GUIContent("Explosion Damage Type"));
+            EditorGUILayout.PropertyField(pExplosionRadiusCoeff, new GUIContent("Radius Coefficient"));
+            EditorGUILayout.PropertyField(pExplosionPenetrationCoeff, new GUIContent("Penetration Coefficient"));
+            EditorGUILayout.PropertyField(pExplosionDamageCoeff, new GUIContent("Damage Coefficient"));
         }
 
         EditorGUILayout.Space();

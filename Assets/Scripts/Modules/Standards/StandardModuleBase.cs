@@ -38,6 +38,11 @@ public abstract class StandardModuleBase : MonoBehaviour
     public bool IsVolatile = false;
     public DamageType ExplosionDamageType = DamageType.Kinetic;
 
+    // НОВОЕ: Коэффициенты взрыва
+    [Min(0f)] public float ExplosionRadiusCoefficient = 0.1f;
+    [Min(0f)] public float ExplosionPenetrationCoefficient = 0.1f;
+    [Min(0f)] public float ExplosionDamageCoefficient = 0.1f;
+
     [SerializeField, HideInInspector] protected float length = 1f;
     [SerializeField, HideInInspector] protected float width = 1f;
     [SerializeField, HideInInspector] protected float height = 1f;
@@ -110,7 +115,6 @@ public abstract class StandardModuleBase : MonoBehaviour
         realVolume = aabbVolume * Mathf.Clamp01(VolumeCoefficientPercent / 100f);
         effectiveVolume = realVolume;
 
-        // НОВОЕ: Подсчет базовой массы внутренностей через рецепт
         float totalGramsPerLiter = 0f;
         if (InternalResourceCosts != null)
         {
@@ -118,7 +122,6 @@ public abstract class StandardModuleBase : MonoBehaviour
                 totalGramsPerLiter += cost.gramsPerLiter;
         }
 
-        // Масса = Объем(м3) * 1000 (перевод в литры) * totalGramsPerLiter / 1000 (перевод в кг)
         massKg = effectiveVolume * totalGramsPerLiter;
     }
 
@@ -138,5 +141,33 @@ public abstract class StandardModuleBase : MonoBehaviour
     {
         float mul = Mathf.Pow(10f, d);
         return Mathf.Round((v + EPS_ROUND) * mul) / mul;
+    }
+
+    // ==========================================
+    // НОВОЕ: ВЫЧИСЛЕНИЕ ПАРАМЕТРОВ ВЗРЫВА
+    // Вызывается из Верстака (Controller) при крафте
+    // ==========================================
+
+    public float CalculateExplosionRadius(float modulePower)
+    {
+        // Радиус = корень(Мощность) * Коэффициент
+        if (!IsVolatile || modulePower <= 0f) return 0f;
+        return Mathf.Sqrt(modulePower) * ExplosionRadiusCoefficient;
+    }
+
+    public float CalculateExplosionPenetration(float calculatedEffectiveVolume, float calculatedShellMass, int alloyTier)
+    {
+        // Пробитие = Эфф.Объем * Масса Оболочки * Коэфф.ТираОболочки * Коэффициент
+        if (!IsVolatile) return 0f;
+        float alloyCoeff = TierCoeffs.Get(alloyTier);
+        return calculatedEffectiveVolume * calculatedShellMass * alloyCoeff * ExplosionPenetrationCoefficient;
+    }
+
+    public float CalculateExplosionDamage(float calculatedShellMass, int alloyTier)
+    {
+        // Урон = Масса Оболочки * Коэфф.ТираОболочки * Коэффициент
+        if (!IsVolatile) return 0f;
+        float alloyCoeff = TierCoeffs.Get(alloyTier);
+        return calculatedShellMass * alloyCoeff * ExplosionDamageCoefficient;
     }
 }

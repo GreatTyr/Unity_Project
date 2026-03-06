@@ -114,27 +114,36 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1e8d1e1597051444e9c566fda08cd0b3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StandardGenerator
-  moduleType: Generator
   ModuleTier: 2
   factionShortName: TESTF2
   blueprintId: 002
   VolumeCoefficientPercent: 85
-  ConstantFillPercent: 80
+  InternalResourceCosts: []
+  CraftCoefficient: 1
+  CanTurnOnOff: 1
+  TurnOnOffTime: 1
+  CanPulseMode: 0
+  PulseInterval: 0
+  IsControllable: 0
+  IsVolatile: 0
+  ExplosionDamageType: 0
+  ExplosionRadiusCoefficient: 0.1
+  ExplosionPenetrationCoefficient: 0.1
+  ExplosionDamageCoefficient: 0.1
   length: 1
   width: 0.333
   height: 0.49950004
   aabbVolume: 0.166334
   realVolume: 0.141384
   effectiveVolume: 0.141384
-  fillPercentUsed: 80
-  massKg: 113.107
+  massKg: 0
   PowerBy0001m3: 1.1
   FuelTier: 2
   FuelBy0001m3_Base: 0.0001
   BaseHeating: 1
   HeatCapacityCoeff: 1
-  CraftTimePerLiter: 0.5
   powerTimesTierPer0001: 1.837
   fuelPer0001m3Tiered: 0.00006
   specificPower: 259.721
   fuelKgPerS: 0.0085
+  CapacityCoefficient: 1

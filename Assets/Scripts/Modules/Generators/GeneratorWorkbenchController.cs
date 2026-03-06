@@ -60,6 +60,11 @@ public class GeneratorWorkbenchController : MonoBehaviour
     public float CalcCraftTimeSeconds { get; private set; }
     public long CalcEnergyCost { get; private set; }
 
+    // НОВОЕ: Расчеты взрыва
+    public float CalcExplosionRadius { get; private set; }
+    public float CalcExplosionPenetration { get; private set; }
+    public float CalcExplosionDamage { get; private set; }
+
     private float calcPowerTimesTierPer0001;
     private float calcFuelPer0001m3Tiered;
 
@@ -249,7 +254,7 @@ public class GeneratorWorkbenchController : MonoBehaviour
 
     private void CalculateGeneratorSpecifics()
     {
-        // НОВОЕ: Заполняем словарь
+        // Заполняем словарь
         RequiredInternalResources.Clear();
         if (SelectedRef.InternalResourceCosts != null)
         {
@@ -302,6 +307,11 @@ public class GeneratorWorkbenchController : MonoBehaviour
         float innerVol = InnerVolumeM3 <= 0f ? 1f : InnerVolumeM3;
         CalcCraftTimeSeconds = (Scaler.CalcTotalMass * moduleCoeff * SelectedRef.CraftCoefficient) / (wbCoeff * innerVol);
         CalcEnergyCost = (long)Math.Ceiling(Scaler.CalcTotalMass * innerVol);
+
+        // НОВОЕ: Расчет Взрыва
+        CalcExplosionRadius = SelectedRef.CalculateExplosionRadius(CalcSpecificPower);
+        CalcExplosionPenetration = SelectedRef.CalculateExplosionPenetration(Scaler.CalcEffectiveVolume, Scaler.CalcShellMass, Scaler.CurrentAlloyTier);
+        CalcExplosionDamage = SelectedRef.CalculateExplosionDamage(Scaler.CalcShellMass, Scaler.CurrentAlloyTier);
     }
 
     private string BuildModuleCode()
@@ -342,7 +352,7 @@ public class GeneratorWorkbenchController : MonoBehaviour
         if (string.IsNullOrEmpty(alloyCode) || !alloyStorage.HasEnoughMass(alloyCode, Scaler.CalcShellMass))
         { failReason = "Недостаточно сплава."; return false; }
 
-        // НОВОЕ: Проверка по словарю
+        // Проверка по словарю
         foreach (var kvp in RequiredInternalResources)
         {
             if (resourcesStorage.GetGrams(kvp.Key) < kvp.Value)
@@ -382,7 +392,6 @@ public class GeneratorWorkbenchController : MonoBehaviour
         alloyStorage.TryConsumeMass(alloyCode, craftShellMass);
         resourcesStorage.TryConsumeEnergy(energyNeeded);
 
-        // НОВОЕ: Списание по словарю
         foreach (var kvp in RequiredInternalResources)
         {
             resourcesStorage.TryRemoveGrams(kvp.Key, kvp.Value);
@@ -397,7 +406,7 @@ public class GeneratorWorkbenchController : MonoBehaviour
             yield return null;
         }
 
-        // 1. Создаем DTO (С добавлением новых галочек)
+        // 1. Создаем DTO 
         var dto = new ModuleCraftDTO
         {
             moduleType = StandardGenerator.TYPE_GENERATOR,
@@ -429,12 +438,16 @@ public class GeneratorWorkbenchController : MonoBehaviour
             pulseInterval = SelectedRef.PulseInterval,
             isControllable = SelectedRef.IsControllable,
 
-            // НОВЫЕ ПАРАМЕТРЫ ВОЛАТИЛЬНОСТИ
             isVolatile = SelectedRef.IsVolatile,
-            explosionDamageType = SelectedRef.ExplosionDamageType
+            explosionDamageType = SelectedRef.ExplosionDamageType,
+
+            // НОВОЕ: Физика взрыва в DTO
+            explosionRadiusMeters = CalcExplosionRadius,
+            explosionPenetration = CalcExplosionPenetration,
+            explosionDamage = CalcExplosionDamage
         };
 
-        // 2. Инициализируем данные (С добавлением температуры и емкости!)
+        // 2. Инициализируем данные 
         var genData = new GeneratorData();
         genData.Initialize(dto, CalcSpecificPower, CalcFuelKgPerS, SelectedRef.FuelTier, calcPowerTimesTierPer0001, calcFuelPer0001m3Tiered, SelectedRef.PowerBy0001m3, SelectedRef.FuelBy0001m3_Base, CalcMaxTemperature, CalcEnergyCapacity);
 
@@ -450,7 +463,6 @@ public class GeneratorWorkbenchController : MonoBehaviour
             var craftedComp = inst.AddComponent<CraftedModule>();
             craftedComp.SetData(genData);
 
-            // НОВАЯ ЛОГИКА ВЗРЫВА ПРИ СПАВНЕ В МИР
             if (SelectedRef.IsVolatile)
             {
                 var volComp = inst.AddComponent<RuntimeVolatileModule>();

@@ -57,6 +57,11 @@ public class FuelTankWorkbenchController : MonoBehaviour
     public float CalcCraftTimeSeconds { get; private set; }
     public long CalcEnergyCost { get; private set; }
 
+    // НОВОЕ: Расчеты взрыва
+    public float CalcExplosionRadius { get; private set; }
+    public float CalcExplosionPenetration { get; private set; }
+    public float CalcExplosionDamage { get; private set; }
+
     // Сообщения для UI
     public string ErrorMessage { get; private set; } = "";
     public string SuccessMessage { get; private set; } = "";
@@ -100,7 +105,7 @@ public class FuelTankWorkbenchController : MonoBehaviour
         {
             Scaler.SetReference(
                 SelectedRef.LengthMeters, SelectedRef.WidthMeters, SelectedRef.HeightMeters,
-                SelectedRef.RealVolumeM3, 0f // FuelTank не использует внутренние ресурсы, передаем 0
+                SelectedRef.RealVolumeM3, SelectedRef.ConstantFillPercent
             );
         }
 
@@ -273,6 +278,11 @@ public class FuelTankWorkbenchController : MonoBehaviour
         float innerVol = InnerVolumeM3 <= 0f ? 1f : InnerVolumeM3;
         CalcCraftTimeSeconds = (Scaler.CalcTotalMass * moduleCoeff * SelectedRef.CraftCoefficient) / (wbCoeff * innerVol);
         CalcEnergyCost = (long)Math.Ceiling(Scaler.CalcTotalMass * innerVol);
+
+        // НОВОЕ: Расчет Взрыва (у бака мощность = 0, поэтому радиус тоже 0 или считается иначе, но метод безопасен)
+        CalcExplosionRadius = SelectedRef.CalculateExplosionRadius(0f);
+        CalcExplosionPenetration = SelectedRef.CalculateExplosionPenetration(Scaler.CalcEffectiveVolume, Scaler.CalcShellMass, Scaler.CurrentAlloyTier);
+        CalcExplosionDamage = SelectedRef.CalculateExplosionDamage(Scaler.CalcShellMass, Scaler.CurrentAlloyTier);
     }
 
     private string BuildModuleCode()
@@ -393,9 +403,13 @@ public class FuelTankWorkbenchController : MonoBehaviour
             pulseInterval = SelectedRef.PulseInterval,
             isControllable = SelectedRef.IsControllable,
 
-            // НОВЫЕ ПАРАМЕТРЫ ВОЛАТИЛЬНОСТИ
             isVolatile = SelectedRef.IsVolatile,
-            explosionDamageType = SelectedRef.ExplosionDamageType
+            explosionDamageType = SelectedRef.ExplosionDamageType,
+
+            // НОВОЕ: Физика взрыва в DTO
+            explosionRadiusMeters = CalcExplosionRadius,
+            explosionPenetration = CalcExplosionPenetration,
+            explosionDamage = CalcExplosionDamage
         };
 
         var tankData = new FuelTankData();

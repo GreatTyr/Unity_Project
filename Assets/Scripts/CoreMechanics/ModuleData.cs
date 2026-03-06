@@ -49,8 +49,15 @@ public struct ModuleCraftDTO
     public bool canPulseMode;
     public float pulseInterval;
     public bool isControllable;
+
+    // ВОЛАТИЛЬНОСТЬ
     public bool isVolatile;
     public DamageType explosionDamageType;
+
+    // ФИЗИКА ВЗРЫВА
+    public float explosionRadiusMeters;
+    public float explosionPenetration;
+    public float explosionDamage;
 }
 
 /// <summary>
@@ -105,15 +112,24 @@ public class ModuleData
 
     // ── Meta ──
     public string craftTimestamp;       // ISO 8601 время крафта
-    public int dataVersion = 2;         // для миграции данных
-                                        // НОВЫЕ ПАРАМЕТРЫ УПРАВЛЕНИЯ
+    public int dataVersion = 3;         // для миграции данных (поднята до 3)
+
+    // НОВЫЕ ПАРАМЕТРЫ УПРАВЛЕНИЯ
     public bool canTurnOnOff;
     public float turnOnOffTime;
     public bool canPulseMode;
     public float pulseInterval;
     public bool isControllable;
+
+    // ПАРАМЕТРЫ ВОЛАТИЛЬНОСТИ
     public bool isVolatile;
     public DamageType explosionDamageType;
+
+    // ФИЗИКА ВЗРЫВА
+    public float explosionRadiusMeters;
+    public float explosionPenetration;
+    public float explosionDamage;
+
 
     /// <summary>
     /// Заполнить общие поля из структурированного DTO (безопасный способ).
@@ -154,12 +170,15 @@ public class ModuleData
         this.canPulseMode = dto.canPulseMode;
         this.pulseInterval = dto.pulseInterval;
         this.isControllable = dto.isControllable;
+
         this.isVolatile = dto.isVolatile;
         this.explosionDamageType = dto.explosionDamageType;
 
+        this.explosionRadiusMeters = dto.explosionRadiusMeters;
+        this.explosionPenetration = dto.explosionPenetration;
+        this.explosionDamage = dto.explosionDamage;
+
         this.craftTimestamp = DateTime.UtcNow.ToString("o");
-        this.dataVersion = 2;
-
-
+        this.dataVersion = 3;
     }
 }

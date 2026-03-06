@@ -4,6 +4,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
 
+/// <summary>
+/// Контроллер Верстака Хранилищ Энергии. Отвечает только за логику.
+/// </summary>
 public class EnergyStorageWorkbenchController : MonoBehaviour
 {
     public enum CraftPlacementMode { SpawnInWorld = 0, SaveToStorage = 1 }
@@ -23,6 +26,7 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
     [Header("Settings")]
     public CraftPlacementMode placementMode = CraftPlacementMode.SpawnInWorld;
 
+    // ================= СОСТОЯНИЕ =================
     public ModuleScaler Scaler { get; private set; } = new ModuleScaler();
 
     public StandardEnergyStorage SelectedRef { get; private set; }
@@ -42,20 +46,31 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
     // НОВОЕ: Словарь требуемых ресурсов за литр
     public Dictionary<ResourcesStorage.ResourceIndex, long> RequiredInternalResources { get; private set; } = new Dictionary<ResourcesStorage.ResourceIndex, long>();
 
+    // Специфичные расчеты
     public float CalcEnergyCapacity { get; private set; }
 
+    // Новые расчеты времени и энергии
     public float CalcCraftTimeSeconds { get; private set; }
     public long CalcEnergyCost { get; private set; }
 
+    // НОВОЕ: Расчеты взрыва
+    public float CalcExplosionRadius { get; private set; }
+    public float CalcExplosionPenetration { get; private set; }
+    public float CalcExplosionDamage { get; private set; }
+
+    // Сообщения
     public string ErrorMessage { get; private set; } = "";
     public string SuccessMessage { get; private set; } = "";
     public string WarningMessage { get; private set; } = "";
     private float messageTimer;
 
+    // Таймер крафта
     public bool IsCrafting { get; private set; } = false;
     public float CraftProgress { get; private set; } = 0f;
 
     private float InnerVolumeM3 => innerLength * innerWidth * innerHeight;
+
+    // ================= ЖИЗНЕННЫЙ ЦИКЛ =================
 
     public void Initialize()
     {
@@ -73,6 +88,8 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
         }
     }
 
+    // ================= ПУБЛИЧНОЕ API =================
+
     public void SelectReference(int index)
     {
         if (database == null || index < 0 || index >= database.Count) return;
@@ -81,7 +98,6 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
 
         if (SelectedRef != null)
         {
-            // НОВОЕ: Считаем суммарные граммы на литр для Scaler
             float totalGramsPerLiter = 0f;
             if (SelectedRef.InternalResourceCosts != null)
             {
@@ -133,6 +149,8 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
         RecalculateAll();
     }
 
+    // ================= ПАРСИНГ ЧЕРТЕЖА =================
+
     public void ApplyBlueprintCode(string code)
     {
         var parsed = BlueprintParser.ParseFirstLine(code, StandardEnergyStorage.TYPE_ENERGY_STORAGE);
@@ -169,6 +187,8 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
         RecalculateAll();
     }
 
+    // ================= ЛОГИКА РАСЧЕТОВ =================
+
     private void RecalculateAll()
     {
         if (SelectedRef == null) return;
@@ -176,7 +196,6 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
         Scaler.SetAlloyTier(IsAlloyDecoded ? AlloyParams.tier : 1);
         Scaler.Recalculate();
 
-        // НОВОЕ: Заполняем словарь требуемых ресурсов
         RequiredInternalResources.Clear();
         if (SelectedRef.InternalResourceCosts != null)
         {
@@ -191,7 +210,6 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
             }
         }
 
-        // Внимание: мы убрали ConstantFillPercent, поэтому емкость теперь просто от эффективного объема
         float effectiveVolumeDm3 = Scaler.CalcEffectiveVolume * 1000f;
         float modCoeff = TierCoeffs.Get(SelectedRef.ModuleTier);
         float wbCoeff = TierCoeffs.Get(workbenchTier);
@@ -201,6 +219,12 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
         float innerVol = InnerVolumeM3 <= 0f ? 1f : InnerVolumeM3;
         CalcCraftTimeSeconds = (Scaler.CalcTotalMass * modCoeff * SelectedRef.CraftCoefficient) / (wbCoeff * innerVol);
         CalcEnergyCost = (long)Math.Ceiling(Scaler.CalcTotalMass * innerVol);
+
+        // НОВОЕ: Расчет Взрыва
+        // Батарея не имеет мощности (Power), поэтому передаем 0 (взрыв от батареи может рассчитываться иначе, или радиус будет 0)
+        CalcExplosionRadius = SelectedRef.CalculateExplosionRadius(CalcEnergyCapacity); // Можно использовать емкость вместо мощности
+        CalcExplosionPenetration = SelectedRef.CalculateExplosionPenetration(Scaler.CalcEffectiveVolume, Scaler.CalcShellMass, Scaler.CurrentAlloyTier);
+        CalcExplosionDamage = SelectedRef.CalculateExplosionDamage(Scaler.CalcShellMass, Scaler.CurrentAlloyTier);
 
         CurrentModuleCode = BuildModuleCode();
     }
@@ -224,6 +248,8 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
 
     private string FormatF(float v, int dec) => v.ToString($"F{dec}", CultureInfo.InvariantCulture);
 
+    // ================= КРАФТ (ТРАНЗАКЦИЯ) =================
+
     public bool CanCraft(out string failReason)
     {
         failReason = "";
@@ -240,7 +266,6 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
         if (string.IsNullOrEmpty(alloyCode) || !alloyStorage.HasEnoughMass(alloyCode, Scaler.CalcShellMass))
         { failReason = "Недостаточно сплава."; return false; }
 
-        // НОВОЕ: Проверка по словарю ресурсов
         foreach (var kvp in RequiredInternalResources)
         {
             if (resourcesStorage.GetGrams(kvp.Key) < kvp.Value)
@@ -276,11 +301,9 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
         float craftShellMass = Scaler.CalcShellMass;
         long energyNeeded = CalcEnergyCost;
 
-        // Списываем сплав и энергию
         alloyStorage.TryConsumeMass(alloyCode, craftShellMass);
         resourcesStorage.TryConsumeEnergy(energyNeeded);
 
-        // НОВОЕ: Списание ресурсов по словарю
         foreach (var kvp in RequiredInternalResources)
         {
             resourcesStorage.TryRemoveGrams(kvp.Key, kvp.Value);
@@ -325,9 +348,13 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
             pulseInterval = SelectedRef.PulseInterval,
             isControllable = SelectedRef.IsControllable,
 
-            // НОВЫЕ ПАРАМЕТРЫ ВОЛАТИЛЬНОСТИ
             isVolatile = SelectedRef.IsVolatile,
-            explosionDamageType = SelectedRef.ExplosionDamageType
+            explosionDamageType = SelectedRef.ExplosionDamageType,
+
+            // НОВОЕ: Физика взрыва в DTO
+            explosionRadiusMeters = CalcExplosionRadius,
+            explosionPenetration = CalcExplosionPenetration,
+            explosionDamage = CalcExplosionDamage
         };
 
         var data = new EnergyStorageData();
@@ -343,7 +370,6 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
             Destroy(inst.GetComponent<StandardEnergyStorage>());
             inst.AddComponent<CraftedModule>().SetData(data);
 
-            // НОВАЯ ЛОГИКА ВЗРЫВА ПРИ СПАВНЕ
             if (SelectedRef.IsVolatile)
             {
                 var volComp = inst.AddComponent<RuntimeVolatileModule>();
