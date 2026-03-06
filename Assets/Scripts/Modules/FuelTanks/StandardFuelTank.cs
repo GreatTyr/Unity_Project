@@ -49,11 +49,14 @@ public class StandardFuelTank : StandardModuleBase
 [CustomEditor(typeof(StandardFuelTank))]
 public class StandardFuelTankEditor : Editor
 {
-    SerializedProperty pModuleTier, pVolumeCoeff, pConstantFill;
+    SerializedProperty pModuleTier, pVolumeCoeff;
     SerializedProperty pCapacityCoefficient;
     SerializedProperty pFactionShortName, pBlueprintId, pHeatCapacityCoeff, pCraftTime;
     
-    // НОВЫЕ СВОЙСТВА ВОЛАТИЛЬНОСТИ
+    // Свойства базового класса (управление)
+    SerializedProperty pCanTurnOnOff, pTurnOnOffTime, pCanPulseMode, pPulseInterval, pIsControllable;
+
+    // Свойства волатильности
     SerializedProperty pIsVolatile, pExplosionDamageType;
     SerializedProperty pExplosionRadiusCoeff, pExplosionPenetrationCoeff, pExplosionDamageCoeff;
 
@@ -68,12 +71,18 @@ public class StandardFuelTankEditor : Editor
 
         pModuleTier = serializedObject.FindProperty("ModuleTier");
         pVolumeCoeff = serializedObject.FindProperty("VolumeCoefficientPercent");
-        pConstantFill = serializedObject.FindProperty("ConstantFillPercent");
         pCapacityCoefficient = serializedObject.FindProperty("CapacityCoefficient");
         pFactionShortName = serializedObject.FindProperty("factionShortName");
         pBlueprintId = serializedObject.FindProperty("blueprintId");
         pHeatCapacityCoeff = serializedObject.FindProperty("HeatCapacityCoeff");
         pCraftTime = serializedObject.FindProperty("CraftCoefficient");
+
+        // ИСПРАВЛЕНИЕ: Восстановлены ссылки на поля базового класса
+        pCanTurnOnOff = serializedObject.FindProperty("CanTurnOnOff");
+        pTurnOnOffTime = serializedObject.FindProperty("TurnOnOffTime");
+        pCanPulseMode = serializedObject.FindProperty("CanPulseMode");
+        pPulseInterval = serializedObject.FindProperty("PulseInterval");
+        pIsControllable = serializedObject.FindProperty("IsControllable");
 
         pIsVolatile = serializedObject.FindProperty("IsVolatile");
         pExplosionDamageType = serializedObject.FindProperty("ExplosionDamageType");
@@ -146,9 +155,8 @@ public class StandardFuelTankEditor : Editor
         EditorGUILayout.PropertyField(pBlueprintId, new GUIContent("Blueprint ID"));
 
         EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Volume & Fill", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("Volume", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(pVolumeCoeff, new GUIContent("Volume Coeff %"));
-        EditorGUILayout.PropertyField(pConstantFill, new GUIContent("Constant Fill %"));
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Computed Base", EditorStyles.boldLabel);
@@ -172,21 +180,15 @@ public class StandardFuelTankEditor : Editor
         EditorGUILayout.LabelField("Crafting", EditorStyles.boldLabel);
         if (pCraftTime != null) EditorGUILayout.PropertyField(pCraftTime, new GUIContent("Craft Coefficient"));
 
+        // ИСПРАВЛЕНИЕ: Отрисовка полей управления теперь безопасна
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Module Capabilities", EditorStyles.boldLabel);
-        var pTurn = serializedObject.FindProperty("CanTurnOnOff");
-        var pTurnTime = serializedObject.FindProperty("TurnOnOffTime");
-        var pPulse = serializedObject.FindProperty("CanPulseMode");
-        var pPulseInt = serializedObject.FindProperty("PulseInterval");
-        var pControl = serializedObject.FindProperty("IsControllable");
+        if (pCanTurnOnOff != null) EditorGUILayout.PropertyField(pCanTurnOnOff, new GUIContent("Can Turn On/Off"));
+        if (pTurnOnOffTime != null) EditorGUILayout.PropertyField(pTurnOnOffTime, new GUIContent("Turn On/Off Time"));
+        if (pCanPulseMode != null) EditorGUILayout.PropertyField(pCanPulseMode, new GUIContent("Can Pulse Mode"));
+        if (pPulseInterval != null) EditorGUILayout.PropertyField(pPulseInterval, new GUIContent("Pulse Interval"));
+        if (pIsControllable != null) EditorGUILayout.PropertyField(pIsControllable, new GUIContent("Is Controllable"));
 
-        if (pTurn != null) EditorGUILayout.PropertyField(pTurn, new GUIContent("Can Turn On/Off"));
-        if (pTurnTime != null) EditorGUILayout.PropertyField(pTurnTime, new GUIContent("Turn On/Off Time"));
-        if (pPulse != null) EditorGUILayout.PropertyField(pPulse, new GUIContent("Can Pulse Mode"));
-        if (pPulseInt != null) EditorGUILayout.PropertyField(pPulseInt, new GUIContent("Pulse Interval"));
-        if (pControl != null) EditorGUILayout.PropertyField(pControl, new GUIContent("Is Controllable"));
-
-        // ВОЛАТИЛЬНОСТЬ
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Destruction", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(pIsVolatile, new GUIContent("Is Volatile (Взрывоопасен)"));

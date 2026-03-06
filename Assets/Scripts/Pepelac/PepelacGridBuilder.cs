@@ -25,7 +25,7 @@ public class PepelacGridBuilder : MonoBehaviour
     public Material validGhostMaterial;    // Полупрозрачный зеленый
     public Material invalidGhostMaterial;  // Полупрозрачный красный
 
-    [Header("Input (Optional)")]
+    [Header("Input")]
     public InputActionReference rotateAction; // Назначь на R
     public InputActionReference clickAction;  // Назначь на ЛКМ
 
@@ -38,7 +38,6 @@ public class PepelacGridBuilder : MonoBehaviour
 
     // Ghost объект
     private GameObject ghostObject;
-    private MeshRenderer ghostRenderer;
 
     // Кэш текущего наведения
     private bool isHoveringGrid = false;
@@ -79,9 +78,6 @@ public class PepelacGridBuilder : MonoBehaviour
     // ВЗАИМОДЕЙСТВИЕ С UI (Выбор модуля)
     // =========================================
 
-    /// <summary>
-    /// Вызывается из PepelacBuilderUI, когда игрок кликает на модуль в списке.
-    /// </summary>
     public void SetSelectedModule(ModuleData data, string code)
     {
         selectedData = data;
@@ -109,16 +105,24 @@ public class PepelacGridBuilder : MonoBehaviour
 
     private void CreateGhost(ModuleData data)
     {
-        ghostObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        // Спавним реальную модельку вместо куба
+        ghostObject = SpawnRealModulePrefab(data);
+        if (ghostObject == null) return;
+
         ghostObject.name = "GridGhost";
 
-        // Убираем коллизию, чтобы луч мыши не врезался в самого призрака
-        Destroy(ghostObject.GetComponent<Collider>());
+        // Убираем все коллайдеры с призрака
+        var colliders = ghostObject.GetComponentsInChildren<Collider>();
+        foreach (var col in colliders) Destroy(col);
 
-        ghostRenderer = ghostObject.GetComponent<MeshRenderer>();
-        ghostRenderer.material = validGhostMaterial;
+        // Находим все меш-рендереры и меняем им материал на "призрачный"
+        Renderer[] renderers = ghostObject.GetComponentsInChildren<Renderer>();
+        foreach (var rend in renderers)
+        {
+            rend.material = validGhostMaterial;
+        }
 
-        // Привязываем призрака к сетке, чтобы он двигался вместе с Пепелацем
+        // Привязываем призрака к сетке
         ghostObject.transform.SetParent(grid.transform, false);
 
         UpdateGhostScale();
@@ -130,7 +134,6 @@ public class PepelacGridBuilder : MonoBehaviour
         {
             Destroy(ghostObject);
             ghostObject = null;
-            ghostRenderer = null;
         }
     }
 
@@ -138,26 +141,27 @@ public class PepelacGridBuilder : MonoBehaviour
     {
         if (ghostObject == null || selectedData == null) return;
 
-        float l = selectedData.length;
-        float w = selectedData.width;
-        float h = selectedData.height;
+        // Применяем единый правильный масштаб
+        float s = Mathf.Max(0.001f, selectedData.scaleFactor);
+        ghostObject.transform.localScale = Vector3.one * s;
 
-        // Если повернут, меняем X и Z местами для визуала
-        if (currentOrientation == ModuleOrientation.Deg90 || currentOrientation == ModuleOrientation.Deg270)
+        // Вращаем сам объект
+        float yRot = 0f;
+        switch (currentOrientation)
         {
-            ghostObject.transform.localScale = new Vector3(l, h, w);
+            case ModuleOrientation.Deg90: yRot = 90f; break;
+            case ModuleOrientation.Deg180: yRot = 180f; break;
+            case ModuleOrientation.Deg270: yRot = 270f; break;
         }
-        else
-        {
-            ghostObject.transform.localScale = new Vector3(w, h, l);
-        }
+
+        ghostObject.transform.localRotation = Quaternion.Euler(0f, yRot, 0f);
     }
 
     private void OnRotatePerformed(InputAction.CallbackContext ctx)
     {
         if (selectedData == null || ghostObject == null) return;
 
-        // Крутим ориентацию: 0 -> 90 -> 180 -> 270 -> 0
+        // Крутим ориентацию
         currentOrientation = (ModuleOrientation)(((int)currentOrientation + 1) % 4);
         UpdateGhostScale();
     }
@@ -170,26 +174,23 @@ public class PepelacGridBuilder : MonoBehaviour
     {
         if (selectedData == null || ghostObject == null || builderCamera == null) return;
 
-        // Пускаем луч от мыши (New Input System)
         Vector2 mousePos = Mouse.current.position.ReadValue();
         Ray ray = builderCamera.ScreenPointToRay(mousePos);
 
-        // Ищем попадание в коллайдер нашей Сетки (GridSurface)
-        // Предполагается, что на GridSurface висит MeshCollider
-        if (Physics.Raycast(ray, out RaycastHit hit))
+        // Пускаем Raycast, получаем ВСЕ хиты (чтобы пробить сквозь другие коллайдеры Пепелаца)
+        RaycastHit[] hits = Physics.RaycastAll(ray, 100f);
+        bool hitGrid = false;
+
+        foreach (var hit in hits)
         {
-            // Проверяем, попали ли мы в саму сетку Пепелаца
             if (hit.collider.transform == grid.transform)
             {
+                hitGrid = true;
                 isHoveringGrid = true;
 
-                // Переводим мировую точку попадания в локальную для сетки
                 Vector3 localHitPos = grid.transform.InverseTransformPoint(hit.point);
-
-                // Получаем индексы клетки [X, Z]
                 currentHoverCell = grid.LocalToGridPosition(localHitPos);
 
-                // Если мышка вышла за пределы математической сетки
                 if (currentHoverCell.x < 0)
                 {
                     isHoveringGrid = false;
@@ -199,31 +200,32 @@ public class PepelacGridBuilder : MonoBehaviour
 
                 ghostObject.SetActive(true);
 
-                // Вычисляем размеры модуля в клетках
                 Vector2Int gridSize = grid.CalculateGridSize(selectedData.length, selectedData.width, currentOrientation);
-
-                // Проверяем, можно ли туда поставить
                 var footprint = grid.GetPlacementFootprint(currentHoverCell, gridSize);
                 isPlacementValid = (footprint != null);
 
-                // Красим призрака
-                ghostRenderer.material = isPlacementValid ? validGhostMaterial : invalidGhostMaterial;
+                // Красим призрака (все его меши)
+                Material targetMat = isPlacementValid ? validGhostMaterial : invalidGhostMaterial;
+                Renderer[] renderers = ghostObject.GetComponentsInChildren<Renderer>();
+                foreach (var rend in renderers)
+                {
+                    if (rend.sharedMaterial != targetMat)
+                        rend.material = targetMat;
+                }
 
-                // Привязываем призрака к центру клетки (Снэппинг)
+                // Привязываем призрака к центру клетки
                 Vector3 localSnapPos = grid.GridToLocalPosition(currentHoverCell.x, currentHoverCell.y);
-                // Поднимаем куб на половину его высоты, чтобы он "стоял" на сетке, а не проваливался в нее
-                localSnapPos.y = selectedData.height / 2f;
+
+                // Если префаб проваливается в пол — раскомментируй строку ниже:
+                // localSnapPos.y += (selectedData.height / 2f); 
 
                 ghostObject.transform.localPosition = localSnapPos;
-            }
-            else
-            {
-                // Луч попал во что-то другое (землю, здания)
-                isHoveringGrid = false;
-                ghostObject.SetActive(false);
+
+                break; // Нашли сетку, дальше не ищем
             }
         }
-        else
+
+        if (!hitGrid)
         {
             isHoveringGrid = false;
             ghostObject.SetActive(false);
@@ -238,8 +240,7 @@ public class PepelacGridBuilder : MonoBehaviour
     {
         if (selectedData == null || !isHoveringGrid || !isPlacementValid) return;
 
-        // 1. Пытаемся занять клетки в математике сетки
-        // Создадим "пустой" RuntimeModuleBase-контейнер, пока мы не заспавнили реальный
+        // 1. Создаем пустую модель
         GameObject newModuleObj = SpawnRealModulePrefab(selectedData);
         if (newModuleObj == null)
         {
@@ -247,9 +248,15 @@ public class PepelacGridBuilder : MonoBehaviour
             return;
         }
 
+        // СНАЧАЛА вешаем CraftedModule и загружаем в него Data
+        var craftedComp = newModuleObj.AddComponent<CraftedModule>();
+        craftedComp.SetData(selectedData);
+
+        // И только ПОТОМ вешаем Runtime-компонент
         RuntimeModuleBase runtimeMod = AddRuntimeComponent(newModuleObj, selectedData);
         runtimeMod.Orientation = currentOrientation;
 
+        // Пытаемся занять клетки в математике сетки
         bool success = grid.TryPlaceModule(runtimeMod, currentHoverCell, selectedData.length, selectedData.width);
         if (!success)
         {
@@ -262,7 +269,6 @@ public class PepelacGridBuilder : MonoBehaviour
         Vector3 localPos = grid.GridToLocalPosition(currentHoverCell.x, currentHoverCell.y);
         newModuleObj.transform.localPosition = localPos;
 
-        // Поворот визуала префаба
         float yRot = 0f;
         switch (currentOrientation)
         {
@@ -272,23 +278,14 @@ public class PepelacGridBuilder : MonoBehaviour
         }
         newModuleObj.transform.localRotation = Quaternion.Euler(0f, yRot, 0f);
 
-        // Применяем масштаб из Data
         newModuleObj.transform.localScale = Vector3.one * Mathf.Max(0.001f, selectedData.scaleFactor);
 
-        // 3. Вешаем паспорт (CraftedModule)
-        var craftedComp = newModuleObj.AddComponent<CraftedModule>();
-        craftedComp.SetData(selectedData);
-
-        // 4. Списываем со склада (ModuleStorage)
+        // 3. Списываем со склада
         moduleStorage.RemoveModule(selectedCode, 1);
 
         Debug.Log($"[PepelacGridBuilder] Успешно установлен {selectedData.moduleType}!");
 
-        // Сбрасываем выбор (чтобы не спавнить 100 штук случайно)
         ClearSelection();
-
-        // ВАЖНО: Нужно как-то сказать UI обновить список (так как кол-во уменьшилось)
-        // Но мы пока просто обнулим выбор. Игрок кликнет еще раз в UI, если захочет.
     }
 
     // =========================================
@@ -308,10 +305,7 @@ public class PepelacGridBuilder : MonoBehaviour
 
         if (reference == null) return null;
 
-        // Создаем инстанс эталона
         GameObject instance = Instantiate(reference.gameObject);
-
-        // Сразу удаляем скрипт-эталон, он нам на живом Пепелаце не нужен
         Destroy(instance.GetComponent<StandardModuleBase>());
 
         return instance;
@@ -319,7 +313,6 @@ public class PepelacGridBuilder : MonoBehaviour
 
     private RuntimeModuleBase AddRuntimeComponent(GameObject obj, ModuleData data)
     {
-        // В зависимости от типа вешаем нужный Runtime-скрипт (которые мы написали в Шаге 3)
         if (data.moduleType == StandardGenerator.TYPE_GENERATOR)
             return obj.AddComponent<RuntimeGenerator>();
 
@@ -329,7 +322,6 @@ public class PepelacGridBuilder : MonoBehaviour
         if (data.moduleType == StandardFuelTank.TYPE_FUELTANK)
             return obj.AddComponent<RuntimeFuelTank>();
 
-        // Fallback
         return obj.AddComponent<RuntimeFuelTank>();
     }
 }
