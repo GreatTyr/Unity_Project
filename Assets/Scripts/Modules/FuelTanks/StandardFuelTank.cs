@@ -158,7 +158,6 @@ public class StandardFuelTankEditor : Editor
         EditorGUILayout.LabelField("AABB Volume (m³)", t.AABBVolumeM3.ToString("F6"));
         EditorGUILayout.LabelField("Real Volume (m³)", t.RealVolumeM3.ToString("F6"));
         EditorGUILayout.LabelField("Effective Volume (m³)", t.EffectiveVolumeM3.ToString("F6"));
-        EditorGUILayout.LabelField("Fill % used (min)", t.FillPercentUsed.ToString("0.###"));
         EditorGUILayout.LabelField("Mass (kg)", t.MassKg.ToString("0.###"));
 
         EditorGUILayout.Space();

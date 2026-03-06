@@ -105,7 +105,7 @@ public class FuelTankWorkbenchController : MonoBehaviour
         {
             Scaler.SetReference(
                 SelectedRef.LengthMeters, SelectedRef.WidthMeters, SelectedRef.HeightMeters,
-                SelectedRef.RealVolumeM3, SelectedRef.ConstantFillPercent
+                SelectedRef.RealVolumeM3, 0f // ИСПРАВЛЕНО: было SelectedRef.ConstantFillPercent
             );
         }
 
