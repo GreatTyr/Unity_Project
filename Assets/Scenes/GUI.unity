@@ -2506,7 +2506,7 @@ MonoBehaviour:
   innerLength: 2
   innerWidth: 2
   innerHeight: 2
-  fuelTankDatabase: {fileID: 11400000, guid: 23db244920ac00f45bd8a8a5a05a874b, type: 2}
+  database: {fileID: 11400000, guid: 23db244920ac00f45bd8a8a5a05a874b, type: 2}
   resourcesStorage: {fileID: 116770712}
   alloyStorage: {fileID: 116770713}
   moduleStorage: {fileID: 116770714}
@@ -2858,7 +2858,7 @@ MonoBehaviour:
   innerLength: 2
   innerWidth: 2
   innerHeight: 2
-  generatorDatabase: {fileID: 11400000, guid: 54121b5cadbab4f4c995cf32bd095521, type: 2}
+  database: {fileID: 11400000, guid: 54121b5cadbab4f4c995cf32bd095521, type: 2}
   resourcesStorage: {fileID: 116770712}
   alloyStorage: {fileID: 116770713}
   moduleStorage: {fileID: 116770714}

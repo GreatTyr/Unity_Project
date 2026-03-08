@@ -58,6 +58,9 @@ public struct ModuleCraftDTO
     public float explosionRadiusMeters;
     public float explosionPenetration;
     public float explosionDamage;
+
+    // Build Visual
+    public float buildVisualYawOffset;
 }
 
 /// <summary>
@@ -130,6 +133,8 @@ public class ModuleData
     public float explosionPenetration;
     public float explosionDamage;
 
+    // Build Visual
+    public float buildVisualYawOffset;
 
     /// <summary>
     /// Заполнить общие поля из структурированного DTO (безопасный способ).
@@ -177,6 +182,8 @@ public class ModuleData
         this.explosionRadiusMeters = dto.explosionRadiusMeters;
         this.explosionPenetration = dto.explosionPenetration;
         this.explosionDamage = dto.explosionDamage;
+
+        this.buildVisualYawOffset = dto.buildVisualYawOffset;
 
         this.craftTimestamp = DateTime.UtcNow.ToString("o");
         this.dataVersion = 3;

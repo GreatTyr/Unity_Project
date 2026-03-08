@@ -41,6 +41,11 @@ public abstract class StandardModuleBase : MonoBehaviour
     public bool IsVolatile = false;
     public DamageType ExplosionDamageType = DamageType.Kinetic;
 
+    [Header("Build Visual")]
+    [Tooltip("Дополнительный визуальный поворот модуля при строительстве. Не влияет на footprint, только на ghost и установленную модель.")]
+    [Range(0f, 270f)]
+    public float BuildVisualYawOffset = 0f;
+
     // НОВОЕ: Коэффициенты взрыва
     [Min(0f)] public float ExplosionRadiusCoefficient = 0.1f;
     [Min(0f)] public float ExplosionPenetrationCoefficient = 0.1f;

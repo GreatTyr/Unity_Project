@@ -12,8 +12,8 @@ using System.Collections.Generic;
 public class PepelacGridBuilder : MonoBehaviour
 {
     [Header("Raycast Camera")]
-    [Tooltip("Реальная Unity Camera (не Cinemachine virtual camera). Если не назначена — используется Camera.main.")]
-    public Camera builderCamera;
+    [Tooltip("Реальная Unity Camera, из которой выполняется raycast. Если не назначена — используется Camera.main.")]
+    public Camera raycastCamera;
 
     [Header("References")]
     [Tooltip("Ссылка на ModuleStorage для списания/возврата модулей")]
@@ -218,14 +218,7 @@ public class PepelacGridBuilder : MonoBehaviour
         float s = Mathf.Max(0.001f, selectedData.scaleFactor);
         ghostObject.transform.localScale = Vector3.one * s;
 
-        float yRot = 0f;
-        switch (currentOrientation)
-        {
-            case ModuleOrientation.Deg90: yRot = 90f; break;
-            case ModuleOrientation.Deg180: yRot = 180f; break;
-            case ModuleOrientation.Deg270: yRot = 270f; break;
-        }
-
+        float yRot = GetFinalVisualYaw(selectedData);
         ghostObject.transform.localRotation = Quaternion.Euler(0f, yRot, 0f);
     }
 
@@ -313,10 +306,14 @@ public class PepelacGridBuilder : MonoBehaviour
 
     private Camera ResolveRaycastCamera()
     {
-        if (builderCamera != null)
-            return builderCamera;
+        if (raycastCamera != null)
+            return raycastCamera;
 
-        return Camera.main;
+        if (Camera.main != null)
+            return Camera.main;
+
+        Debug.LogWarning("[PepelacGridBuilder] Не найдена реальная raycast camera (raycastCamera и Camera.main == null).");
+        return null;
     }
 
     private void UpdatePlacementMode()
@@ -490,14 +487,7 @@ public class PepelacGridBuilder : MonoBehaviour
         Vector3 localPos = grid.GridToLocalPosition(currentHoverCell.x, currentHoverCell.y, gridSize);
         newModuleObj.transform.localPosition = localPos;
 
-        float yRot = 0f;
-        switch (currentOrientation)
-        {
-            case ModuleOrientation.Deg90: yRot = 90f; break;
-            case ModuleOrientation.Deg180: yRot = 180f; break;
-            case ModuleOrientation.Deg270: yRot = 270f; break;
-        }
-
+        float yRot = GetFinalVisualYaw(selectedData);
         newModuleObj.transform.localRotation = Quaternion.Euler(0f, yRot, 0f);
         newModuleObj.transform.localScale = Vector3.one * Mathf.Max(0.001f, selectedData.scaleFactor);
 
@@ -626,4 +616,19 @@ public class PepelacGridBuilder : MonoBehaviour
         Debug.LogError($"[PepelacGridBuilder] Неизвестный тип модуля: '{data.moduleType}'. RuntimeModuleBase не добавлен!");
         return null;
     }
+    private float GetFinalVisualYaw(ModuleData data)
+    {
+        float orientationYaw = 0f;
+
+        switch (currentOrientation)
+        {
+            case ModuleOrientation.Deg90: orientationYaw = 90f; break;
+            case ModuleOrientation.Deg180: orientationYaw = 180f; break;
+            case ModuleOrientation.Deg270: orientationYaw = 270f; break;
+        }
+
+        float visualOffset = data != null ? data.buildVisualYawOffset : 0f;
+        return orientationYaw + visualOffset;
+    }
+
 }

@@ -118,6 +118,7 @@ MonoBehaviour:
   IsControllable: 0
   IsVolatile: 1
   ExplosionDamageType: 0
+  BuildVisualYawOffset: 90
   ExplosionRadiusCoefficient: 0.1
   ExplosionPenetrationCoefficient: 0.1
   ExplosionDamageCoefficient: 0.1

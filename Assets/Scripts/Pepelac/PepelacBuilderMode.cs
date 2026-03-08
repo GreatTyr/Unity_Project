@@ -4,7 +4,7 @@ using Unity.Cinemachine;
 
 /// <summary>
 /// Менеджер режима строительства Пепелаца.
-/// Переключает камеры, включает/выключает builder, UI и overlay сетки.
+/// Переключает virtual camera, builder logic, UI и overlay.
 /// </summary>
 [DisallowMultipleComponent]
 public class PepelacBuilderMode : MonoBehaviour
@@ -13,7 +13,8 @@ public class PepelacBuilderMode : MonoBehaviour
     [Tooltip("Кнопка для входа/выхода из режима строительства")]
     public InputActionReference toggleBuildModeAction;
 
-    [Tooltip("Виртуальная камера builder mode")]
+    [Header("Virtual Builder Camera")]
+    [Tooltip("Cinemachine virtual camera для режима строительства")]
     public CinemachineVirtualCameraBase builderCamera;
 
     [Header("References")]

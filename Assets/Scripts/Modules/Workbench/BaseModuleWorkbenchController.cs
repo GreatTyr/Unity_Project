@@ -485,7 +485,9 @@ public abstract class BaseModuleWorkbenchController<TRef, TData, TDatabase> : Mo
             explosionDamageType = SelectedRef.ExplosionDamageType,
             explosionRadiusMeters = CalcExplosionRadius,
             explosionPenetration = CalcExplosionPenetration,
-            explosionDamage = CalcExplosionDamage
+            explosionDamage = CalcExplosionDamage,
+            buildVisualYawOffset = SelectedRef.BuildVisualYawOffset,
+
         };
     }
 
