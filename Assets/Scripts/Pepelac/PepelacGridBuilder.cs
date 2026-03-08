@@ -4,49 +4,86 @@ using System.Collections.Generic;
 
 /// <summary>
 /// Ядро режима строительства Пепелаца.
-/// Управляет "призраком" (Ghost) модуля, Raycast'ом по сетке и фактической установкой.
+/// Работает через PepelacBuildSurface + PepelacGrid + PepelacGridOverlay.
+/// Placement строится от anchor cell.
 /// </summary>
+[DisallowMultipleComponent]
 [RequireComponent(typeof(PepelacGrid))]
 public class PepelacGridBuilder : MonoBehaviour
 {
-    [Header("References")]
-    [Tooltip("Камера Билдера (которая смотрит сверху)")]
+    [Header("Raycast Camera")]
+    [Tooltip("Реальная Unity Camera (не Cinemachine virtual camera). Если не назначена — используется Camera.main.")]
     public Camera builderCamera;
 
-    [Tooltip("Ссылка на ModuleStorage для списания предметов")]
+    [Header("References")]
+    [Tooltip("Ссылка на ModuleStorage для списания/возврата модулей")]
     public ModuleStorage moduleStorage;
 
-    [Header("Databases (для спавна префабов)")]
+    [Header("Databases (legacy fallback)")]
     public GeneratorDatabase generatorDb;
     public EnergyStorageDatabase energyStorageDb;
     public FuelTankDatabase fuelTankDb;
 
-    [Header("Ghost Visuals")]
-    public Material validGhostMaterial;    // Полупрозрачный зеленый
-    public Material invalidGhostMaterial;  // Полупрозрачный красный
+    [Header("Ghost & Highlight Visuals")]
+    public Material validGhostMaterial;
+    public Material invalidGhostMaterial;
+
+    [Tooltip("Цвет подсветки установленного модуля при наведении (Emission)")]
+    [ColorUsage(false, true)]
+    public Color highlightEmissionColor = new Color(0.8f, 0.4f, 0f, 1f);
+
+    [Header("Footprint Overlay Colors")]
+    [SerializeField] private Color validFootprintColor = new Color(0.2f, 1f, 0.2f, 0.35f);
+    [SerializeField] private Color invalidFootprintColor = new Color(1f, 0.2f, 0.2f, 0.35f);
 
     [Header("Input")]
-    public InputActionReference rotateAction; // Назначь на R
-    public InputActionReference clickAction;  // Назначь на ЛКМ
+    public InputActionReference rotateAction;
+    public InputActionReference clickAction;
+    public InputActionReference cancelAction;
+
+    [Header("Raycast")]
+    [Min(1f)]
+    [SerializeField] private float maxBuildRayDistance = 500f;
 
     private PepelacGrid grid;
+    private PepelacBuildSurface buildSurface;
+    private PepelacGridOverlay gridOverlay;
 
-    // Стейт
     private ModuleData selectedData;
     private string selectedCode;
     private ModuleOrientation currentOrientation = ModuleOrientation.Deg0;
 
-    // Ghost объект
     private GameObject ghostObject;
 
-    // Кэш текущего наведения
-    private bool isHoveringGrid = false;
-    private Vector2Int currentHoverCell;
-    private bool isPlacementValid = false;
+    private bool isHoveringGrid;
+    private Vector2Int currentHoverCell = new Vector2Int(-1, -1); // anchor cell
+    private bool isPlacementValid;
+
+    private RuntimeModuleBase hoveredInstalledModule;
 
     private void Awake()
     {
-        grid = GetComponent<PepelacGrid>();
+        ResolveReferences();
+    }
+
+    private void OnValidate()
+    {
+        ResolveReferences();
+    }
+
+    private void ResolveReferences()
+    {
+        if (grid == null)
+            grid = GetComponent<PepelacGrid>();
+
+        if (buildSurface == null && grid != null)
+            buildSurface = grid.BuildSurface;
+
+        if (buildSurface == null)
+            buildSurface = GetComponent<PepelacBuildSurface>();
+
+        if (gridOverlay == null)
+            gridOverlay = GetComponentInChildren<PepelacGridOverlay>(true);
     }
 
     private void OnEnable()
@@ -56,26 +93,53 @@ public class PepelacGridBuilder : MonoBehaviour
             rotateAction.action.performed += OnRotatePerformed;
             rotateAction.action.Enable();
         }
+
         if (clickAction?.action != null)
         {
             clickAction.action.performed += OnClickPerformed;
             clickAction.action.Enable();
         }
 
-        // При включении режима сбрасываем стейт
+        if (cancelAction?.action != null)
+        {
+            cancelAction.action.performed += OnCancelPerformed;
+            cancelAction.action.Enable();
+        }
+
         ClearSelection();
     }
 
     private void OnDisable()
     {
-        if (rotateAction?.action != null) rotateAction.action.performed -= OnRotatePerformed;
-        if (clickAction?.action != null) clickAction.action.performed -= OnClickPerformed;
+        if (rotateAction?.action != null)
+        {
+            rotateAction.action.performed -= OnRotatePerformed;
+            rotateAction.action.Disable();
+        }
+
+        if (clickAction?.action != null)
+        {
+            clickAction.action.performed -= OnClickPerformed;
+            clickAction.action.Disable();
+        }
+
+        if (cancelAction?.action != null)
+        {
+            cancelAction.action.performed -= OnCancelPerformed;
+            cancelAction.action.Disable();
+        }
 
         ClearSelection();
+
+        if (hoveredInstalledModule != null)
+        {
+            SetHighlight(hoveredInstalledModule, false);
+            hoveredInstalledModule = null;
+        }
     }
 
     // =========================================
-    // ВЗАИМОДЕЙСТВИЕ С UI (Выбор модуля)
+    // ВЗАИМОДЕЙСТВИЕ С UI
     // =========================================
 
     public void SetSelectedModule(ModuleData data, string code)
@@ -86,46 +150,55 @@ public class PepelacGridBuilder : MonoBehaviour
 
         DestroyGhost();
 
-        if (data != null)
+        if (hoveredInstalledModule != null)
         {
-            CreateGhost(data);
+            SetHighlight(hoveredInstalledModule, false);
+            hoveredInstalledModule = null;
         }
+
+        if (data != null)
+            CreateGhost(data);
     }
 
     public void ClearSelection()
     {
         selectedData = null;
         selectedCode = null;
+        currentOrientation = ModuleOrientation.Deg0;
+        isPlacementValid = false;
+        currentHoverCell = new Vector2Int(-1, -1);
+
         DestroyGhost();
+
+        if (gridOverlay != null)
+            gridOverlay.HideFootprint();
     }
 
     // =========================================
-    // GHOST (Создание и Обновление)
+    // GHOST
     // =========================================
 
     private void CreateGhost(ModuleData data)
     {
-        // Спавним реальную модельку вместо куба
         ghostObject = SpawnRealModulePrefab(data);
-        if (ghostObject == null) return;
+        if (ghostObject == null)
+            return;
 
         ghostObject.name = "GridGhost";
 
-        // Убираем все коллайдеры с призрака
-        var colliders = ghostObject.GetComponentsInChildren<Collider>();
-        foreach (var col in colliders) Destroy(col);
+        Collider[] colliders = ghostObject.GetComponentsInChildren<Collider>();
+        foreach (var col in colliders)
+            Destroy(col);
 
-        // Находим все меш-рендереры и меняем им материал на "призрачный"
         Renderer[] renderers = ghostObject.GetComponentsInChildren<Renderer>();
         foreach (var rend in renderers)
         {
-            rend.material = validGhostMaterial;
+            if (validGhostMaterial != null)
+                rend.material = validGhostMaterial;
         }
 
-        // Привязываем призрака к сетке
-        ghostObject.transform.SetParent(grid.transform, false);
-
-        UpdateGhostScale();
+        ghostObject.transform.SetParent(transform, false);
+        UpdateGhostTransformOnly();
     }
 
     private void DestroyGhost()
@@ -137,15 +210,14 @@ public class PepelacGridBuilder : MonoBehaviour
         }
     }
 
-    private void UpdateGhostScale()
+    private void UpdateGhostTransformOnly()
     {
-        if (ghostObject == null || selectedData == null) return;
+        if (ghostObject == null || selectedData == null)
+            return;
 
-        // Применяем единый правильный масштаб
         float s = Mathf.Max(0.001f, selectedData.scaleFactor);
         ghostObject.transform.localScale = Vector3.one * s;
 
-        // Вращаем сам объект
         float yRot = 0f;
         switch (currentOrientation)
         {
@@ -157,90 +229,225 @@ public class PepelacGridBuilder : MonoBehaviour
         ghostObject.transform.localRotation = Quaternion.Euler(0f, yRot, 0f);
     }
 
+    private void UpdateGhostPlacementVisual()
+    {
+        if (ghostObject == null || selectedData == null || !isHoveringGrid)
+            return;
+
+        Vector2Int gridSize = grid.CalculateGridSize(selectedData.length, selectedData.width, currentOrientation);
+        Vector3 localSnapPos = grid.GridToLocalPosition(currentHoverCell.x, currentHoverCell.y, gridSize);
+
+        ghostObject.transform.localPosition = localSnapPos;
+
+        Material targetMat = isPlacementValid ? validGhostMaterial : invalidGhostMaterial;
+        if (targetMat != null)
+        {
+            Renderer[] renderers = ghostObject.GetComponentsInChildren<Renderer>();
+            foreach (var rend in renderers)
+            {
+                if (rend.sharedMaterial != targetMat)
+                    rend.material = targetMat;
+            }
+        }
+    }
+
     private void OnRotatePerformed(InputAction.CallbackContext ctx)
     {
-        if (selectedData == null || ghostObject == null) return;
+        if (selectedData == null || ghostObject == null)
+            return;
 
-        // Крутим ориентацию
         currentOrientation = (ModuleOrientation)(((int)currentOrientation + 1) % 4);
-        UpdateGhostScale();
+        UpdateGhostTransformOnly();
+
+        if (isHoveringGrid)
+        {
+            Vector2Int gridSize = grid.CalculateGridSize(selectedData.length, selectedData.width, currentOrientation);
+            List<Vector2Int> footprint = grid.GetPlacementFootprint(currentHoverCell, gridSize);
+            isPlacementValid = footprint != null;
+
+            UpdateGhostPlacementVisual();
+            UpdateFootprintOverlay(footprint, gridSize);
+        }
     }
 
     // =========================================
-    // UPDATE (Raycast и Снэппинг)
+    // UPDATE
     // =========================================
 
     private void Update()
     {
-        if (selectedData == null || ghostObject == null || builderCamera == null) return;
+        ResolveReferences();
+
+        if (grid == null || buildSurface == null)
+            return;
+
+        UpdateHoveredCell();
+
+        if (selectedData != null && ghostObject != null)
+            UpdatePlacementMode();
+        else
+            UpdateRemovalHoverMode();
+    }
+
+    private void UpdateHoveredCell()
+    {
+        isHoveringGrid = false;
+        currentHoverCell = new Vector2Int(-1, -1);
+
+        Camera rayCamera = ResolveRaycastCamera();
+        if (rayCamera == null || Mouse.current == null || buildSurface.SurfaceCollider == null)
+            return;
 
         Vector2 mousePos = Mouse.current.position.ReadValue();
-        Ray ray = builderCamera.ScreenPointToRay(mousePos);
+        Ray ray = rayCamera.ScreenPointToRay(mousePos);
 
-        // Пускаем Raycast, получаем ВСЕ хиты (чтобы пробить сквозь другие коллайдеры Пепелаца)
-        RaycastHit[] hits = Physics.RaycastAll(ray, 100f);
-        bool hitGrid = false;
+        if (!buildSurface.SurfaceCollider.Raycast(ray, out RaycastHit hit, maxBuildRayDistance))
+            return;
 
-        foreach (var hit in hits)
+        if (!buildSurface.TryWorldPointToCell(hit.point, out Vector2Int cell))
+            return;
+
+        isHoveringGrid = true;
+        currentHoverCell = cell;
+    }
+
+    private Camera ResolveRaycastCamera()
+    {
+        if (builderCamera != null)
+            return builderCamera;
+
+        return Camera.main;
+    }
+
+    private void UpdatePlacementMode()
+    {
+        if (!isHoveringGrid)
         {
-            if (hit.collider.transform == grid.transform)
+            if (ghostObject != null)
+                ghostObject.SetActive(false);
+
+            isPlacementValid = false;
+
+            if (gridOverlay != null)
+                gridOverlay.HideFootprint();
+
+            return;
+        }
+
+        if (ghostObject != null)
+            ghostObject.SetActive(true);
+
+        Vector2Int gridSize = grid.CalculateGridSize(selectedData.length, selectedData.width, currentOrientation);
+        List<Vector2Int> footprint = grid.GetPlacementFootprint(currentHoverCell, gridSize);
+        isPlacementValid = footprint != null;
+
+        UpdateGhostPlacementVisual();
+        UpdateFootprintOverlay(footprint, gridSize);
+    }
+
+    private void UpdateFootprintOverlay(List<Vector2Int> footprint, Vector2Int gridSize)
+    {
+        if (gridOverlay == null)
+            return;
+
+        if (footprint != null && footprint.Count > 0)
+        {
+            gridOverlay.ShowFootprint(
+                footprint,
+                isPlacementValid ? validFootprintColor : invalidFootprintColor
+            );
+            return;
+        }
+
+        List<Vector2Int> rawFootprint = BuildRawFootprint(currentHoverCell, gridSize);
+        if (rawFootprint != null && rawFootprint.Count > 0)
+        {
+            gridOverlay.ShowFootprint(rawFootprint, invalidFootprintColor);
+        }
+        else
+        {
+            gridOverlay.HideFootprint();
+        }
+    }
+
+    private List<Vector2Int> BuildRawFootprint(Vector2Int anchorCell, Vector2Int gridSize)
+    {
+        List<Vector2Int> footprint = new List<Vector2Int>();
+
+        int startX = anchorCell.x;
+        int startZ = anchorCell.y;
+        int endX = startX + gridSize.x - 1;
+        int endZ = startZ + gridSize.y - 1;
+
+        for (int x = startX; x <= endX; x++)
+        {
+            for (int z = startZ; z <= endZ; z++)
             {
-                hitGrid = true;
-                isHoveringGrid = true;
-
-                Vector3 localHitPos = grid.transform.InverseTransformPoint(hit.point);
-                currentHoverCell = grid.LocalToGridPosition(localHitPos);
-
-                if (currentHoverCell.x < 0)
-                {
-                    isHoveringGrid = false;
-                    ghostObject.SetActive(false);
-                    return;
-                }
-
-                ghostObject.SetActive(true);
-
-                Vector2Int gridSize = grid.CalculateGridSize(selectedData.length, selectedData.width, currentOrientation);
-                var footprint = grid.GetPlacementFootprint(currentHoverCell, gridSize);
-                isPlacementValid = (footprint != null);
-
-                // Красим призрака (все его меши)
-                Material targetMat = isPlacementValid ? validGhostMaterial : invalidGhostMaterial;
-                Renderer[] renderers = ghostObject.GetComponentsInChildren<Renderer>();
-                foreach (var rend in renderers)
-                {
-                    if (rend.sharedMaterial != targetMat)
-                        rend.material = targetMat;
-                }
-
-                // Привязываем призрака к центру клетки
-                Vector3 localSnapPos = grid.GridToLocalPosition(currentHoverCell.x, currentHoverCell.y);
-
-                // Если префаб проваливается в пол — раскомментируй строку ниже:
-                // localSnapPos.y += (selectedData.height / 2f); 
-
-                ghostObject.transform.localPosition = localSnapPos;
-
-                break; // Нашли сетку, дальше не ищем
+                footprint.Add(new Vector2Int(x, z));
             }
         }
 
-        if (!hitGrid)
+        return footprint;
+    }
+
+    private void UpdateRemovalHoverMode()
+    {
+        if (gridOverlay != null)
+            gridOverlay.HideFootprint();
+
+        RuntimeModuleBase moduleUnderMouse = null;
+
+        if (isHoveringGrid)
         {
-            isHoveringGrid = false;
-            ghostObject.SetActive(false);
+            GridCell cell = grid.GetCell(currentHoverCell.x, currentHoverCell.y);
+            if (cell != null && cell.isOccupied)
+                moduleUnderMouse = cell.occupant;
+        }
+
+        if (moduleUnderMouse != hoveredInstalledModule)
+        {
+            if (hoveredInstalledModule != null)
+                SetHighlight(hoveredInstalledModule, false);
+
+            hoveredInstalledModule = moduleUnderMouse;
+
+            if (hoveredInstalledModule != null)
+                SetHighlight(hoveredInstalledModule, true);
+        }
+    }
+
+    private void SetHighlight(RuntimeModuleBase module, bool enable)
+    {
+        if (module == null)
+            return;
+
+        Renderer[] renderers = module.GetComponentsInChildren<Renderer>();
+        foreach (var rend in renderers)
+        {
+            Material mat = rend.material;
+
+            if (enable)
+            {
+                mat.EnableKeyword("_EMISSION");
+                mat.SetColor("_EmissionColor", highlightEmissionColor);
+            }
+            else
+            {
+                mat.DisableKeyword("_EMISSION");
+                mat.SetColor("_EmissionColor", Color.black);
+            }
         }
     }
 
     // =========================================
-    // УСТАНОВКА (Клик ЛКМ)
+    // УСТАНОВКА
     // =========================================
 
     private void OnClickPerformed(InputAction.CallbackContext ctx)
     {
-        if (selectedData == null || !isHoveringGrid || !isPlacementValid) return;
+        if (selectedData == null || !isHoveringGrid || !isPlacementValid)
+            return;
 
-        // 1. Создаем пустую модель
         GameObject newModuleObj = SpawnRealModulePrefab(selectedData);
         if (newModuleObj == null)
         {
@@ -248,15 +455,28 @@ public class PepelacGridBuilder : MonoBehaviour
             return;
         }
 
-        // СНАЧАЛА вешаем CraftedModule и загружаем в него Data
-        var craftedComp = newModuleObj.AddComponent<CraftedModule>();
+        CraftedModule craftedComp = newModuleObj.AddComponent<CraftedModule>();
         craftedComp.SetData(selectedData);
 
-        // И только ПОТОМ вешаем Runtime-компонент
         RuntimeModuleBase runtimeMod = AddRuntimeComponent(newModuleObj, selectedData);
+        if (runtimeMod == null)
+        {
+            Destroy(newModuleObj);
+            return;
+        }
+
         runtimeMod.Orientation = currentOrientation;
 
-        // Пытаемся занять клетки в математике сетки
+        if (selectedData.isVolatile)
+        {
+            RuntimeVolatileModule volatileModule = newModuleObj.AddComponent<RuntimeVolatileModule>();
+            volatileModule.Initialize(
+                selectedData.totalMassKg,
+                selectedData.moduleTier,
+                selectedData.effectiveVolume,
+                selectedData.explosionDamageType);
+        }
+
         bool success = grid.TryPlaceModule(runtimeMod, currentHoverCell, selectedData.length, selectedData.width);
         if (!success)
         {
@@ -264,9 +484,10 @@ public class PepelacGridBuilder : MonoBehaviour
             return;
         }
 
-        // 2. Физически размещаем объект на сцене
-        newModuleObj.transform.SetParent(grid.transform, false);
-        Vector3 localPos = grid.GridToLocalPosition(currentHoverCell.x, currentHoverCell.y);
+        newModuleObj.transform.SetParent(transform, false);
+
+        Vector2Int gridSize = grid.CalculateGridSize(selectedData.length, selectedData.width, currentOrientation);
+        Vector3 localPos = grid.GridToLocalPosition(currentHoverCell.x, currentHoverCell.y, gridSize);
         newModuleObj.transform.localPosition = localPos;
 
         float yRot = 0f;
@@ -276,16 +497,61 @@ public class PepelacGridBuilder : MonoBehaviour
             case ModuleOrientation.Deg180: yRot = 180f; break;
             case ModuleOrientation.Deg270: yRot = 270f; break;
         }
-        newModuleObj.transform.localRotation = Quaternion.Euler(0f, yRot, 0f);
 
+        newModuleObj.transform.localRotation = Quaternion.Euler(0f, yRot, 0f);
         newModuleObj.transform.localScale = Vector3.one * Mathf.Max(0.001f, selectedData.scaleFactor);
 
-        // 3. Списываем со склада
-        moduleStorage.RemoveModule(selectedCode, 1);
+        if (moduleStorage != null)
+        {
+            moduleStorage.RemoveModule(selectedCode, 1);
+        }
+        else
+        {
+            Debug.LogWarning("[PepelacGridBuilder] ModuleStorage не назначен, модуль не будет списан со склада.");
+        }
 
-        Debug.Log($"[PepelacGridBuilder] Успешно установлен {selectedData.moduleType}!");
+        Debug.Log($"[PepelacGridBuilder] Установлен модуль {selectedData.moduleType} в anchor cell {currentHoverCell}.");
 
         ClearSelection();
+    }
+
+    // =========================================
+    // УДАЛЕНИЕ / ОТМЕНА
+    // =========================================
+
+    private void OnCancelPerformed(InputAction.CallbackContext ctx)
+    {
+        if (selectedData != null)
+        {
+            ClearSelection();
+            return;
+        }
+
+        if (!isHoveringGrid)
+            return;
+
+        GridCell cell = grid.GetCell(currentHoverCell.x, currentHoverCell.y);
+        if (cell == null || !cell.isOccupied || cell.occupant == null)
+            return;
+
+        RuntimeModuleBase moduleToRemove = cell.occupant;
+
+        if (moduleToRemove == hoveredInstalledModule)
+            hoveredInstalledModule = null;
+
+        CraftedModule craftedComp = moduleToRemove.GetComponent<CraftedModule>();
+        if (craftedComp != null)
+        {
+            ModuleData dataToReturn = craftedComp.GetData();
+            if (dataToReturn != null && moduleStorage != null)
+            {
+                moduleStorage.AddModule(dataToReturn);
+                Debug.Log($"[PepelacGridBuilder] Модуль {dataToReturn.moduleType} возвращён на склад.");
+            }
+        }
+
+        grid.RemoveModule(moduleToRemove);
+        Destroy(moduleToRemove.gameObject);
     }
 
     // =========================================
@@ -294,25 +560,60 @@ public class PepelacGridBuilder : MonoBehaviour
 
     private GameObject SpawnRealModulePrefab(ModuleData data)
     {
+        if (data == null)
+        {
+            Debug.LogError("[PepelacGridBuilder] ModuleData is null.");
+            return null;
+        }
+
         StandardModuleBase reference = null;
 
-        if (data.moduleType == StandardGenerator.TYPE_GENERATOR)
-            reference = generatorDb.GetByName(data.referenceName);
-        else if (data.moduleType == StandardEnergyStorage.TYPE_ENERGY_STORAGE)
-            reference = energyStorageDb.GetByName(data.referenceName);
-        else if (data.moduleType == StandardFuelTank.TYPE_FUELTANK)
-            reference = fuelTankDb.GetByName(data.referenceName);
+        if (!ModuleTypeRegistry.TryResolveReference(data.moduleType, data.referenceName, out reference) || reference == null)
+            reference = ResolveReferenceLegacy(data);
 
-        if (reference == null) return null;
+        if (reference == null)
+        {
+            Debug.LogError($"[PepelacGridBuilder] Не найден эталон для типа '{data.moduleType}' и reference '{data.referenceName}'.");
+            return null;
+        }
 
         GameObject instance = Instantiate(reference.gameObject);
-        Destroy(instance.GetComponent<StandardModuleBase>());
+
+        if (!ModuleTypeRegistry.TryRemoveStandardComponent(data.moduleType, instance))
+        {
+            StandardModuleBase standardBase = instance.GetComponent<StandardModuleBase>();
+            if (standardBase != null)
+                Destroy(standardBase);
+        }
 
         return instance;
     }
 
+    private StandardModuleBase ResolveReferenceLegacy(ModuleData data)
+    {
+        if (data == null)
+            return null;
+
+        if (data.moduleType == StandardGenerator.TYPE_GENERATOR)
+            return generatorDb != null ? generatorDb.GetByName(data.referenceName) : null;
+
+        if (data.moduleType == StandardEnergyStorage.TYPE_ENERGY_STORAGE)
+            return energyStorageDb != null ? energyStorageDb.GetByName(data.referenceName) : null;
+
+        if (data.moduleType == StandardFuelTank.TYPE_FUELTANK)
+            return fuelTankDb != null ? fuelTankDb.GetByName(data.referenceName) : null;
+
+        return null;
+    }
+
     private RuntimeModuleBase AddRuntimeComponent(GameObject obj, ModuleData data)
     {
+        if (obj == null || data == null)
+            return null;
+
+        if (ModuleTypeRegistry.TryAddRuntimeComponent(data.moduleType, obj, out RuntimeModuleBase runtimeModule))
+            return runtimeModule;
+
         if (data.moduleType == StandardGenerator.TYPE_GENERATOR)
             return obj.AddComponent<RuntimeGenerator>();
 
@@ -322,6 +623,7 @@ public class PepelacGridBuilder : MonoBehaviour
         if (data.moduleType == StandardFuelTank.TYPE_FUELTANK)
             return obj.AddComponent<RuntimeFuelTank>();
 
-        return obj.AddComponent<RuntimeFuelTank>();
+        Debug.LogError($"[PepelacGridBuilder] Неизвестный тип модуля: '{data.moduleType}'. RuntimeModuleBase не добавлен!");
+        return null;
     }
 }

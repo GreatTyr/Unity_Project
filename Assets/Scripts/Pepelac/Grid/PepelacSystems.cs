@@ -31,6 +31,7 @@ public class PepelacSystems : MonoBehaviour
     // Кешированные списки для быстрой работы
     private List<RuntimeFuelTank> fuelTanks = new List<RuntimeFuelTank>();
     private List<RuntimeEnergyStorage> energyStorages = new List<RuntimeEnergyStorage>();
+    private List<RuntimeModuleStatus> cachedStatuses = new List<RuntimeModuleStatus>();
 
     private void Awake()
     {
@@ -42,9 +43,9 @@ public class PepelacSystems : MonoBehaviour
         float dt = Time.fixedDeltaTime;
         var modules = grid.GetAllModules();
 
-        // Очищаем списки баков и батарей на этот кадр
         fuelTanks.Clear();
         energyStorages.Clear();
+        cachedStatuses.Clear();
 
         // ==========================================
         // ФАЗА 1: СБОР ДАННЫХ И ЗАПРОСОВ
@@ -52,7 +53,6 @@ public class PepelacSystems : MonoBehaviour
         float totalEnergyDemand = 0f;
         float totalFuelDemand = 0f;
         float totalMass = 0f;
-
         float totalEnergyGenerated = 0f;
 
         float currentFuel = 0f;
@@ -60,18 +60,17 @@ public class PepelacSystems : MonoBehaviour
         float currentEnergy = 0f;
         float maxEnergy = 0f;
 
-        foreach (var m in modules)
+        for (int i = 0; i < modules.Count; i++)
         {
+            var m = modules[i];
             var status = m.GetStatus();
+            cachedStatuses.Add(status);
 
             totalEnergyDemand += status.energyDemandThisFrame;
             totalFuelDemand += status.fuelDemandThisFrame;
             totalMass += status.massKg;
-
-            // Авансовый сбор энергии (генераторы уже произвели её в прошлом кадре)
             totalEnergyGenerated += status.energyOutputThisFrame;
 
-            // Собираем статы хранилищ и сортируем их по спискам
             if (m is RuntimeFuelTank tank)
             {
                 fuelTanks.Add(tank);
@@ -91,7 +90,6 @@ public class PepelacSystems : MonoBehaviour
         // ==========================================
         float actualFuelExtracted = 0f;
 
-        // Если кто-то просит топливо, пытаемся достать его из баков
         if (totalFuelDemand > 0f)
         {
             float remainingToExtract = totalFuelDemand;
@@ -99,34 +97,27 @@ public class PepelacSystems : MonoBehaviour
             foreach (var tank in fuelTanks)
             {
                 if (remainingToExtract <= 0f) break;
-
-                // Просим у бака топливо
                 float extracted = tank.ConsumeFuel(remainingToExtract);
                 actualFuelExtracted += extracted;
                 remainingToExtract -= extracted;
             }
         }
 
-        // Высчитываем общий КПД обеспечения топливом (хватило ли всем?)
         float fuelRatio = totalFuelDemand > 0f ? Mathf.Clamp01(actualFuelExtracted / totalFuelDemand) : 1f;
-
 
         // ==========================================
         // ФАЗА 3: РАСПРЕДЕЛЕНИЕ ЭНЕРГИИ И TICK
         // ==========================================
-
-        // В будущем здесь будет сложная логика приоритетов.
-        // Сейчас все потребители (в основном Батареи) делят энергию пропорционально.
         float energyRatio = totalEnergyDemand > 0f ? Mathf.Clamp01(totalEnergyGenerated / totalEnergyDemand) : 1f;
 
         int overheatedCount = 0;
         int activeCount = 0;
 
-        foreach (var m in modules)
+        for (int i = 0; i < modules.Count; i++)
         {
-            var status = m.GetStatus();
+            var m = modules[i];
+            var status = cachedStatuses[i];
 
-            // Раздаем ресурсы модулям (с учетом дефицита)
             float providedFuel = status.fuelDemandThisFrame * fuelRatio;
             float providedEnergy = status.energyDemandThisFrame * energyRatio;
 
@@ -136,10 +127,8 @@ public class PepelacSystems : MonoBehaviour
             if (m.IsActive) activeCount++;
         }
 
-        // Если осталась лишняя энергия, а батареи забиты — она просто сгорает.
-
         // ==========================================
-        // ФАЗА 4: ПУБЛИКАЦИЯ РЕЗУЛЬТАТОВ (PepelacStats)
+        // ФАЗА 4: ПУБЛИКАЦИЯ РЕЗУЛЬТАТОВ
         // ==========================================
         CurrentStats = new PepelacStats
         {
@@ -151,11 +140,11 @@ public class PepelacSystems : MonoBehaviour
             maxEnergyStorage = maxEnergy,
 
             totalFuelConsumption = actualFuelExtracted / dt,
-            fuelRemaining = currentFuel - actualFuelExtracted, // Обновляем с учетом сожженного в этом кадре
+            fuelRemaining = currentFuel - actualFuelExtracted,
             maxFuelStorage = maxFuel,
 
             totalModulesMassKg = totalMass,
-            centerOfMass = Vector2.zero, // TODO: Пересчитывать только при добавлении/снятии модуля!
+            centerOfMass = Vector2.zero, // TODO: Пересчитывать при добавлении/снятии модуля
 
             activeModules = activeCount,
             overheatedModulesCount = overheatedCount

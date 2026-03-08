@@ -63,22 +63,11 @@ public class CraftedModule : MonoBehaviour
         if (string.IsNullOrEmpty(typeName) || string.IsNullOrEmpty(json))
             return null;
 
-        // Сначала пробуем конкретные типы, потом базовый
-        switch (typeName)
-        {
-            case nameof(GeneratorData):
-                return JsonUtility.FromJson<GeneratorData>(json);
-            case nameof(EnergyStorageData):
-                return JsonUtility.FromJson<EnergyStorageData>(json);
-            // ДОБАВЛЕНО: поддержка FuelTankData
-            case nameof(FuelTankData):
-                return JsonUtility.FromJson<FuelTankData>(json);
-            // Будущие типы добавляются сюда:
-            // case nameof(RadarData):
-            //     return JsonUtility.FromJson<RadarData>(json);
-            default:
-                return JsonUtility.FromJson<ModuleData>(json);
-        }
+        if (ModuleTypeRegistry.TryDeserialize(typeName, json, out ModuleData typedData))
+            return typedData;
+
+        Debug.LogWarning($"[CraftedModule] Unknown data type '{typeName}'. Fallback to ModuleData.");
+        return JsonUtility.FromJson<ModuleData>(json);
     }
 
     // ── Inspector display ──

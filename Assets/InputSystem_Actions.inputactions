@@ -1705,6 +1705,15 @@
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": true
+                },
+                {
+                    "name": "CloseBuilderMode",
+                    "type": "PassThrough",
+                    "id": "e1076017-0364-4d89-b479-e738d9bd1273",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
                 }
             ],
             "bindings": [
@@ -1716,6 +1725,17 @@
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
                     "action": "ClickBuilderMode",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "dfb1392f-5a40-48f4-a71f-ff2d855af14b",
+                    "path": "<Mouse>/rightButton",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "CloseBuilderMode",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },

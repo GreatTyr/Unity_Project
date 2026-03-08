@@ -1791,6 +1791,15 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": true
+                },
+                {
+                    ""name"": ""CloseBuilderMode"",
+                    ""type"": ""PassThrough"",
+                    ""id"": ""e1076017-0364-4d89-b479-e738d9bd1273"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": true
                 }
             ],
             ""bindings"": [
@@ -1802,6 +1811,17 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""groups"": "";Keyboard&Mouse"",
                     ""action"": ""ClickBuilderMode"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""dfb1392f-5a40-48f4-a71f-ff2d855af14b"",
+                    ""path"": ""<Mouse>/rightButton"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": "";Keyboard&Mouse"",
+                    ""action"": ""CloseBuilderMode"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 },
@@ -1994,6 +2014,7 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         m_Gameplay_BuilderMode = m_Gameplay.FindAction("BuilderMode", throwIfNotFound: true);
         m_Gameplay_RotateBuilderMode = m_Gameplay.FindAction("RotateBuilderMode", throwIfNotFound: true);
         m_Gameplay_ClickBuilderMode = m_Gameplay.FindAction("ClickBuilderMode", throwIfNotFound: true);
+        m_Gameplay_CloseBuilderMode = m_Gameplay.FindAction("CloseBuilderMode", throwIfNotFound: true);
     }
 
     ~@InputSystem_Actions()
@@ -2993,6 +3014,7 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
     private readonly InputAction m_Gameplay_BuilderMode;
     private readonly InputAction m_Gameplay_RotateBuilderMode;
     private readonly InputAction m_Gameplay_ClickBuilderMode;
+    private readonly InputAction m_Gameplay_CloseBuilderMode;
     /// <summary>
     /// Provides access to input actions defined in input action map "Gameplay".
     /// </summary>
@@ -3032,6 +3054,10 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         /// Provides access to the underlying input action "Gameplay/ClickBuilderMode".
         /// </summary>
         public InputAction @ClickBuilderMode => m_Wrapper.m_Gameplay_ClickBuilderMode;
+        /// <summary>
+        /// Provides access to the underlying input action "Gameplay/CloseBuilderMode".
+        /// </summary>
+        public InputAction @CloseBuilderMode => m_Wrapper.m_Gameplay_CloseBuilderMode;
         /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
@@ -3079,6 +3105,9 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
             @ClickBuilderMode.started += instance.OnClickBuilderMode;
             @ClickBuilderMode.performed += instance.OnClickBuilderMode;
             @ClickBuilderMode.canceled += instance.OnClickBuilderMode;
+            @CloseBuilderMode.started += instance.OnCloseBuilderMode;
+            @CloseBuilderMode.performed += instance.OnCloseBuilderMode;
+            @CloseBuilderMode.canceled += instance.OnCloseBuilderMode;
         }
 
         /// <summary>
@@ -3111,6 +3140,9 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
             @ClickBuilderMode.started -= instance.OnClickBuilderMode;
             @ClickBuilderMode.performed -= instance.OnClickBuilderMode;
             @ClickBuilderMode.canceled -= instance.OnClickBuilderMode;
+            @CloseBuilderMode.started -= instance.OnCloseBuilderMode;
+            @CloseBuilderMode.performed -= instance.OnCloseBuilderMode;
+            @CloseBuilderMode.canceled -= instance.OnCloseBuilderMode;
         }
 
         /// <summary>
@@ -3565,5 +3597,12 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnClickBuilderMode(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "CloseBuilderMode" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnCloseBuilderMode(InputAction.CallbackContext context);
     }
 }

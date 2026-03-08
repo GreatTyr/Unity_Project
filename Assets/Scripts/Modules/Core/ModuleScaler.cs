@@ -18,7 +18,7 @@ public class ModuleScaler
     public float RefWidth { get; private set; }
     public float RefHeight { get; private set; }
     public float RefRealVolume { get; private set; }
-    public float RefInnerGramsPerLiter { get; private set; } // НОВОЕ: Вместо процентов заполнения
+    public float RefFillPercent { get; private set; }
 
     // ====================== Текущее состояние ======================
     private float _scaleFactor = 1f;
@@ -54,13 +54,13 @@ public class ModuleScaler
     // ====================== Инициализация ======================
 
     /// <summary>Установить параметры эталона. Сбрасывает масштаб к 1.</summary>
-    public void SetReference(float len, float wid, float hei, float realVol, float innerGramsPerLiter)
+    public void SetReference(float len, float wid, float hei, float realVol, float fillPct)
     {
         RefLength = len;
         RefWidth = wid;
         RefHeight = hei;
         RefRealVolume = realVol;
-        RefInnerGramsPerLiter = innerGramsPerLiter;
+        RefFillPercent = fillPct;
         _scaleFactor = 1f;
         Recalculate();
         UpdateScaleInputFromCurrent();
@@ -116,11 +116,15 @@ public class ModuleScaler
     public void SetScaleByTotalMass(float targetMass)
     {
         float shellFrac = _shellPercent / 100f;
-        // ОБНОВЛЕНО: Масса складывается из доли оболочки (1000кг/м3) и доли внутренностей (граммы на литр)
-        float massFactor = (shellFrac * 1000f) + ((1f - shellFrac) * RefInnerGramsPerLiter);
+        float fillFrac = RefFillPercent / 100f;
+
+        float massFactor = (shellFrac * 1000f) + ((1f - shellFrac) * fillFrac * 1000f);
+
         if (massFactor <= 0f || RefRealVolume <= 0f) return;
+
         double s3 = (double)targetMass / ((double)RefRealVolume * massFactor);
-        if (s3 > 0) SetScaleFactor((float)Math.Pow(s3, 1.0 / 3.0));
+        if (s3 > 0)
+            SetScaleFactor((float)Math.Pow(s3, 1.0 / 3.0));
     }
 
     private void RecalculateFromScaleInput()
@@ -189,7 +193,9 @@ public class ModuleScaler
 
         // 3. Массы (ОБНОВЛЕНО)
         CalcShellMass = R3(CalcShellVolume * 1000f);
-        CalcInnerMass = R3(CalcEffectiveVolume * RefInnerGramsPerLiter);
+
+        float fillFrac = RefFillPercent / 100f;
+        CalcInnerMass = R3(CalcEffectiveVolume * fillFrac * 1000f);
         CalcTotalMass = R3(CalcShellMass + CalcInnerMass);
 
         // 4. Прочность
@@ -212,7 +218,7 @@ public class ModuleScaler
             shellVolumeM3 = CalcShellVolume,
             effectiveVolume = CalcEffectiveVolume,
             shellPercent = _shellPercent,
-            fillPercent = 0f, // Оставляем 0 для совместимости с текущим DTO
+            fillPercent = RefFillPercent, // ВЕРНУЛ
             shellMassKg = CalcShellMass,
             innerMassKg = CalcInnerMass,
             totalMassKg = CalcTotalMass,

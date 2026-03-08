@@ -117,7 +117,8 @@ MonoBehaviour:
   ModuleTier: 2
   factionShortName: TESTF2
   blueprintId: 002
-  VolumeCoefficientPercent: 85
+  VolumeCoefficientPercent: 100
+  ConstantFillPercent: 100
   InternalResourceCosts: []
   CraftCoefficient: 1
   CanTurnOnOff: 1
@@ -134,9 +135,10 @@ MonoBehaviour:
   width: 0.333
   height: 0.49950004
   aabbVolume: 0.166334
-  realVolume: 0.141384
-  effectiveVolume: 0.141384
-  massKg: 0
+  realVolume: 0.166334
+  effectiveVolume: 0.166334
+  massKg: 166.334
+  fillPercentUsed: 100
   PowerBy0001m3: 1.1
   FuelTier: 2
   FuelBy0001m3_Base: 0.0001
@@ -144,6 +146,6 @@ MonoBehaviour:
   HeatCapacityCoeff: 1
   powerTimesTierPer0001: 1.837
   fuelPer0001m3Tiered: 0.00006
-  specificPower: 259.721
-  fuelKgPerS: 0.0085
+  specificPower: 305.555
+  fuelKgPerS: 0.01
   CapacityCoefficient: 1

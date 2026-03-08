@@ -27,7 +27,14 @@ public class AlloyStorage : MonoBehaviour
         new Dictionary<string, int>(StringComparer.Ordinal);
 
     private const string SAVE_FILE = "alloy_storage.json";
-    private const string SAVE_FOLDER = "Assets/SaveData";
+    private static string GetSaveFolder()
+    {
+#if UNITY_EDITOR
+    return "Assets/SaveData";
+#else
+        return Application.persistentDataPath;
+#endif
+    }
 
     // ====================== Serialization DTO ======================
 
@@ -182,7 +189,7 @@ public class AlloyStorage : MonoBehaviour
 
     private static string GetSavePath()
     {
-        return Path.Combine(SAVE_FOLDER, SAVE_FILE);
+        return Path.Combine(GetSaveFolder(), SAVE_FILE);
     }
 
     public void Save()
@@ -198,8 +205,9 @@ public class AlloyStorage : MonoBehaviour
             string json = JsonUtility.ToJson(data, true);
             string path = GetSavePath();
 
-            if (!Directory.Exists(SAVE_FOLDER))
-                Directory.CreateDirectory(SAVE_FOLDER);
+            string folder = GetSaveFolder();
+            if (!Directory.Exists(folder))
+                Directory.CreateDirectory(folder);
 
             File.WriteAllText(path, json);
 

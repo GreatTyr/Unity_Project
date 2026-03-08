@@ -50,9 +50,12 @@ public class PepelacMain : MonoBehaviour
         rb.mass = TotalMassKg > 0f ? TotalMassKg : 1f;
 
         // 2. Рассчитываем смещение центра масс (взвешенное среднее)
+
+        // ИСПРАВЛЕНИЕ: Добавлен Vector2Int.one в качестве размера (так как это абстрактная точка)
         Vector3 modulesCoM3D = grid.GridToLocalPosition(
             Mathf.RoundToInt(CurrentStats.centerOfMass.x),
-            Mathf.RoundToInt(CurrentStats.centerOfMass.y)
+            Mathf.RoundToInt(CurrentStats.centerOfMass.y),
+            Vector2Int.one
         );
 
         Vector3 weightedSum = (hullCenterOfMassOffset * hullMassKg) + (modulesCoM3D * CurrentStats.totalModulesMassKg);

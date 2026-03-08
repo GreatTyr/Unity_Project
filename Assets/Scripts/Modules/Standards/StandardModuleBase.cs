@@ -1,4 +1,4 @@
-using UnityEngine;
+п»їusing UnityEngine;
 using System.Collections.Generic;
 
 [ExecuteAlways]
@@ -11,18 +11,21 @@ public abstract class StandardModuleBase : MonoBehaviour
     [SerializeField] protected string factionShortName = "";
 
     [Header("Blueprint")]
-    [Tooltip("Уникальный ID чертежа внутри фракции (например: 001)")]
+    [Tooltip("РЈРЅРёРєР°Р»СЊРЅС‹Р№ ID С‡РµСЂС‚РµР¶Р° РІРЅСѓС‚СЂРё С„СЂР°РєС†РёРё (РЅР°РїСЂРёРјРµСЂ: 001)")]
     [SerializeField] protected string blueprintId = "001";
 
     [Header("Volume & Fill")]
     [Range(0f, 100f)] public float VolumeCoefficientPercent = 100f;
+    [Header("Fill Factor")]
+    [Tooltip("РџСЂРѕС†РµРЅС‚ СЌС„С„РµРєС‚РёРІРЅРѕРіРѕ РѕР±СЉС‘РјР°, Р·Р°РЅСЏС‚С‹Р№ РјРµС…Р°РЅРёР·РјР°РјРё/СЃРѕРґРµСЂР¶РёРјС‹Рј. 0% = РїСѓСЃС‚РѕР№ Р±Р°Рє, 100% = Р·Р°Р±РёС‚ РїРѕР»РЅРѕСЃС‚СЊСЋ.")]
+    [Range(0, 100)] public int ConstantFillPercent = 100;
 
     [Header("Crafting Costs (Per Liter of Effective Volume)")]
-    [Tooltip("Список ресурсов, необходимых для создания 1 литра (дм3) внутренностей модуля")]
+    [Tooltip("РЎРїРёСЃРѕРє СЂРµСЃСѓСЂСЃРѕРІ, РЅРµРѕР±С…РѕРґРёРјС‹С… РґР»СЏ СЃРѕР·РґР°РЅРёСЏ 1 Р»РёС‚СЂР° (РґРј3) РІРЅСѓС‚СЂРµРЅРЅРѕСЃС‚РµР№ РјРѕРґСѓР»СЏ")]
     public List<ResourceCostPerLiter> InternalResourceCosts = new List<ResourceCostPerLiter>();
 
     [Header("Crafting Parameters")]
-    [Tooltip("Коэффициент крафта модуля для формулы времени.")]
+    [Tooltip("РљРѕСЌС„С„РёС†РёРµРЅС‚ РєСЂР°С„С‚Р° РјРѕРґСѓР»СЏ РґР»СЏ С„РѕСЂРјСѓР»С‹ РІСЂРµРјРµРЅРё.")]
     [Min(0f)] public float CraftCoefficient = 1f;
 
     [Header("Module Capabilities")]
@@ -38,7 +41,7 @@ public abstract class StandardModuleBase : MonoBehaviour
     public bool IsVolatile = false;
     public DamageType ExplosionDamageType = DamageType.Kinetic;
 
-    // НОВОЕ: Коэффициенты взрыва
+    // РќРћР’РћР•: РљРѕСЌС„С„РёС†РёРµРЅС‚С‹ РІР·СЂС‹РІР°
     [Min(0f)] public float ExplosionRadiusCoefficient = 0.1f;
     [Min(0f)] public float ExplosionPenetrationCoefficient = 0.1f;
     [Min(0f)] public float ExplosionDamageCoefficient = 0.1f;
@@ -51,6 +54,7 @@ public abstract class StandardModuleBase : MonoBehaviour
     [SerializeField, HideInInspector] protected float realVolume;
     [SerializeField, HideInInspector] protected float effectiveVolume;
     [SerializeField, HideInInspector] protected float massKg;
+    [SerializeField, HideInInspector] protected int fillPercentUsed;
 
     public abstract string ModuleType { get; }
     public string FactionShortName => factionShortName;
@@ -72,6 +76,8 @@ public abstract class StandardModuleBase : MonoBehaviour
     public float RealVolumeM3 => realVolume;
     public float EffectiveVolumeM3 => effectiveVolume;
     public float MassKg => massKg;
+    public int FillPercentUsed => fillPercentUsed;
+
 
     protected const float EPS_ROUND = 1e-7f;
 
@@ -83,6 +89,7 @@ public abstract class StandardModuleBase : MonoBehaviour
     {
         ModuleTier = Mathf.Clamp(ModuleTier, 1, 10);
         VolumeCoefficientPercent = Mathf.Clamp(VolumeCoefficientPercent, 0f, 100f);
+        ConstantFillPercent = Mathf.Clamp(ConstantFillPercent, 0, 100);
         CraftCoefficient = Mathf.Max(0.01f, CraftCoefficient);
         RecalculateAll();
     }
@@ -115,14 +122,11 @@ public abstract class StandardModuleBase : MonoBehaviour
         realVolume = aabbVolume * Mathf.Clamp01(VolumeCoefficientPercent / 100f);
         effectiveVolume = realVolume;
 
-        float totalGramsPerLiter = 0f;
-        if (InternalResourceCosts != null)
-        {
-            foreach (var cost in InternalResourceCosts)
-                totalGramsPerLiter += cost.gramsPerLiter;
-        }
+        fillPercentUsed = Mathf.Clamp(ConstantFillPercent, 0, 100);
+        float fillFrac = fillPercentUsed / 100f;
 
-        massKg = effectiveVolume * totalGramsPerLiter;
+        // РњР°СЃСЃР° РІРЅСѓС‚СЂРµРЅРЅРѕСЃС‚РµР№ = Р·Р°РЅСЏС‚С‹Р№ РѕР±СЉС‘Рј * РїР»РѕС‚РЅРѕСЃС‚СЊ 1 РєРі/Р» (= 1000 РєРі/РјВі)
+        massKg = effectiveVolume * fillFrac * 1000f;
     }
 
     protected abstract void ComputeSpecificOutputs();
@@ -144,20 +148,20 @@ public abstract class StandardModuleBase : MonoBehaviour
     }
 
     // ==========================================
-    // НОВОЕ: ВЫЧИСЛЕНИЕ ПАРАМЕТРОВ ВЗРЫВА
-    // Вызывается из Верстака (Controller) при крафте
+    // РќРћР’РћР•: Р’Р«Р§РРЎР›Р•РќРР• РџРђР РђРњР•РўР РћР’ Р’Р—Р Р«Р’Рђ
+    // Р’С‹Р·С‹РІР°РµС‚СЃСЏ РёР· Р’РµСЂСЃС‚Р°РєР° (Controller) РїСЂРё РєСЂР°С„С‚Рµ
     // ==========================================
 
     public float CalculateExplosionRadius(float modulePower)
     {
-        // Радиус = корень(Мощность) * Коэффициент
+        // Р Р°РґРёСѓСЃ = РєРѕСЂРµРЅСЊ(РњРѕС‰РЅРѕСЃС‚СЊ) * РљРѕСЌС„С„РёС†РёРµРЅС‚
         if (!IsVolatile || modulePower <= 0f) return 0f;
         return Mathf.Sqrt(modulePower) * ExplosionRadiusCoefficient;
     }
 
     public float CalculateExplosionPenetration(float calculatedEffectiveVolume, float calculatedShellMass, int alloyTier)
     {
-        // Пробитие = Эфф.Объем * Масса Оболочки * Коэфф.ТираОболочки * Коэффициент
+        // РџСЂРѕР±РёС‚РёРµ = Р­С„С„.РћР±СЉРµРј * РњР°СЃСЃР° РћР±РѕР»РѕС‡РєРё * РљРѕСЌС„С„.РўРёСЂР°РћР±РѕР»РѕС‡РєРё * РљРѕСЌС„С„РёС†РёРµРЅС‚
         if (!IsVolatile) return 0f;
         float alloyCoeff = TierCoeffs.Get(alloyTier);
         return calculatedEffectiveVolume * calculatedShellMass * alloyCoeff * ExplosionPenetrationCoefficient;
@@ -165,7 +169,7 @@ public abstract class StandardModuleBase : MonoBehaviour
 
     public float CalculateExplosionDamage(float calculatedShellMass, int alloyTier)
     {
-        // Урон = Масса Оболочки * Коэфф.ТираОболочки * Коэффициент
+        // РЈСЂРѕРЅ = РњР°СЃСЃР° РћР±РѕР»РѕС‡РєРё * РљРѕСЌС„С„.РўРёСЂР°РћР±РѕР»РѕС‡РєРё * РљРѕСЌС„С„РёС†РёРµРЅС‚
         if (!IsVolatile) return 0f;
         float alloyCoeff = TierCoeffs.Get(alloyTier);
         return calculatedShellMass * alloyCoeff * ExplosionDamageCoefficient;

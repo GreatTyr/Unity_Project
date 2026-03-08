@@ -12,7 +12,14 @@ public class ModuleStorage : MonoBehaviour
     private List<ModuleEntry> entries = new List<ModuleEntry>();
 
     private const string SAVE_FILE = "module_storage.json";
-    private const string SAVE_FOLDER = "Assets/SaveData";
+    private static string GetSaveFolder()
+    {
+#if UNITY_EDITOR
+    return "Assets/SaveData";
+#else
+        return Application.persistentDataPath;
+#endif
+    }
 
     [Serializable]
     public struct ModuleEntry
@@ -121,9 +128,10 @@ public class ModuleStorage : MonoBehaviour
         try
         {
             var data = new SaveData { version = 2, entries = new List<ModuleEntry>(entries) };
-            string json = JsonUtility.ToJson(data, true);
-            if (!Directory.Exists(SAVE_FOLDER)) Directory.CreateDirectory(SAVE_FOLDER);
-            File.WriteAllText(Path.Combine(SAVE_FOLDER, SAVE_FILE), json);
+            string json = JsonUtility.ToJson(data, true);   // ← эта строка была потеряна
+            string folder = GetSaveFolder();
+            if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+            File.WriteAllText(Path.Combine(folder, SAVE_FILE), json);
 #if UNITY_EDITOR
             UnityEditor.AssetDatabase.Refresh();
 #endif
@@ -133,7 +141,7 @@ public class ModuleStorage : MonoBehaviour
 
     public void Load()
     {
-        string path = Path.Combine(SAVE_FOLDER, SAVE_FILE);
+        string path = Path.Combine(GetSaveFolder(), SAVE_FILE);
         if (!File.Exists(path)) return;
 
         try

@@ -107,19 +107,25 @@ MonoBehaviour:
   blueprintId: 001
   VolumeCoefficientPercent: 100
   ConstantFillPercent: 100
+  InternalResourceCosts: []
   CraftCoefficient: 1
   CanTurnOnOff: 1
   TurnOnOffTime: 1
   CanPulseMode: 0
   PulseInterval: 0
   IsControllable: 0
+  IsVolatile: 0
+  ExplosionDamageType: 0
+  ExplosionRadiusCoefficient: 0.1
+  ExplosionPenetrationCoefficient: 0.1
+  ExplosionDamageCoefficient: 0.1
   length: 0.5
   width: 0.5
   height: 1.0449567
   aabbVolume: 0.261239
   realVolume: 0.261239
   effectiveVolume: 0.261239
-  fillPercentUsed: 100
   massKg: 261.239
+  fillPercentUsed: 100
   CapacityCoefficient: 1
   energyCapacity: 261.239

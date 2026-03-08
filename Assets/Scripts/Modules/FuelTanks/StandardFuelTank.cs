@@ -121,90 +121,102 @@ public class StandardFuelTankEditor : Editor
     }
 
     public override void OnInspectorGUI()
+{
+    if (t == null) return;
+    serializedObject.Update();
+
+    // ================= IDENTITY =================
+    EditorGUILayout.LabelField("Identity", EditorStyles.boldLabel);
+    GUI.enabled = false;
+    EditorGUILayout.TextField("Module Type", t.ModuleType);
+    GUI.enabled = true;
+    EditorGUILayout.PropertyField(pModuleTier);
+
+    // ================= FACTION & BLUEPRINT =================
+    EditorGUILayout.Space();
+    EditorGUILayout.LabelField("Faction & Blueprint", EditorStyles.boldLabel);
+
+    if (factionDisplayNames != null && factionShortNames != null && factionShortNames.Length > 1)
     {
-        if (t == null) return;
-        serializedObject.Update();
-
-        EditorGUILayout.LabelField("Identity", EditorStyles.boldLabel);
-        GUI.enabled = false;
-        EditorGUILayout.TextField("Module Type", t.ModuleType);
-        GUI.enabled = true;
-        EditorGUILayout.PropertyField(pModuleTier);
-
-        EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Faction & Blueprint", EditorStyles.boldLabel);
-
-        if (factionDisplayNames != null && factionShortNames != null && factionShortNames.Length > 1)
+        string current = pFactionShortName.stringValue ?? "";
+        int selectedIndex = 0;
+        for (int i = 0; i < factionShortNames.Length; i++)
         {
-            string current = pFactionShortName.stringValue ?? "";
-            int selectedIndex = 0;
-            for (int i = 0; i < factionShortNames.Length; i++)
+            if (factionShortNames[i] == current)
             {
-                if (factionShortNames[i] == current) { selectedIndex = i; break; }
+                selectedIndex = i;
+                break;
             }
-
-            EditorGUI.BeginChangeCheck();
-            int newIndex = EditorGUILayout.Popup("Faction", selectedIndex, factionDisplayNames);
-            if (EditorGUI.EndChangeCheck()) pFactionShortName.stringValue = factionShortNames[newIndex];
-        }
-        else
-        {
-            EditorGUILayout.PropertyField(pFactionShortName, new GUIContent("Faction (short name)"));
         }
 
-        EditorGUILayout.PropertyField(pBlueprintId, new GUIContent("Blueprint ID"));
+        EditorGUI.BeginChangeCheck();
+        int newIndex = EditorGUILayout.Popup("Faction", selectedIndex, factionDisplayNames);
+        if (EditorGUI.EndChangeCheck())
+            pFactionShortName.stringValue = factionShortNames[newIndex];
+    }
+    else
+    {
+        EditorGUILayout.PropertyField(pFactionShortName, new GUIContent("Faction (short name)"));
+    }
 
-        EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Volume", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(pVolumeCoeff, new GUIContent("Volume Coeff %"));
+    EditorGUILayout.PropertyField(pBlueprintId, new GUIContent("Blueprint ID"));
 
-        EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Computed Base", EditorStyles.boldLabel);
-        EditorGUILayout.LabelField("Length (X, m)", t.LengthMeters.ToString("0.###"));
-        EditorGUILayout.LabelField("Width  (Z, m)", t.WidthMeters.ToString("0.###"));
-        EditorGUILayout.LabelField("Height (Y, m)", t.HeightMeters.ToString("0.###"));
-        EditorGUILayout.LabelField("AABB Volume (m³)", t.AABBVolumeM3.ToString("F6"));
-        EditorGUILayout.LabelField("Real Volume (m³)", t.RealVolumeM3.ToString("F6"));
-        EditorGUILayout.LabelField("Effective Volume (m³)", t.EffectiveVolumeM3.ToString("F6"));
-        EditorGUILayout.LabelField("Mass (kg)", t.MassKg.ToString("0.###"));
+    // ================= VOLUME / FILL / RECIPE =================
+    EditorGUILayout.Space();
+    EditorGUILayout.LabelField("Volume / Fill / Recipe", EditorStyles.boldLabel);
+    EditorGUILayout.PropertyField(pVolumeCoeff, new GUIContent("Volume Coeff %"));
+    EditorGUILayout.HelpBox("FuelTank не использует FillFactor и InternalResourceCosts. Масса определяется оболочкой и геометрией.", MessageType.Info);
 
-        EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Fuel Tank (inputs)", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(pCapacityCoefficient, new GUIContent("Capacity Coefficient"));
+    // ================= SPECIFIC INPUTS =================
+    EditorGUILayout.Space();
+    EditorGUILayout.LabelField("Specific Inputs", EditorStyles.boldLabel);
+    EditorGUILayout.PropertyField(pCapacityCoefficient, new GUIContent("Capacity Coefficient"));
+    EditorGUILayout.PropertyField(pHeatCapacityCoeff, new GUIContent("Heat Capacity Coeff"));
 
-        EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Thermal Physics", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(pHeatCapacityCoeff, new GUIContent("Heat Capacity Coeff"));
+    // ================= CRAFTING =================
+    EditorGUILayout.Space();
+    EditorGUILayout.LabelField("Crafting", EditorStyles.boldLabel);
+    if (pCraftTime != null)
+        EditorGUILayout.PropertyField(pCraftTime, new GUIContent("Craft Coefficient"));
 
-        EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Crafting", EditorStyles.boldLabel);
-        if (pCraftTime != null) EditorGUILayout.PropertyField(pCraftTime, new GUIContent("Craft Coefficient"));
+    // ================= MODULE CAPABILITIES =================
+    EditorGUILayout.Space();
+    EditorGUILayout.LabelField("Module Capabilities", EditorStyles.boldLabel);
+    if (pCanTurnOnOff != null) EditorGUILayout.PropertyField(pCanTurnOnOff, new GUIContent("Can Turn On/Off"));
+    if (pTurnOnOffTime != null) EditorGUILayout.PropertyField(pTurnOnOffTime, new GUIContent("Turn On/Off Time"));
+    if (pCanPulseMode != null) EditorGUILayout.PropertyField(pCanPulseMode, new GUIContent("Can Pulse Mode"));
+    if (pPulseInterval != null) EditorGUILayout.PropertyField(pPulseInterval, new GUIContent("Pulse Interval"));
+    if (pIsControllable != null) EditorGUILayout.PropertyField(pIsControllable, new GUIContent("Is Controllable"));
 
-        // ИСПРАВЛЕНИЕ: Отрисовка полей управления теперь безопасна
-        EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Module Capabilities", EditorStyles.boldLabel);
-        if (pCanTurnOnOff != null) EditorGUILayout.PropertyField(pCanTurnOnOff, new GUIContent("Can Turn On/Off"));
-        if (pTurnOnOffTime != null) EditorGUILayout.PropertyField(pTurnOnOffTime, new GUIContent("Turn On/Off Time"));
-        if (pCanPulseMode != null) EditorGUILayout.PropertyField(pCanPulseMode, new GUIContent("Can Pulse Mode"));
-        if (pPulseInterval != null) EditorGUILayout.PropertyField(pPulseInterval, new GUIContent("Pulse Interval"));
-        if (pIsControllable != null) EditorGUILayout.PropertyField(pIsControllable, new GUIContent("Is Controllable"));
+    // ================= DESTRUCTION =================
+    EditorGUILayout.Space();
+    EditorGUILayout.LabelField("Destruction", EditorStyles.boldLabel);
+    EditorGUILayout.PropertyField(pIsVolatile, new GUIContent("Is Volatile (Взрывоопасен)"));
+    if (pIsVolatile != null && pIsVolatile.boolValue)
+    {
+        EditorGUILayout.PropertyField(pExplosionDamageType, new GUIContent("Explosion Damage Type"));
+        EditorGUILayout.PropertyField(pExplosionRadiusCoeff, new GUIContent("Radius Coefficient"));
+        EditorGUILayout.PropertyField(pExplosionPenetrationCoeff, new GUIContent("Penetration Coefficient"));
+        EditorGUILayout.PropertyField(pExplosionDamageCoeff, new GUIContent("Damage Coefficient"));
+    }
 
-        EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Destruction", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(pIsVolatile, new GUIContent("Is Volatile (Взрывоопасен)"));
-        if (pIsVolatile != null && pIsVolatile.boolValue)
-        {
-            EditorGUILayout.PropertyField(pExplosionDamageType, new GUIContent("Explosion Damage Type"));
-            EditorGUILayout.PropertyField(pExplosionRadiusCoeff, new GUIContent("Radius Coefficient"));
-            EditorGUILayout.PropertyField(pExplosionPenetrationCoeff, new GUIContent("Penetration Coefficient"));
-            EditorGUILayout.PropertyField(pExplosionDamageCoeff, new GUIContent("Damage Coefficient"));
-        }
+    // ================= COMPUTED GEOMETRY & MASS =================
+    EditorGUILayout.Space();
+    EditorGUILayout.LabelField("Расчётная геометрия и масса", EditorStyles.boldLabel);
+    EditorGUILayout.LabelField("Length (X, m)", t.LengthMeters.ToString("0.###"));
+    EditorGUILayout.LabelField("Width  (Z, m)", t.WidthMeters.ToString("0.###"));
+    EditorGUILayout.LabelField("Height (Y, m)", t.HeightMeters.ToString("0.###"));
+    EditorGUILayout.LabelField("AABB Volume (m³)", t.AABBVolumeM3.ToString("F6"));
+    EditorGUILayout.LabelField("Real Volume (m³)", t.RealVolumeM3.ToString("F6"));
+    EditorGUILayout.LabelField("Effective Volume (m³)", t.EffectiveVolumeM3.ToString("F6"));
+    EditorGUILayout.LabelField("Reference Inner Mass (kg)", t.MassKg.ToString("0.###"));
 
-        EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Outputs Specific", EditorStyles.boldLabel);
-        EditorGUILayout.LabelField("Capacity", t.Capacity.ToString("F3"));
+    // ================= COMPUTED SPECIFIC =================
+    EditorGUILayout.Space();
+    EditorGUILayout.LabelField("Специфичные расчётные параметры", EditorStyles.boldLabel);
+    EditorGUILayout.LabelField("Capacity", t.Capacity.ToString("F3"));
 
-        serializedObject.ApplyModifiedProperties();
+    serializedObject.ApplyModifiedProperties();
     }
 }
 #endif

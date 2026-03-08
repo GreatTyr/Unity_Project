@@ -1,33 +1,42 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Unity.Cinemachine;
+
 /// <summary>
 /// Менеджер режима строительства Пепелаца.
-/// Переключает камеры, включает/выключает скрипт билдера и UI, управляет курсором.
+/// Переключает камеры, включает/выключает builder, UI и overlay сетки.
 /// </summary>
 [DisallowMultipleComponent]
 public class PepelacBuilderMode : MonoBehaviour
 {
     [Header("Input")]
-    [Tooltip("Кнопка для входа/выхода из режима строительства (например, 'B')")]
+    [Tooltip("Кнопка для входа/выхода из режима строительства")]
     public InputActionReference toggleBuildModeAction;
 
-    [Tooltip("Камера вида сверху для строительства")]
+    [Tooltip("Виртуальная камера builder mode")]
     public CinemachineVirtualCameraBase builderCamera;
 
     [Header("References")]
-    [Tooltip("Ссылка на ядро строительства (напишем на следующем этапе)")]
-    public MonoBehaviour gridBuilder; // Пока используем базовый тип, позже заменим на PepelacGridBuilder
+    [Tooltip("Ядро строительства")]
+    public PepelacGridBuilder gridBuilder;
 
-    [Tooltip("Ссылка на UI панель строительства (справа)")]
+    [Tooltip("UI панели строительства")]
     public GameObject builderUI;
+
+    [Tooltip("Визуализатор сетки строительства")]
+    public PepelacGridOverlay gridOverlay;
 
     public bool IsBuildModeActive { get; private set; }
 
     private void Awake()
     {
-        // Изначально режим выключен
+        ResolveReferences();
         SetBuildMode(false);
+    }
+
+    private void OnValidate()
+    {
+        ResolveReferences();
     }
 
     private void OnEnable()
@@ -40,42 +49,52 @@ public class PepelacBuilderMode : MonoBehaviour
         InputActionHelper.Unsubscribe(toggleBuildModeAction, OnToggleBuildMode);
     }
 
+    private void ResolveReferences()
+    {
+        if (gridBuilder == null)
+            gridBuilder = GetComponentInChildren<PepelacGridBuilder>(true);
+
+        if (gridOverlay == null && gridBuilder != null)
+            gridOverlay = gridBuilder.GetComponentInChildren<PepelacGridOverlay>(true);
+    }
+
     private void OnToggleBuildMode(InputAction.CallbackContext ctx)
     {
         if (!ctx.performed) return;
 
-        // TODO: Добавить проверку, что игрок находится в Пепелаце (за рулем) или рядом с ним
         SetBuildMode(!IsBuildModeActive);
     }
 
     public void SetBuildMode(bool active)
     {
+        ResolveReferences();
+
         IsBuildModeActive = active;
 
-        // Камера билдера получает максимальный приоритет (30), чтобы перекрыть всё.
-        // При выключении падает в 0, позволяя системе PlayerVehicleController
-        // самой решать, показывать камеру игрока (20) или пепелаца (10/20).
         if (builderCamera != null)
-        {
             builderCamera.Priority = active ? 30 : 0;
-        }
 
-        // Включаем/выключаем скрипт с логикой строительства
         if (gridBuilder != null)
             gridBuilder.enabled = active;
 
-        // Показываем/скрываем панель модулей
         if (builderUI != null)
             builderUI.SetActive(active);
 
-        // Управляем курсором через наш сервис
+        if (gridOverlay != null)
+        {
+            if (active)
+                gridOverlay.Rebuild();
+
+            gridOverlay.SetVisible(active);
+        }
+
         var cursorManager = UIServices.Get<CursorManager>();
         if (cursorManager != null)
         {
             if (active)
-                cursorManager.EnterUIMode(); // Показываем мышку
+                cursorManager.EnterUIMode();
             else
-                cursorManager.EnterGameplayMode(); // Прячем мышку
+                cursorManager.EnterGameplayMode();
         }
 
         Debug.Log($"[PepelacBuilderMode] Режим строительства: {(active ? "ВКЛ" : "ВЫКЛ")}");

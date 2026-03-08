@@ -106,6 +106,7 @@ MonoBehaviour:
   factionShortName: TESTF1
   blueprintId: 001
   VolumeCoefficientPercent: 85
+  ConstantFillPercent: 100
   InternalResourceCosts:
   - resourceType: 20
     gramsPerLiter: 100
@@ -117,13 +118,17 @@ MonoBehaviour:
   IsControllable: 0
   IsVolatile: 1
   ExplosionDamageType: 0
+  ExplosionRadiusCoefficient: 0.1
+  ExplosionPenetrationCoefficient: 0.1
+  ExplosionDamageCoefficient: 0.1
   length: 2
   width: 1
   height: 1.5000001
   aabbVolume: 3
   realVolume: 2.55
   effectiveVolume: 2.55
-  massKg: 255
+  massKg: 2550
+  fillPercentUsed: 100
   PowerBy0001m3: 1
   FuelTier: 1
   FuelBy0001m3_Base: 0.0002
