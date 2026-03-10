@@ -109,14 +109,18 @@ MonoBehaviour:
   ConstantFillPercent: 100
   InternalResourceCosts:
   - resourceType: 20
+    gramsPerLiter: 1000
+  - resourceType: 40
     gramsPerLiter: 100
+  - resourceType: 50
+    gramsPerLiter: 10
   CraftCoefficient: 1
   CanTurnOnOff: 1
   TurnOnOffTime: 1
   CanPulseMode: 0
   PulseInterval: 0
   IsControllable: 0
-  IsVolatile: 1
+  IsVolatile: 0
   ExplosionDamageType: 0
   BuildVisualYawOffset: 90
   ExplosionRadiusCoefficient: 0.1

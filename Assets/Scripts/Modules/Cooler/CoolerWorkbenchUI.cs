@@ -4,14 +4,14 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
-/// Представление (View) для Верстака Генераторов.
-/// Рисует IMGUI интерфейс и передает команды в GeneratorWorkbenchController.
+/// Представление (View) для Верстака Охлаждающих Радиаторов.
+/// Рисует IMGUI интерфейс и передает команды в CoolerWorkbenchController.
 /// Не содержит никакой математики и бизнес-логики.
 /// </summary>
-[RequireComponent(typeof(GeneratorWorkbenchController))]
-public class GeneratorWorkbenchUI : MonoBehaviour, IWorkbenchUI
+[RequireComponent(typeof(CoolerWorkbenchController))]
+public class CoolerWorkbenchUI : MonoBehaviour, IWorkbenchUI
 {
-    private GeneratorWorkbenchController controller;
+    private CoolerWorkbenchController controller;
 
     private bool panelOpen;
     private Rect windowRect;
@@ -32,7 +32,7 @@ public class GeneratorWorkbenchUI : MonoBehaviour, IWorkbenchUI
 
     private void Awake()
     {
-        controller = GetComponent<GeneratorWorkbenchController>();
+        controller = GetComponent<CoolerWorkbenchController>();
     }
 
     public void OpenPanel()
@@ -77,7 +77,7 @@ public class GeneratorWorkbenchUI : MonoBehaviour, IWorkbenchUI
             Event.current.Use();
         }
 
-        windowRect = GUI.Window(GetInstanceID(), windowRect, DrawWindow, "Generator Workbench", _windowStyle);
+        windowRect = GUI.Window(GetInstanceID(), windowRect, DrawWindow, "Cooler Workbench", _windowStyle);
         WorkbenchPopup.DrawPopup();
     }
 
@@ -121,7 +121,7 @@ public class GeneratorWorkbenchUI : MonoBehaviour, IWorkbenchUI
         }, "ПРИМЕНИТЬ", () =>
         {
             controller.ApplyBlueprintCode(codeInputField);
-            shellPercentStr = controller.ShellPercent.ToString(); // Синхронизируем UI после вставки кода
+            shellPercentStr = controller.ShellPercent.ToString();
         });
 
         GUILayout.EndVertical();
@@ -146,7 +146,7 @@ public class GeneratorWorkbenchUI : MonoBehaviour, IWorkbenchUI
         GUILayout.EndHorizontal();
 
         DrawSeparator();
-        DrawGeneratorSpecificSection();
+        DrawCoolerSpecificSection();
 
         DrawSeparator();
         DrawAlloyParamsSection();
@@ -306,22 +306,26 @@ public class GeneratorWorkbenchUI : MonoBehaviour, IWorkbenchUI
         GUILayout.EndVertical();
     }
 
-    private void DrawGeneratorSpecificSection()
+    private void DrawCoolerSpecificSection()
     {
         GUILayout.BeginVertical("box");
-        GUILayout.Label("Параметры Генератора", GetBoldStyle());
+        GUILayout.Label("Параметры Охлаждающего Радиатора", GetBoldStyle());
 
         GUILayout.BeginHorizontal();
-        ParamBox("Мощность", $"{controller.CalcSpecificPower:F3} E/s");
-        ParamBox("Топливо", $"{controller.CalcFuelKgPerS:F4} кг/с");
-        ParamBox("Емкость", $"<color=#00FFFF>{controller.CalcEnergyCapacity:F3} E</color>");
-        ParamBox("Тир топлива", controller.SelectedRef != null ? controller.SelectedRef.FuelTier.ToString() : "-");
+        ParamBox("Охл. способность", $"{controller.CalcCoolingPower:F3}");
+        ParamBox("Энергопотребление", $"{controller.CalcEnergyConsumption:F3} E/s");
+        ParamBox("Радиус действия", $"<color=#00FFFF>{controller.CalcCoolingRadius:F3} м</color>");
         ParamBox("Время крафта", $"<color=#00FF00>{controller.CalcCraftTimeSeconds:F1} сек</color>");
         GUILayout.EndHorizontal();
 
         GUILayout.BeginHorizontal();
+        ParamBox("Макс. разница охл.", $"<color=#66CCFF>{controller.CalcMaxCoolingDifference:F1}°</color>");
+        ParamBox("Мин. температура", $"<color=#4488FF>{controller.CalcMinTemperature:F1}°</color>");
         ParamBox("Теплоемкость", $"{controller.CalcHeatCapacity:F1}");
         ParamBox("Макс. T", $"{controller.CalcMaxTemperature:F0}°");
+        GUILayout.EndHorizontal();
+
+        GUILayout.BeginHorizontal();
         ParamBox("Толщина стенок", $"{controller.CalcWallThicknessMm:F1} мм");
         ParamBox("Нагрев", $"{controller.CalcHeatingRate:F2}°/с");
         GUILayout.EndHorizontal();
@@ -385,7 +389,7 @@ public class GeneratorWorkbenchUI : MonoBehaviour, IWorkbenchUI
         GUILayout.FlexibleSpace();
         GUILayout.EndHorizontal();
 
-        // Строка 2: Внутренние ресурсы (НОВОЕ)
+        // Строка 2: Внутренние ресурсы
         if (controller.RequiredInternalResources.Count > 0)
         {
             GUILayout.Space(8);
@@ -413,7 +417,7 @@ public class GeneratorWorkbenchUI : MonoBehaviour, IWorkbenchUI
         GUILayout.Label("Размещение готового модуля:", GUILayout.Width(220));
 
         GUI.enabled = !isCrafting;
-        controller.placementMode = (GeneratorWorkbenchController.CraftPlacementMode)GUILayout.Toolbar(
+        controller.placementMode = (CoolerWorkbenchController.CraftPlacementMode)GUILayout.Toolbar(
             (int)controller.placementMode, new[] { "В сцену (Мир)", "На склад (Storage)" }, GUILayout.Height(24));
         GUI.enabled = true;
 
@@ -523,7 +527,6 @@ public class GeneratorWorkbenchUI : MonoBehaviour, IWorkbenchUI
         GUILayout.EndVertical();
     }
 
-    // Перегрузка для энергии
     private void DrawCostItem(string label, long needed, long available, string unit, bool enough, string highlightColor = "#FFFFFF")
     {
         GUILayout.BeginVertical(GUILayout.MinWidth(110));

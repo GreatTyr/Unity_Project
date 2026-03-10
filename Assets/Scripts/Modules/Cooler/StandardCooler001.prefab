@@ -1,0 +1,121 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &2699545760786649830
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: 53d11204acee71e49b2175355351a0a0, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -13.2
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 53d11204acee71e49b2175355351a0a0, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.00000058683713
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 53d11204acee71e49b2175355351a0a0, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -4.55
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 53d11204acee71e49b2175355351a0a0, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 53d11204acee71e49b2175355351a0a0, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 53d11204acee71e49b2175355351a0a0, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 53d11204acee71e49b2175355351a0a0, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 53d11204acee71e49b2175355351a0a0, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 53d11204acee71e49b2175355351a0a0, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 53d11204acee71e49b2175355351a0a0, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 53d11204acee71e49b2175355351a0a0, type: 3}
+      propertyPath: m_Name
+      value: StandardCooler001
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects:
+    - {fileID: -4196752377683010577, guid: 53d11204acee71e49b2175355351a0a0, type: 3}
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 53d11204acee71e49b2175355351a0a0, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8992992043607443562}
+  m_SourcePrefab: {fileID: 100100000, guid: 53d11204acee71e49b2175355351a0a0, type: 3}
+--- !u!1 &3006116746199609271 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 53d11204acee71e49b2175355351a0a0, type: 3}
+  m_PrefabInstance: {fileID: 2699545760786649830}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &8992992043607443562
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3006116746199609271}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3c813e34bbd818642a62e5ed7d714c35, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StandardCooler
+  ModuleTier: 1
+  factionShortName: TESTF1
+  blueprintId: 001
+  VolumeCoefficientPercent: 100
+  ConstantFillPercent: 100
+  InternalResourceCosts:
+  - resourceType: 20
+    gramsPerLiter: 500
+  - resourceType: 40
+    gramsPerLiter: 50
+  - resourceType: 50
+    gramsPerLiter: 5
+  CraftCoefficient: 1
+  CanTurnOnOff: 1
+  TurnOnOffTime: 1
+  CanPulseMode: 0
+  PulseInterval: 0
+  IsControllable: 0
+  IsVolatile: 0
+  ExplosionDamageType: 0
+  BuildVisualYawOffset: 0
+  ExplosionRadiusCoefficient: 0.1
+  ExplosionPenetrationCoefficient: 0.1
+  ExplosionDamageCoefficient: 0.1
+  length: 1.0000002
+  width: 1.0000004
+  height: 2
+  aabbVolume: 2.000001
+  realVolume: 2.000001
+  effectiveVolume: 2.000001
+  massKg: 2000.001
+  fillPercentUsed: 100
+  RadiusCoefficient: 3
+  SpecificCoolingPowerBase: 1
+  SpecificEnergyConsumption: 1
+  BaseHeating: 0
+  HeatCapacityCoeff: 1
+  specificCoolingPower: 1
+  coolingPower: 2000.001
+  energyConsumption: 2000.001
+  coolingRadius: 3

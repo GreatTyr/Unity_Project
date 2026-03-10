@@ -118,8 +118,8 @@ MonoBehaviour:
   CanPulseMode: 0
   PulseInterval: 0
   IsControllable: 0
-  IsVolatile: 0
-  ExplosionDamageType: 0
+  IsVolatile: 1
+  ExplosionDamageType: 1
   BuildVisualYawOffset: 90
   ExplosionRadiusCoefficient: 0.1
   ExplosionPenetrationCoefficient: 0.1

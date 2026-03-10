@@ -119,7 +119,19 @@ MonoBehaviour:
   blueprintId: 002
   VolumeCoefficientPercent: 100
   ConstantFillPercent: 100
-  InternalResourceCosts: []
+  InternalResourceCosts:
+  - resourceType: 21
+    gramsPerLiter: 1000
+  - resourceType: 20
+    gramsPerLiter: 500
+  - resourceType: 41
+    gramsPerLiter: 100
+  - resourceType: 40
+    gramsPerLiter: 50
+  - resourceType: 51
+    gramsPerLiter: 10
+  - resourceType: 50
+    gramsPerLiter: 5
   CraftCoefficient: 1
   CanTurnOnOff: 1
   TurnOnOffTime: 1
