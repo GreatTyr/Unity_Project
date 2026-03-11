@@ -50,6 +50,8 @@ public class PlayerVehicleController : MonoBehaviour
 
     public bool IsInVehicle => isInVehicle;
 
+    private CinemachineVirtualCameraBase currentVehicleCamera;
+
     void Awake()
     {
         if (playerController == null)
@@ -143,8 +145,11 @@ public class PlayerVehicleController : MonoBehaviour
         vehicle.EnableControl();
         isInVehicle = true;
         lastEnterTime = Time.time;
+        currentVehicleCamera = seat != null && seat.vehicleCamera != null
+        ? seat.vehicleCamera
+        : pepelacCamera;
+        SetActiveCamera(currentVehicleCamera, playerCamera);
 
-        SetActiveCamera(pepelacCamera, playerCamera);
 
         Debug.Log($"[PlayerVehicleController] Вход в транспорт: {debugVehicleName}");
         OnEnteredVehicle?.Invoke(vehicle);
@@ -181,7 +186,8 @@ public class PlayerVehicleController : MonoBehaviour
         debugVehicleName = "";
         debugSeatName = "";
 
-        SetActiveCamera(playerCamera, pepelacCamera);
+        SetActiveCamera(playerCamera, currentVehicleCamera);
+        currentVehicleCamera = null;
 
         OnExitedVehicle?.Invoke();
         UIServices.Get<InteractionHintUI>()?.SetVisible(false);

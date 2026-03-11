@@ -1,4 +1,6 @@
 using UnityEngine;
+using Unity.Cinemachine;
+
 
 public class VehicleSeatInteractable : InteractableBase
 {
@@ -12,6 +14,9 @@ public class VehicleSeatInteractable : InteractableBase
     [Header("Player reference")]
     [Tooltip("Если назначено — используется напрямую. Иначе берётся из PlayerLocator.")]
     public PlayerVehicleController playerVehicleController;
+
+    [Header("Vehicle Camera")]
+    public CinemachineVirtualCameraBase vehicleCamera;
 
     private void Reset()
     {
