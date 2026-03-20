@@ -112,19 +112,7 @@ public class EnergyStorageWorkbenchUI : MonoBehaviour, IWorkbenchUI
     }
     private void DrawProgressBar(Rect rect, float progress, string text)
     {
-        progress = Mathf.Clamp01(progress);
-        if (_progBgTex == null) _progBgTex = WorkbenchPopup.MakeTex(1, 1, new Color(0.12f, 0.12f, 0.12f, 1f));
-        if (_progFillTex == null) _progFillTex = WorkbenchPopup.MakeTex(1, 1, new Color(0.2f, 0.65f, 0.3f, 1f));
-        GUI.DrawTexture(rect, _progBgTex);
-        Rect fillRect = new Rect(rect.x, rect.y, rect.width * progress, rect.height);
-        GUI.DrawTexture(fillRect, _progFillTex);
-        GUIStyle centered = new GUIStyle(GUI.skin.label)
-        {
-            alignment = TextAnchor.MiddleCenter,
-            fontStyle = FontStyle.Bold,
-            normal = { textColor = Color.white }
-        };
-        GUI.Label(rect, $"{text} {(progress * 100f):F0}%", centered);
+        WorkbenchUICommon.DrawProgressBar(rect, progress, text);
     }
     private void DrawSelectionSection()
     {
@@ -320,19 +308,17 @@ public class EnergyStorageWorkbenchUI : MonoBehaviour, IWorkbenchUI
     // ================= УТИЛИТЫ ОТРИСОВКИ =================
     private void DrawCompactCodeSection(string title, ref string txt, bool readOnly, string btn1, Action act1, string btn2 = null, Action act2 = null)
     {
-        GUILayout.BeginVertical(_panelStyle);
-        GUILayout.Label($"<color=#E0E0E0>{title}</color>", GetBoldStyle());
-        GUILayout.BeginHorizontal();
-        GUIStyle st = new GUIStyle(GUI.skin.textArea) { fontSize = 13, normal = { textColor = readOnly ? new Color(0.8f, 0.9f, 0.8f) : Color.white, background = WorkbenchPopup.MakeTex(1, 1, new Color(0.1f, 0.1f, 0.1f, 1f)) } };
-        if (readOnly) GUI.enabled = false;
-        txt = GUILayout.TextArea(txt, st, GUILayout.Height(55));
-        if (readOnly) GUI.enabled = true;
-        GUILayout.BeginVertical(GUILayout.Width(110));
-        if (GUILayout.Button(btn1, GUILayout.Height(25))) act1?.Invoke();
-        if (btn2 != null && GUILayout.Button(btn2, GUILayout.Height(25))) act2?.Invoke();
-        GUILayout.EndVertical();
-        GUILayout.EndHorizontal();
-        GUILayout.EndVertical();
+        WorkbenchUICommon.DrawCompactCodeSection(
+            title,
+            ref txt,
+            readOnly,
+            btn1,
+            act1,
+            _panelStyle,
+            GetBoldStyle(),
+            btn2,
+            act2
+        );
     }
     private void DrawGridRow(string l1, string v1, string l2, string v2)
     {
@@ -374,7 +360,10 @@ public class EnergyStorageWorkbenchUI : MonoBehaviour, IWorkbenchUI
         if (_pendingSelections.TryGetValue(tag, out int res)) { _pendingSelections.Remove(tag); return Mathf.Clamp(res, 0, opts.Length - 1); }
         return sel;
     }
-    private void DrawSeparator() { GUILayout.Space(5); GUILayout.Box(GUIContent.none, new GUIStyle { normal = { background = _sepTex } }, GUILayout.Height(2), GUILayout.ExpandWidth(true)); GUILayout.Space(5); }
+    private void DrawSeparator()
+    {
+        WorkbenchUICommon.DrawSeparator(_sepTex);
+    }
     private void InitStyles()
     {
         if (_bgTex == null) _bgTex = WorkbenchPopup.MakeTex(1, 1, new Color(0.15f, 0.15f, 0.15f, 0.98f));

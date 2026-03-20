@@ -63,14 +63,38 @@ PrefabInstance:
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 53d11204acee71e49b2175355351a0a0, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1591215676423566410}
+      addedObject: {fileID: -7819608173528855244}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 53d11204acee71e49b2175355351a0a0, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8319502276431727970}
   m_SourcePrefab: {fileID: 100100000, guid: 53d11204acee71e49b2175355351a0a0, type: 3}
 --- !u!1 &7422241361601553380 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 53d11204acee71e49b2175355351a0a0, type: 3}
   m_PrefabInstance: {fileID: 7764329866965933749}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &1591215676423566410
+--- !u!65 &-7819608173528855244
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7422241361601553380}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1.0000002, y: 2, z: 1.0000004}
+  m_Center: {x: -0.00000014901161, y: 0.99999994, z: -0.00000017881393}
+--- !u!114 &8319502276431727970
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -82,24 +106,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3c813e34bbd818642a62e5ed7d714c35, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StandardCooler
-  ModuleTier: 2
+  ModuleTier: 1
   factionShortName: TESTF2
   blueprintId: 001
   VolumeCoefficientPercent: 100
   ConstantFillPercent: 100
-  InternalResourceCosts:
-  - resourceType: 21
-    gramsPerLiter: 400
-  - resourceType: 20
-    gramsPerLiter: 200
-  - resourceType: 41
-    gramsPerLiter: 40
-  - resourceType: 40
-    gramsPerLiter: 20
-  - resourceType: 51
-    gramsPerLiter: 4
-  - resourceType: 50
-    gramsPerLiter: 2
+  InternalResourceCosts: []
   CraftCoefficient: 1
   CanTurnOnOff: 1
   TurnOnOffTime: 1
@@ -109,6 +121,9 @@ MonoBehaviour:
   IsVolatile: 0
   ExplosionDamageType: 0
   BuildVisualYawOffset: 0
+  BuildAnchorLocal: {x: 0, y: 0, z: 0}
+  BuildAnchorCellLocal: {x: 0, y: 0}
+  UseBuildAnchorPlacement: 1
   ExplosionRadiusCoefficient: 0.1
   ExplosionPenetrationCoefficient: 0.1
   ExplosionDamageCoefficient: 0.1
@@ -120,12 +135,14 @@ MonoBehaviour:
   effectiveVolume: 1.000001
   massKg: 1000.001
   fillPercentUsed: 100
-  RadiusCoefficient: 5
+  RadiusCoefficient: 1
   SpecificCoolingPowerBase: 1
   SpecificEnergyConsumption: 1
   BaseHeating: 0
   HeatCapacityCoeff: 1
-  specificCoolingPower: 1.67
-  coolingPower: 1670.001
+  specificCoolingPower: 1
+  coolingPower: 1000.001
   energyConsumption: 1000.001
-  coolingRadius: 5
+  coolingRadius: 1
+  maxCoolingDifference: 30
+  minTemperature: -20

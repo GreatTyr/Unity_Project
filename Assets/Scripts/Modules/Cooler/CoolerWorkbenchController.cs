@@ -57,9 +57,8 @@ public class CoolerWorkbenchController
         int thermAbsorb = IsAlloyDecoded ? AlloyParams.thermalAbsorption : 0;
         CalcMaxTemperature = 300f + thermAbsorb;
 
-        float surfArea = Scaler.CalcSurfaceArea;
-        CalcWallThicknessMm = surfArea > 0.000001f
-            ? (float)Math.Round((Scaler.CalcShellVolume / surfArea) * 1000f, 1) : 0f;
+        // Толщина стенок — из общего точного расчёта ModuleScaler
+        CalcWallThicknessMm = Scaler.CalcWallThicknessMm;
 
         float thermResist = IsAlloyDecoded ? AlloyParams.thermalResistance : 0f;
         CalcHeatingRate = (float)Math.Round(

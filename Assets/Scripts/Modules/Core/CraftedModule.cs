@@ -128,6 +128,22 @@ public class CraftedModule : MonoBehaviour
             UnityEditor.EditorGUILayout.TextField("Module Code", data.moduleCode);
             UnityEditor.EditorGUILayout.TextField("Craft Time", data.craftTimestamp);
             GUI.enabled = true;
+
+            if (data is CoolerData cd)
+            {
+                UnityEditor.EditorGUILayout.Space();
+                UnityEditor.EditorGUILayout.LabelField("Cooler", UnityEditor.EditorStyles.boldLabel);
+                UnityEditor.EditorGUILayout.FloatField("Cooling Radius", cd.coolingRadius);
+                UnityEditor.EditorGUILayout.FloatField("Cooling Power", cd.coolingPower);
+                UnityEditor.EditorGUILayout.FloatField("Energy Consumption", cd.energyConsumption);
+                UnityEditor.EditorGUILayout.FloatField("Specific Cooling Power", cd.specificCoolingPower);
+                UnityEditor.EditorGUILayout.FloatField("Specific Cooling Power Base", cd.specificCoolingPowerBase);
+                UnityEditor.EditorGUILayout.FloatField("Specific Energy Consumption", cd.specificEnergyConsumption);
+                UnityEditor.EditorGUILayout.FloatField("Radius Coefficient", cd.radiusCoefficient);
+                UnityEditor.EditorGUILayout.FloatField("Max Temperature", cd.maxTemperature);
+                UnityEditor.EditorGUILayout.FloatField("Max Cooling Difference", cd.maxCoolingDifference);
+                UnityEditor.EditorGUILayout.FloatField("Min Temperature", cd.minTemperature);
+            }
         }
     }
 #endif

@@ -114,7 +114,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b6a03372163f0014fb92576d26ca7fde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StandardFuelTank
-  ModuleTier: 2
+  ModuleTier: 10
   factionShortName: TESTF2
   blueprintId: 001
   VolumeCoefficientPercent: 85
@@ -128,7 +128,10 @@ MonoBehaviour:
   IsControllable: 0
   IsVolatile: 1
   ExplosionDamageType: 1
-  BuildVisualYawOffset: 90
+  BuildVisualYawOffset: 0
+  BuildAnchorLocal: {x: 0, y: 0, z: 0}
+  BuildAnchorCellLocal: {x: 0, y: 0}
+  UseBuildAnchorPlacement: 1
   ExplosionRadiusCoefficient: 0.1
   ExplosionPenetrationCoefficient: 0.1
   ExplosionDamageCoefficient: 0.1
@@ -142,4 +145,4 @@ MonoBehaviour:
   fillPercentUsed: 100
   CapacityCoefficient: 1
   HeatCapacityCoeff: 1
-  capacity: 3193.874
+  capacity: 191249.97

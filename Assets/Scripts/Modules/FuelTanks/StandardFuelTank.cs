@@ -28,7 +28,6 @@ public class StandardFuelTank : StandardModuleBase
         base.OnValidate();
         CapacityCoefficient = Mathf.Max(0f, CapacityCoefficient);
         HeatCapacityCoeff = Mathf.Max(0.001f, HeatCapacityCoeff);
-        RecalculateAll();
     }
 
     protected override void ComputeSpecificOutputs()
@@ -57,6 +56,7 @@ public class StandardFuelTankEditor : Editor
     private SerializedProperty pCraftTime;
 
     private SerializedProperty pBuildVisualYawOffset;
+    private SerializedProperty pBuildAnchorLocal;
 
     private SerializedProperty pCanTurnOnOff;
     private SerializedProperty pTurnOnOffTime;
@@ -69,6 +69,9 @@ public class StandardFuelTankEditor : Editor
     private SerializedProperty pExplosionRadiusCoeff;
     private SerializedProperty pExplosionPenetrationCoeff;
     private SerializedProperty pExplosionDamageCoeff;
+    private SerializedProperty pUseBuildAnchorPlacement;
+    private SerializedProperty pBuildAnchorCellLocal;
+
 
     private StandardFuelTank t;
     private string[] factionDisplayNames;
@@ -88,6 +91,9 @@ public class StandardFuelTankEditor : Editor
         pCraftTime = serializedObject.FindProperty("CraftCoefficient");
 
         pBuildVisualYawOffset = serializedObject.FindProperty("BuildVisualYawOffset");
+        pBuildAnchorLocal = serializedObject.FindProperty("BuildAnchorLocal");
+        pUseBuildAnchorPlacement = serializedObject.FindProperty("UseBuildAnchorPlacement");
+        pBuildAnchorCellLocal = serializedObject.FindProperty("BuildAnchorCellLocal");
 
         pCanTurnOnOff = serializedObject.FindProperty("CanTurnOnOff");
         pTurnOnOffTime = serializedObject.FindProperty("TurnOnOffTime");
@@ -182,7 +188,12 @@ public class StandardFuelTankEditor : Editor
         EditorGUILayout.LabelField("Build Visual", EditorStyles.boldLabel);
         if (pBuildVisualYawOffset != null)
             EditorGUILayout.PropertyField(pBuildVisualYawOffset, new GUIContent("Build Visual Yaw Offset"));
-
+        if (pBuildAnchorLocal != null)
+            EditorGUILayout.PropertyField(pBuildAnchorLocal, new GUIContent("Build Anchor Local"));
+        if (pUseBuildAnchorPlacement != null)
+            EditorGUILayout.PropertyField(pUseBuildAnchorPlacement, new GUIContent("Use Build Anchor Placement"));
+        if (pBuildAnchorCellLocal != null)
+            EditorGUILayout.PropertyField(pBuildAnchorCellLocal, new GUIContent("Build Anchor Cell Local"));
         // ================= SPECIFIC INPUTS =================
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Specific Inputs", EditorStyles.boldLabel);

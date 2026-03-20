@@ -1,20 +1,19 @@
 ﻿// AmmoWorkbenchUI.cs
-using System.Collections.Generic;
+using System.Globalization;
 using UnityEngine;
 
 /// <summary>
 /// OnGUI интерфейс верстака конических снарядов.
 /// Управляется через AmmoWorkbench.
-/// Включается/выключается извне (TempAmmoWorkbenchInteraction).
+/// Включается/выключается извне.
 /// </summary>
 [RequireComponent(typeof(AmmoWorkbench))]
 public class AmmoWorkbenchUI : MonoBehaviour
 {
     private AmmoWorkbench workbench;
-    private Vector2 scrollPos;
-    private bool showBarrelSection = false;
 
-    // Строковые буферы для полей ввода
+    private Vector2 scrollPos;
+
     private string sDiam = "10";
     private string sLen = "20";
     private string sExpMass = "0";
@@ -22,17 +21,48 @@ public class AmmoWorkbenchUI : MonoBehaviour
     private string sPropMass = "0,001";
     private string sCaseMass = "0,001";
     private string sCraftCount = "1";
-    private string sBarrelLen = "100";
+    private string sBarrelLen = "200";
     private string sBarrelDiam = "10";
+
+    private bool stylesReady;
+    private GUIStyle windowStyle;
+    private GUIStyle boxStyle;
+    private GUIStyle sectionStyle;
+    private GUIStyle readonlyFieldStyle;
+    private GUIStyle errorStyle;
+    private GUIStyle warningStyle;
+    private GUIStyle valueBoxStyle;
+
+    private static readonly string[] ChargeNames =
+    {
+        "FM", "HE", "EQ"
+    };
 
     private static readonly string[] DENames =
     {
-        "Нет", "Осколки(HE)", "Картечь", "Дробь", "Огонь", "Химия", "Энергия"
+        "Картечь", "Дробь", "Огонь", "Химия", "Энергия"
+    };
+
+    private static readonly AmmoCalc.DamageElementType[] DEValues =
+    {
+        AmmoCalc.DamageElementType.Buckshot,
+        AmmoCalc.DamageElementType.Pellet,
+        AmmoCalc.DamageElementType.Fire,
+        AmmoCalc.DamageElementType.Chemical,
+        AmmoCalc.DamageElementType.Energy
     };
 
     private static readonly string[] AreaNames =
     {
-        "Нет", "Точка(P)", "Сфера(Sp)", "Конус(Cn)", "Облако(Cl)"
+        "Точка(P)", "Сфера(Sp)", "Конус(Cn)", "Облако(Cl)"
+    };
+
+    private static readonly AmmoCalc.AreaType[] AreaValues =
+    {
+        AmmoCalc.AreaType.Point,
+        AmmoCalc.AreaType.Sphere,
+        AmmoCalc.AreaType.Cone,
+        AmmoCalc.AreaType.Cloud
     };
 
     private static readonly string[] FuzeNames =
@@ -43,273 +73,575 @@ public class AmmoWorkbenchUI : MonoBehaviour
     private void Awake()
     {
         workbench = GetComponent<AmmoWorkbench>();
+        PullBuffersFromInput();
+        workbench.Recalculate();
+    }
+
+    private void OnEnable()
+    {
+        PullBuffersFromInput();
+        workbench.Recalculate();
     }
 
     private void OnGUI()
     {
-        float panelW = 450f;
-        float panelH = Screen.height - 40f;
+        EnsureStyles();
 
-        GUILayout.BeginArea(new Rect(10, 10, panelW, panelH));
+        float panelW = Mathf.Min(1180f, Screen.width - 20f);
+        float panelH = Mathf.Min(Screen.height - 20f, 880f);
+        float x = 10f;
+        float y = 10f;
+
+        GUI.Box(new Rect(x, y, panelW, panelH), GUIContent.none, windowStyle);
+
+        GUILayout.BeginArea(new Rect(x + 10f, y + 10f, panelW - 20f, panelH - 20f));
         scrollPos = GUILayout.BeginScrollView(scrollPos);
 
-        GUILayout.Label("══════ ВЕРСТАК КОНИЧЕСКИХ СНАРЯДОВ ══════",
-                         GUI.skin.box);
-        GUILayout.Space(4);
+        bool changed = false;
+
+        GUILayout.Label("ВЕРСТАК КОНИЧЕСКИХ СНАРЯДОВ", boxStyle);
 
         var inp = workbench.ammoInput;
 
-        // ────── ОБОЛОЧКА ──────
-        SectionHeader("Оболочка");
-        inp.shellTier = TierSlider("Тир оболочки", inp.shellTier);
-        sDiam = FloatField("Диаметр (мм)", sDiam, out float diam);
-        inp.diameterMm = Mathf.Clamp(diam, 1f, 100000f);
-        sLen = FloatField("Длина (мм)", sLen, out float len);
-        inp.lengthMm = Mathf.Clamp(len, inp.diameterMm * 2f, 1000000f);
+        // Верхняя строка: текущий код
+        SectionHeader("Код снаряда");
+        GUI.enabled = false;
+        GUILayout.TextField(workbench.Output != null ? workbench.Output.ammoCode : workbench.manualAmmoCode, readonlyFieldStyle);
+        GUI.enabled = true;
 
-        // Показываем вычисленную массу
-        float previewMass = AmmoCalc.Ceil3(AmmoCalc.CylinderMassKg(inp.diameterMm, inp.lengthMm));
-        InfoLabel($"Расч. масса снаряда: {previewMass:F3} кг");
-
-        // ────── РАЗРЫВНОЙ ЗАРЯД ──────
-        SectionHeader("Разрывной заряд");
-        inp.explosiveTier = TierSlider("Тир заряда (0=нет)", inp.explosiveTier, true);
-        sExpMass = FloatField("Масса заряда (кг)", sExpMass, out float expM);
-        inp.explosiveMassKg = Mathf.Max(expM, 0f);
-
-        // ────── ПОРАЖАЮЩИЙ ЭЛЕМЕНТ ──────
-        SectionHeader("Поражающий элемент");
-        int deIdx = (int)inp.damageElementType;
-        deIdx = GUILayout.SelectionGrid(deIdx, DENames, 4);
-        inp.damageElementType = (AmmoCalc.DamageElementType)deIdx;
-
-        if (inp.damageElementType == AmmoCalc.DamageElementType.Buckshot)
+        // Ввод кода вручную
+        GUILayout.BeginHorizontal();
+        workbench.manualAmmoCode = LabeledTextField("Ввод кода", workbench.manualAmmoCode, 220f, ref changed);
+        if (GUILayout.Button("Вставить", GUILayout.Width(90), GUILayout.Height(24)))
         {
-            GUILayout.BeginHorizontal();
-            string buckLabel = inp.buckshotCount >= 11 ? "много" : inp.buckshotCount.ToString();
-            GUILayout.Label($"Картечин: {buckLabel}", GUILayout.Width(200));
-            inp.buckshotCount = (int)GUILayout.HorizontalSlider(inp.buckshotCount, 2, 11);
-            GUILayout.EndHorizontal();
+            workbench.manualAmmoCode = GUIUtility.systemCopyBuffer ?? "";
+            changed = true;
+        }
+        if (GUILayout.Button("Применить", GUILayout.Width(90), GUILayout.Height(24)))
+        {
+            if (!workbench.TryApplyManualCode())
+            {
+                // ошибка останется в craftError
+            }
+            PullBuffersFromInput();
+        }
+        GUILayout.EndHorizontal();
+
+        GUILayout.Space(6);
+
+        GUILayout.BeginHorizontal();
+
+        // ===================== ЛЕВАЯ КОЛОНКА =====================
+        GUILayout.BeginVertical(sectionStyle, GUILayout.Width((panelW - 60f) * 0.5f));
+
+        SectionHeader("Вводимые параметры");
+
+        // Оболочка
+        GroupHeader("Оболочка");
+        changed |= TierSlider("Тир оболочки", ref inp.shellTier);
+
+        changed |= FloatField("Диаметр (мм)", ref sDiam, out float diam);
+        inp.diameterMm = AmmoCalc.NormalizeDiameterMm(diam);
+
+        changed |= FloatField("Длина (мм)", ref sLen, out float len);
+        inp.lengthMm = AmmoCalc.NormalizeLengthMm(len, inp.diameterMm);
+
+        float previewMass = AmmoCalc.Ceil3(AmmoCalc.ProjectileMassKg(inp.diameterMm, inp.lengthMm));
+        ValueLine($"Расч. масса снаряда: {previewMass:F3} кг");
+
+        // Тип снаряда
+        GroupHeader("Тип снаряда");
+        DrawChargeTypeSelector(inp, previewMass, ref changed);
+
+        // Разрывной заряд
+        if (inp.chargeType != AmmoCalc.ChargeType.FM)
+        {
+            GroupHeader("Разрывной заряд");
+            changed |= TierSlider("Тир заряда", ref inp.explosiveTier);
+
+            float minPart = AmmoCalc.GetMinPartKg(previewMass);
+            float maxExp = (inp.chargeType == AmmoCalc.ChargeType.HE)
+                ? Mathf.Max(minPart, previewMass - minPart)
+                : Mathf.Max(minPart, previewMass - minPart - Mathf.Max(inp.damageElementMassKg, minPart));
+
+            changed |= FloatField("Масса заряда (кг)", ref sExpMass, out float expM);
+            inp.explosiveMassKg = Mathf.Max(expM, minPart);
+            if (inp.explosiveMassKg > maxExp) inp.explosiveMassKg = maxExp;
+            ValueLine($"Допустимо: {minPart:F3} .. {maxExp:F3} кг");
         }
 
-        inp.damageElementTier = TierSlider("Тир ПЭ (0=нет)", inp.damageElementTier, true);
-        sDEMass = FloatField("Масса ПЭ (кг)", sDEMass, out float deM);
-        inp.damageElementMassKg = Mathf.Max(deM, 0f);
+        // Поражающий элемент
+        if (inp.chargeType == AmmoCalc.ChargeType.EQ)
+        {
+            GroupHeader("Поражающий элемент");
 
-        // ────── ОБЛАСТЬ ПОРАЖЕНИЯ ──────
-        SectionHeader("Область поражения");
-        int areaIdx = (int)inp.areaType;
-        areaIdx = GUILayout.SelectionGrid(areaIdx, AreaNames, 5);
-        inp.areaType = (AmmoCalc.AreaType)areaIdx;
+            DrawDESelector(inp, ref changed);
 
-        // ────── ВЗРЫВАТЕЛЬ ──────
-        SectionHeader("Взрыватель");
-        int fuzeIdx = (int)inp.fuzeType;
-        fuzeIdx = GUILayout.SelectionGrid(fuzeIdx, FuzeNames, 3);
-        inp.fuzeType = (AmmoCalc.FuzeType)fuzeIdx;
+            if (inp.damageElementType == AmmoCalc.DamageElementType.Buckshot)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label($"Картечин: {inp.buckshotCount}", GUILayout.Width(220));
+                int newBuck = Mathf.RoundToInt(GUILayout.HorizontalSlider(inp.buckshotCount, 2, 10));
+                newBuck = Mathf.Clamp(newBuck, 2, 10);
+                if (newBuck != inp.buckshotCount)
+                {
+                    inp.buckshotCount = newBuck;
+                    changed = true;
+                }
+                GUILayout.EndHorizontal();
+            }
 
-        // ────── ТОЛКАЮЩИЙ ЗАРЯД ──────
-        SectionHeader("Толкающий заряд");
-        inp.propellantTier = TierSlider("Тир толк. заряда", inp.propellantTier);
-        sPropMass = FloatField("Масса толк. заряда (кг)", sPropMass, out float propM);
+            changed |= TierSlider("Тир ПЭ", ref inp.damageElementTier);
+
+            float minPart = AmmoCalc.GetMinPartKg(previewMass);
+            float maxDe = Mathf.Max(minPart, previewMass - minPart - Mathf.Max(inp.explosiveMassKg, minPart));
+
+            changed |= FloatField("Масса ПЭ (кг)", ref sDEMass, out float deM);
+            inp.damageElementMassKg = Mathf.Max(deM, minPart);
+            if (inp.damageElementMassKg > maxDe) inp.damageElementMassKg = maxDe;
+            ValueLine($"Допустимо: {minPart:F3} .. {maxDe:F3} кг");
+        }
+
+        // Область поражения
+        GroupHeader("Область поражения");
+        DrawAreaSelector(inp, ref changed);
+
+        // Взрыватель
+        if (inp.chargeType != AmmoCalc.ChargeType.FM)
+        {
+            GroupHeader("Взрыватель");
+            int fuzeIdx = (int)inp.fuzeType;
+            int newFuze = GUILayout.SelectionGrid(fuzeIdx, FuzeNames, 3);
+            if (newFuze != fuzeIdx)
+            {
+                inp.fuzeType = (AmmoCalc.FuzeType)newFuze;
+                changed = true;
+            }
+        }
+
+        // Толкающий заряд
+        GroupHeader("Толкающий заряд");
+        changed |= TierSlider("Тир толк. заряда", ref inp.propellantTier);
+        changed |= FloatField("Масса толк. заряда (кг)", ref sPropMass, out float propM);
         inp.propellantMassKg = Mathf.Max(propM, 0.001f);
 
-        // ────── ГИЛЬЗА ──────
-        SectionHeader("Гильза");
-        inp.caseTier = TierSlider("Тир гильзы", inp.caseTier);
-        sCaseMass = FloatField("Масса гильзы (кг)", sCaseMass, out float caseM);
+        // Гильза
+        GroupHeader("Гильза");
+        changed |= TierSlider("Тир гильзы", ref inp.caseTier);
+        changed |= FloatField("Масса гильзы (кг)", ref sCaseMass, out float caseM);
         inp.caseMassKg = Mathf.Max(caseM, 0.001f);
 
-        // ────── КОЛИЧЕСТВО ──────
-        SectionHeader("Крафт");
-        sCraftCount = FloatField("Количество", sCraftCount, out float cntF);
-        inp.craftCount = Mathf.Max((int)cntF, 1);
+        // Количество
+        GroupHeader("Изготовление");
+        changed |= IntField("Количество", ref sCraftCount, out int count);
+        inp.craftCount = Mathf.Max(count, 1);
 
-        // ────── ПЕРЕСЧЁТ ──────
-        GUILayout.Space(6);
-        if (GUILayout.Button("▶ Пересчитать", GUILayout.Height(28)))
+        // Ствол
+        GroupHeader("Параметры ствола");
+        changed |= FloatField("Длина ствола (мм)", ref sBarrelLen, out float bLen);
+        workbench.barrelInput.barrelLengthMm = Mathf.Max(1f, bLen);
+
+        changed |= FloatField("Диаметр ствола (мм)", ref sBarrelDiam, out float bDiam);
+        workbench.barrelInput.barrelDiameterMm = Mathf.Max(1f, bDiam);
+
+        GUILayout.EndVertical();
+
+        GUILayout.Space(10);
+
+        // ===================== ПРАВАЯ КОЛОНКА =====================
+        GUILayout.BeginVertical(sectionStyle, GUILayout.Width((panelW - 60f) * 0.5f));
+
+        SectionHeader("Вычисляемые параметры");
+
+        if (changed)
         {
             workbench.Recalculate();
+            PullBuffersFromInput();
         }
 
-        // ────── РЕЗУЛЬТАТЫ ──────
-        GUILayout.Space(8);
         var o = workbench.Output;
-        if (o != null)
-        {
-            GUILayout.Label("══════ РЕЗУЛЬТАТ ══════", GUI.skin.box);
+        var b = workbench.BarrelOutput;
 
-            if (!string.IsNullOrEmpty(o.error))
+        if (o != null && string.IsNullOrEmpty(o.error))
+        {
+            GroupHeader("Снаряд");
+            ValueLine($"Тип: {o.chargeType}");
+            ValueLine($"Область поражения: {AreaToText(o.areaType)}");
+            ValueLine($"Масса снаряда: {o.totalProjectileMassKg:F3} кг");
+            ValueLine($"Масса оболочки: {o.shellMassKg:F3} кг");
+            ValueLine($"Прочность оболочки: {o.shellStrength:F3}");
+
+            if (o.chargeType != AmmoCalc.ChargeType.FM)
             {
-                ErrorLabel(o.error);
+                ValueLine($"Масса заряда: {o.explosiveMassKg:F3} кг");
+                ValueLine($"Мощность заряда: {o.explosivePower:F3}");
+            }
+
+            if (o.chargeType == AmmoCalc.ChargeType.EQ)
+            {
+                ValueLine($"ПЭ: {DamageElementToText(o.damageElementType)}");
+                ValueLine($"Масса ПЭ: {o.damageElementMassKg:F3} кг");
+                if (o.damageElementType == AmmoCalc.DamageElementType.Buckshot)
+                    ValueLine($"Картечин: {o.buckshotCount}");
+            }
+
+            ValueLine($"Радиус поражения: {o.damageRadius:F3} м");
+            ValueLine($"Пробитие в области: {o.areaPenetration:F3}");
+            ValueLine($"Урон в области: {o.areaDamage:F3}");
+            if (o.areaType == AmmoCalc.AreaType.Cone)
+                ValueLine($"Угол конуса: {o.coneAngleDeg:F3}°");
+
+            ValueLine($"Сила выталкивания: {o.propulsionForce:F3}");
+            ValueLine($"Прочность гильзы: {o.caseStrength:F3}");
+            ValueLine($"Масса выстрела: {o.totalShotMassKg:F3} кг");
+
+            GroupHeader("Стоимость");
+            var costs = workbench.Costs;
+            if (costs != null)
+            {
+                foreach (var c in costs)
+                {
+                    if (c.isEnergy)
+                    {
+                        long total = c.amountEnergy * inp.craftCount;
+                        ValueLine($"Энергия: {total} ед.");
+                    }
+                    else
+                    {
+                        var ri = AmmoCalc.GetResourceIndex(c.resourceType, c.tier);
+                        string rName = ResourcesStorage.ResourceName(ri);
+                        float totalKg = AmmoCalc.Ceil3(c.amountKg * inp.craftCount);
+                        ValueLine($"{rName}: {totalKg:F3} кг");
+                    }
+                }
+            }
+
+            GroupHeader("Оценка для ствола");
+            if (b != null && b.valid)
+            {
+                ValueLine($"Скорость снаряда: {b.projectileSpeed:F3} м/с");
+                ValueLine($"Точность: {b.accuracy:F6}°");
+                ValueLine($"Макс. дальность: {b.maxRange:F3} м");
+                ValueLine($"Дальность прямого выстрела: {b.directFireRange:F3} м");
+                ValueLine($"Прямой урон: {b.directDamage:F3}");
+                ValueLine($"Прямое пробитие: {b.directPenetration:F3}");
             }
             else
             {
-                InfoLabel($"Тип заряда: {o.chargeType}");
-                InfoLabel($"Масса снаряда: {o.totalProjectileMassKg:F3} кг");
-                InfoLabel($"Масса оболочки: {o.shellMassKg:F3} кг");
-                InfoLabel($"Прочность оболочки: {o.shellStrength:F3}");
-
-                if (o.chargeType != AmmoCalc.ChargeType.FM)
-                {
-                    InfoLabel($"Мощность заряда: {o.explosivePower:F3}");
-                    InfoLabel($"Радиус поражения: {o.damageRadius:F3} м");
-                    InfoLabel($"Пробитие в радиусе: {o.areaPenetration:F3}");
-                    InfoLabel($"Повреждение в радиусе: {o.areaDamage:F3}");
-                    if (o.areaType == AmmoCalc.AreaType.Cone)
-                        InfoLabel($"Угол конуса: {o.coneAngleDeg:F3}°");
-                }
-
-                InfoLabel($"Сила выталкивания: {o.propulsionForce:F3}");
-                InfoLabel($"Прочность гильзы: {o.caseStrength:F3}");
-                InfoLabel($"Масса выстрела: {o.totalShotMassKg:F3} кг");
-
-                GUILayout.Space(4);
-                GUILayout.Label($"Код: {o.ammoCode}", GUI.skin.textField);
-
-                // ────── СТОИМОСТЬ ──────
-                GUILayout.Space(4);
-                SectionHeader($"Стоимость (×{inp.craftCount})");
-                var costs = workbench.Costs;
-                if (costs != null)
-                {
-                    foreach (var c in costs)
-                    {
-                        if (c.isEnergy)
-                        {
-                            long total = c.amountEnergy * inp.craftCount;
-                            InfoLabel($"  Энергия: {total} ед.");
-                        }
-                        else
-                        {
-                            var ri = AmmoCalc.GetResourceIndex(c.resourceType, c.tier);
-                            string rName = ResourcesStorage.ResourceName(ri);
-                            float totalKg = AmmoCalc.Ceil3(c.amountKg * inp.craftCount);
-                            InfoLabel($"  {rName}: {totalKg:F3} кг");
-                        }
-                    }
-                }
-
-                // ────── ДОПОЛНИТЕЛЬНАЯ ОЦЕНКА (СТВОЛ) ──────
-                GUILayout.Space(6);
-                showBarrelSection = GUILayout.Toggle(showBarrelSection,
-                    "▼ Дополнительная оценка (ствол)");
-
-                if (showBarrelSection)
-                {
-                    SectionHeader("Параметры ствола");
-
-                    sBarrelLen = FloatField("Длина ствола (мм)", sBarrelLen, out float bLen);
-                    workbench.barrelInput.barrelLengthMm =
-                        Mathf.Clamp(bLen, inp.lengthMm, 1000000f);
-
-                    float maxBD = Mathf.Floor(inp.diameterMm * 1.25f);
-                    if (maxBD < inp.diameterMm) maxBD = inp.diameterMm;
-                    sBarrelDiam = FloatField(
-                        $"Диаметр ствола (мм) [{inp.diameterMm:F0}–{maxBD:F0}]",
-                        sBarrelDiam, out float bDiam);
-                    workbench.barrelInput.barrelDiameterMm =
-                        Mathf.Clamp(bDiam, inp.diameterMm, maxBD);
-
-                    if (GUILayout.Button("Пересчитать оценку"))
-                    {
-                        workbench.Recalculate();
-                    }
-
-                    var b = workbench.BarrelOutput;
-                    if (b != null)
-                    {
-                        SectionHeader("Результат оценки");
-                        InfoLabel($"Скорость снаряда: {b.projectileSpeed:F3} м/с");
-                        InfoLabel($"Точность (отклонение): {b.accuracy:F6}°");
-                        InfoLabel($"Макс. дальность: {b.maxRange:F3} м");
-                        InfoLabel($"Дальность прямого выстрела: {b.directFireRange:F3} м");
-                        InfoLabel($"Прямой урон: {b.directDamage:F3}");
-                        InfoLabel($"Прямое пробитие: {b.directPenetration:F3}");
-                    }
-                }
+                WarningLine("неверные параметры ствола");
+                WarningLine("Длина ствола >= длины снаряда");
+                WarningLine("Диаметр ствола от диаметра снаряда до 1.25 диаметра");
             }
         }
-
-        // ────── КНОПКА КРАФТА ──────
-        GUILayout.Space(12);
-
-        string err = workbench.CraftError;
-        bool craft = workbench.CanCraft;
-
-        if (!craft && !string.IsNullOrEmpty(err))
+        else
         {
-            WarningLabel(err);
+            if (o != null && !string.IsNullOrEmpty(o.error))
+                ErrorLine(o.error);
         }
 
-        GUI.enabled = craft;
-        if (GUILayout.Button("═══ КРАФТ ═══", GUILayout.Height(40)))
+        if (!string.IsNullOrEmpty(workbench.CraftError))
         {
-            if (workbench.TryCraft())
-            {
-                Debug.Log("[AmmoWorkbenchUI] Крафт выполнен успешно!");
-            }
+            GUILayout.Space(8);
+            WarningLine(workbench.CraftError);
+        }
+
+        GUILayout.EndVertical();
+
+        GUILayout.EndHorizontal();
+
+        GUILayout.Space(10);
+
+        GUILayout.BeginHorizontal();
+        GUI.enabled = workbench.CanCraft;
+        if (GUILayout.Button("ИЗГОТОВИТЬ", GUILayout.Height(36)))
+        {
+            workbench.TryCraft();
         }
         GUI.enabled = true;
+
+        if (GUILayout.Button("Сброс", GUILayout.Width(120), GUILayout.Height(36)))
+        {
+            workbench.ResetToDefaults();
+            PullBuffersFromInput();
+        }
+        GUILayout.EndHorizontal();
 
         GUILayout.EndScrollView();
         GUILayout.EndArea();
     }
 
-    // ===================== UI ХЕЛПЕРЫ =====================
-
-    private int TierSlider(string label, int current, bool allowZero = false)
+    private void DrawChargeTypeSelector(AmmoCalc.AmmoInput inp, float previewMass, ref bool changed)
     {
-        int min = allowZero ? 0 : 1;
+        int current = (int)inp.chargeType;
+
         GUILayout.BeginHorizontal();
-        GUILayout.Label($"{label}: {current}", GUILayout.Width(220));
-        current = Mathf.RoundToInt(GUILayout.HorizontalSlider(current, min, 10));
+
+        for (int i = 0; i < ChargeNames.Length; i++)
+        {
+            AmmoCalc.ChargeType type = (AmmoCalc.ChargeType)i;
+            bool allowed = AmmoCalc.IsChargeTypeAllowed(type, previewMass);
+
+            bool prevEnabled = GUI.enabled;
+            GUI.enabled = allowed;
+
+            if (GUILayout.Toggle(current == i, ChargeNames[i], GUI.skin.button, GUILayout.Height(26)))
+            {
+                if (current != i)
+                {
+                    inp.chargeType = type;
+                    changed = true;
+                }
+            }
+
+            GUI.enabled = prevEnabled;
+        }
+
         GUILayout.EndHorizontal();
-        return current;
+
+        if (!AmmoCalc.IsChargeTypeAllowed(AmmoCalc.ChargeType.HE, previewMass))
+            WarningLine("HE доступен при массе снаряда от 0.100 кг");
+        if (!AmmoCalc.IsChargeTypeAllowed(AmmoCalc.ChargeType.EQ, previewMass))
+            WarningLine("EQ доступен при массе снаряда от 0.300 кг");
     }
 
-    private string FloatField(string label, string buffer, out float value)
+    private void DrawDESelector(AmmoCalc.AmmoInput inp, ref bool changed)
+    {
+        GUILayout.BeginHorizontal();
+
+        for (int i = 0; i < DEValues.Length; i++)
+        {
+            bool selected = inp.damageElementType == DEValues[i];
+            if (GUILayout.Toggle(selected, DENames[i], GUI.skin.button, GUILayout.Height(24)))
+            {
+                if (!selected)
+                {
+                    inp.damageElementType = DEValues[i];
+                    changed = true;
+                }
+            }
+        }
+
+        GUILayout.EndHorizontal();
+    }
+
+    private void DrawAreaSelector(AmmoCalc.AmmoInput inp, ref bool changed)
+    {
+        GUILayout.BeginHorizontal();
+
+        for (int i = 0; i < AreaValues.Length; i++)
+        {
+            AmmoCalc.AreaType area = AreaValues[i];
+            bool allowed = IsAreaAllowed(inp, area);
+            bool selected = AmmoCalc.NormalizeAreaType(inp.areaType) == area;
+
+            bool prev = GUI.enabled;
+            GUI.enabled = allowed;
+
+            if (GUILayout.Toggle(selected, AreaNames[i], GUI.skin.button, GUILayout.Height(24)))
+            {
+                if (allowed && !selected)
+                {
+                    inp.areaType = area;
+                    changed = true;
+                }
+            }
+
+            GUI.enabled = prev;
+        }
+
+        GUILayout.EndHorizontal();
+    }
+
+    private bool IsAreaAllowed(AmmoCalc.AmmoInput inp, AmmoCalc.AreaType area)
+    {
+        switch (inp.chargeType)
+        {
+            case AmmoCalc.ChargeType.FM:
+                return area == AmmoCalc.AreaType.Point;
+
+            case AmmoCalc.ChargeType.HE:
+                return area == AmmoCalc.AreaType.Sphere;
+
+            case AmmoCalc.ChargeType.EQ:
+                switch (inp.damageElementType)
+                {
+                    case AmmoCalc.DamageElementType.Buckshot:
+                        return area == AmmoCalc.AreaType.Point;
+                    case AmmoCalc.DamageElementType.Pellet:
+                        return area == AmmoCalc.AreaType.Sphere || area == AmmoCalc.AreaType.Cone;
+                    case AmmoCalc.DamageElementType.Fire:
+                    case AmmoCalc.DamageElementType.Chemical:
+                    case AmmoCalc.DamageElementType.Energy:
+                        return area == AmmoCalc.AreaType.Cloud;
+                }
+                break;
+        }
+
+        return false;
+    }
+
+    private bool TierSlider(string label, ref int current)
+    {
+        int old = current;
+        GUILayout.BeginHorizontal();
+        GUILayout.Label($"{label}: {current}", GUILayout.Width(220));
+        current = Mathf.RoundToInt(GUILayout.HorizontalSlider(current, 1, 10));
+        current = Mathf.Clamp(current, 1, 10);
+        GUILayout.EndHorizontal();
+        return old != current;
+    }
+
+    private bool FloatField(string label, ref string buffer, out float value)
     {
         GUILayout.BeginHorizontal();
         GUILayout.Label(label, GUILayout.Width(220));
-        buffer = GUILayout.TextField(buffer, GUILayout.Width(120));
+        string newBuffer = GUILayout.TextField(buffer, GUILayout.Width(130));
         GUILayout.EndHorizontal();
 
+        bool changed = newBuffer != buffer;
+        buffer = newBuffer;
+
         string normalized = buffer.Replace(',', '.');
-        if (!float.TryParse(normalized,
-                System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture,
-                out value))
-        {
+        if (!float.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out value))
             value = 0f;
-        }
-        return buffer;
+
+        return changed;
+    }
+
+    private bool IntField(string label, ref string buffer, out int value)
+    {
+        GUILayout.BeginHorizontal();
+        GUILayout.Label(label, GUILayout.Width(220));
+        string newBuffer = GUILayout.TextField(buffer, GUILayout.Width(130));
+        GUILayout.EndHorizontal();
+
+        bool changed = newBuffer != buffer;
+        buffer = newBuffer;
+
+        if (!int.TryParse(buffer, out value))
+            value = 1;
+
+        return changed;
+    }
+
+    private string LabeledTextField(string label, string value, float labelWidth, ref bool changed)
+    {
+        GUILayout.BeginHorizontal();
+        GUILayout.Label(label, GUILayout.Width(labelWidth));
+        string newValue = GUILayout.TextField(value);
+        GUILayout.EndHorizontal();
+        if (newValue != value) changed = true;
+        return newValue;
+    }
+
+    private void PullBuffersFromInput()
+    {
+        var inp = workbench.ammoInput;
+        sDiam = inp.diameterMm.ToString("0.##", CultureInfo.InvariantCulture).Replace('.', ',');
+        sLen = Mathf.CeilToInt(inp.lengthMm).ToString();
+        sExpMass = inp.explosiveMassKg.ToString("0.###", CultureInfo.InvariantCulture).Replace('.', ',');
+        sDEMass = inp.damageElementMassKg.ToString("0.###", CultureInfo.InvariantCulture).Replace('.', ',');
+        sPropMass = inp.propellantMassKg.ToString("0.###", CultureInfo.InvariantCulture).Replace('.', ',');
+        sCaseMass = inp.caseMassKg.ToString("0.###", CultureInfo.InvariantCulture).Replace('.', ',');
+        sCraftCount = inp.craftCount.ToString();
+        sBarrelLen = workbench.barrelInput.barrelLengthMm.ToString("0.###", CultureInfo.InvariantCulture).Replace('.', ',');
+        sBarrelDiam = workbench.barrelInput.barrelDiameterMm.ToString("0.###", CultureInfo.InvariantCulture).Replace('.', ',');
+    }
+
+    private void EnsureStyles()
+    {
+        if (stylesReady) return;
+
+        windowStyle = new GUIStyle(GUI.skin.box);
+        windowStyle.normal.background = MakeTex(new Color(0.08f, 0.08f, 0.1f, 0.95f));
+
+        boxStyle = new GUIStyle(GUI.skin.box);
+        boxStyle.alignment = TextAnchor.MiddleCenter;
+        boxStyle.fontStyle = FontStyle.Bold;
+        boxStyle.normal.background = MakeTex(new Color(0.16f, 0.16f, 0.2f, 1f));
+
+        sectionStyle = new GUIStyle(GUI.skin.box);
+        sectionStyle.padding = new RectOffset(8, 8, 8, 8);
+        sectionStyle.normal.background = MakeTex(new Color(0.14f, 0.14f, 0.17f, 0.98f));
+
+        readonlyFieldStyle = new GUIStyle(GUI.skin.textField);
+        readonlyFieldStyle.normal.background = MakeTex(new Color(0.2f, 0.2f, 0.24f, 1f));
+        readonlyFieldStyle.normal.textColor = Color.white;
+
+        valueBoxStyle = new GUIStyle(GUI.skin.box);
+        valueBoxStyle.alignment = TextAnchor.MiddleLeft;
+        valueBoxStyle.normal.background = MakeTex(new Color(0.18f, 0.18f, 0.22f, 1f));
+
+        errorStyle = new GUIStyle(GUI.skin.label);
+        errorStyle.normal.textColor = new Color(1f, 0.35f, 0.35f, 1f);
+        errorStyle.wordWrap = true;
+
+        warningStyle = new GUIStyle(GUI.skin.label);
+        warningStyle.normal.textColor = new Color(1f, 0.9f, 0.35f, 1f);
+        warningStyle.wordWrap = true;
+
+        stylesReady = true;
+    }
+
+    private Texture2D MakeTex(Color c)
+    {
+        Texture2D tex = new Texture2D(1, 1);
+        tex.SetPixel(0, 0, c);
+        tex.Apply();
+        return tex;
     }
 
     private void SectionHeader(string text)
     {
         GUILayout.Space(4);
-        GUILayout.Label($"── {text} ──", GUI.skin.box);
+        GUILayout.Label(text, boxStyle);
     }
 
-    private void InfoLabel(string text)
+    private void GroupHeader(string text)
     {
-        GUILayout.Label(text);
+        GUILayout.Space(4);
+        GUILayout.Label($"— {text} —", GUI.skin.box);
     }
 
-    private void ErrorLabel(string text)
+    private void ValueLine(string text)
     {
-        Color prev = GUI.color;
-        GUI.color = Color.red;
-        GUILayout.Label($"✖ {text}");
-        GUI.color = prev;
+        GUILayout.Label(text, valueBoxStyle);
     }
 
-    private void WarningLabel(string text)
+    private void ErrorLine(string text)
     {
-        Color prev = GUI.color;
-        GUI.color = Color.yellow;
-        GUILayout.Label($"⚠ {text}");
-        GUI.color = prev;
+        GUILayout.Label($"✖ {text}", errorStyle);
+    }
+
+    private void WarningLine(string text)
+    {
+        GUILayout.Label($"⚠ {text}", warningStyle);
+    }
+
+    private string AreaToText(AmmoCalc.AreaType a)
+    {
+        a = AmmoCalc.NormalizeAreaType(a);
+        switch (a)
+        {
+            case AmmoCalc.AreaType.Point: return "Точка";
+            case AmmoCalc.AreaType.Sphere: return "Сфера";
+            case AmmoCalc.AreaType.Cone: return "Конус";
+            case AmmoCalc.AreaType.Cloud: return "Облако";
+            default: return "Точка";
+        }
+    }
+
+    private string DamageElementToText(AmmoCalc.DamageElementType t)
+    {
+        switch (t)
+        {
+            case AmmoCalc.DamageElementType.Shrapnel: return "Осколки";
+            case AmmoCalc.DamageElementType.Buckshot: return "Картечь";
+            case AmmoCalc.DamageElementType.Pellet: return "Дробь";
+            case AmmoCalc.DamageElementType.Fire: return "Огонь";
+            case AmmoCalc.DamageElementType.Chemical: return "Химия";
+            case AmmoCalc.DamageElementType.Energy: return "Энергия";
+            default: return "Нет";
+        }
     }
 }

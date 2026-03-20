@@ -406,6 +406,11 @@ public abstract class BaseModuleWorkbenchController<TRef, TData, TDatabase> : Mo
             explosionPenetration = CalcExplosionPenetration,
             explosionDamage = CalcExplosionDamage,
             buildVisualYawOffset = SelectedRef.BuildVisualYawOffset,
+            buildAnchorLocal = SelectedRef.BuildAnchorLocal,
+            useBuildAnchorPlacement = true,
+            buildAnchorCellLocal = SelectedRef.BuildAnchorCellLocal,
+            referenceVisualScale = SelectedRef.transform.localScale,
+
         };
     }
     private void SpawnInWorld(TData moduleData)
@@ -413,7 +418,11 @@ public abstract class BaseModuleWorkbenchController<TRef, TData, TDatabase> : Mo
         Vector3 spawnPos = transform.position + Vector3.up * 2f;
         GameObject inst = Instantiate(SelectedRef.gameObject, spawnPos, Quaternion.identity);
         inst.name = $"Crafted_{SelectedRef.gameObject.name}_T{SelectedRef.ModuleTier}";
-        inst.transform.localScale = SelectedRef.transform.localScale * Mathf.Max(0.001f, Scaler.CurrentScaleFactor);
+        Vector3 referenceScale = moduleData.referenceVisualScale == Vector3.zero
+            ? SelectedRef.transform.localScale
+            : moduleData.referenceVisualScale;
+
+        inst.transform.localScale = referenceScale * Mathf.Max(0.001f, moduleData.scaleFactor);
         // Удаляем эталонный компонент
         var standardComp = inst.GetComponent<TRef>();
         if (standardComp != null) Destroy(standardComp);
@@ -426,8 +435,15 @@ public abstract class BaseModuleWorkbenchController<TRef, TData, TDatabase> : Mo
         if (SelectedRef.IsVolatile)
         {
             var volComp = inst.AddComponent<RuntimeVolatileModule>();
-            volComp.Initialize(Scaler.CalcTotalMass, SelectedRef.ModuleTier,
-                Scaler.CalcEffectiveVolume, SelectedRef.ExplosionDamageType);
+            volComp.Initialize(
+                moduleData.explosionRadiusMeters,
+                moduleData.explosionPenetration,
+                moduleData.explosionDamage,
+                moduleData.explosionDamageType,
+                moduleData.totalMassKg,
+                moduleData.moduleTier,
+                moduleData.effectiveVolume
+            );
         }
     }
     // ================= ПОМОЩНИКИ =================

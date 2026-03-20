@@ -52,6 +52,11 @@ public struct ModuleCraftDTO
     public float explosionDamage;
     // Build Visual
     public float buildVisualYawOffset;
+    public Vector3 buildAnchorLocal;
+    public bool useBuildAnchorPlacement;
+    public Vector2Int buildAnchorCellLocal;
+    public Vector3 referenceVisualScale;
+
 }
 /// <summary>
 /// Базовые данные изготовленного модуля.
@@ -113,6 +118,10 @@ public class ModuleData
     public float explosionDamage;
     // Build Visual
     public float buildVisualYawOffset;
+    public Vector3 buildAnchorLocal;
+    public bool useBuildAnchorPlacement;
+    public Vector2Int buildAnchorCellLocal;
+    public Vector3 referenceVisualScale;
     /// <summary>
     /// Заполнить общие поля из структурированного DTO (безопасный способ).
     /// </summary>
@@ -152,7 +161,11 @@ public class ModuleData
         this.explosionPenetration = dto.explosionPenetration;
         this.explosionDamage = dto.explosionDamage;
         this.buildVisualYawOffset = dto.buildVisualYawOffset;
+        this.buildAnchorLocal = dto.buildAnchorLocal;
+        this.useBuildAnchorPlacement = dto.useBuildAnchorPlacement;
+        this.buildAnchorCellLocal = dto.buildAnchorCellLocal;
+        this.referenceVisualScale = dto.referenceVisualScale == Vector3.zero ? Vector3.one : dto.referenceVisualScale;
         this.craftTimestamp = DateTime.UtcNow.ToString("o");
-        this.dataVersion = 4;
+        this.dataVersion = 8;
     }
 }

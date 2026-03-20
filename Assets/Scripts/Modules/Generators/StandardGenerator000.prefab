@@ -122,7 +122,10 @@ MonoBehaviour:
   IsControllable: 0
   IsVolatile: 0
   ExplosionDamageType: 0
-  BuildVisualYawOffset: 90
+  BuildVisualYawOffset: 0
+  BuildAnchorLocal: {x: 0, y: 0, z: 0}
+  BuildAnchorCellLocal: {x: 0, y: 0}
+  UseBuildAnchorPlacement: 1
   ExplosionRadiusCoefficient: 0.1
   ExplosionPenetrationCoefficient: 0.1
   ExplosionDamageCoefficient: 0.1

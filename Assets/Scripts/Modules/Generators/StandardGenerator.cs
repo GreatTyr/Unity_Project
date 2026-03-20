@@ -48,8 +48,6 @@ public class StandardGenerator : StandardModuleBase
         BaseHeating = Mathf.Max(0f, BaseHeating);
         HeatCapacityCoeff = Mathf.Max(0.001f, HeatCapacityCoeff);
         CapacityCoefficient = Mathf.Max(0f, CapacityCoefficient);
-
-        RecalculateAll();
     }
 
     protected override void ComputeSpecificOutputs()
@@ -114,6 +112,10 @@ public class StandardGeneratorEditor : Editor
     private SerializedProperty pBlueprintId;
 
     private SerializedProperty pBuildVisualYawOffset;
+    private SerializedProperty pBuildAnchorLocal;
+    private SerializedProperty pUseBuildAnchorPlacement;
+    private SerializedProperty pBuildAnchorCellLocal;
+
 
     private SerializedProperty pIsVolatile;
     private SerializedProperty pExplosionDamageType;
@@ -145,7 +147,12 @@ public class StandardGeneratorEditor : Editor
         pFactionShortName = serializedObject.FindProperty("factionShortName");
         pBlueprintId = serializedObject.FindProperty("blueprintId");
 
+        
         pBuildVisualYawOffset = serializedObject.FindProperty("BuildVisualYawOffset");
+        pBuildAnchorLocal = serializedObject.FindProperty("BuildAnchorLocal");
+        pUseBuildAnchorPlacement = serializedObject.FindProperty("UseBuildAnchorPlacement");
+        pBuildAnchorCellLocal = serializedObject.FindProperty("BuildAnchorCellLocal");
+
 
         pIsVolatile = serializedObject.FindProperty("IsVolatile");
         pExplosionDamageType = serializedObject.FindProperty("ExplosionDamageType");
@@ -235,6 +242,12 @@ public class StandardGeneratorEditor : Editor
         EditorGUILayout.LabelField("Build Visual", EditorStyles.boldLabel);
         if (pBuildVisualYawOffset != null)
             EditorGUILayout.PropertyField(pBuildVisualYawOffset, new GUIContent("Build Visual Yaw Offset"));
+        if (pBuildAnchorLocal != null)
+            EditorGUILayout.PropertyField(pBuildAnchorLocal, new GUIContent("Build Anchor Local"));
+        if (pUseBuildAnchorPlacement != null)
+            EditorGUILayout.PropertyField(pUseBuildAnchorPlacement, new GUIContent("Use Build Anchor Placement"));
+        if (pBuildAnchorCellLocal != null)
+            EditorGUILayout.PropertyField(pBuildAnchorCellLocal, new GUIContent("Build Anchor Cell Local"));
 
         // ================= SPECIFIC INPUTS =================
         EditorGUILayout.Space();

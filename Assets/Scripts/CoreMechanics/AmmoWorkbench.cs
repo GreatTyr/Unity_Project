@@ -1,30 +1,31 @@
-// AmmoWorkbench.cs
+п»ї// AmmoWorkbench.cs
 using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Логика крафта конических снарядов.
-/// Связывает ввод, расчёт (AmmoCalc) и склады (через AmmoWorkbenchCore).
+/// Р›РѕРіРёРєР° РєСЂР°С„С‚Р° РєРѕРЅРёС‡РµСЃРєРёС… СЃРЅР°СЂСЏРґРѕРІ.
+/// РЎРІСЏР·С‹РІР°РµС‚ РІРІРѕРґ, СЂР°СЃС‡С‘С‚ (AmmoCalc) Рё СЃРєР»Р°РґС‹ (С‡РµСЂРµР· AmmoWorkbenchCore).
 /// </summary>
 [RequireComponent(typeof(AmmoWorkbenchCore))]
 public class AmmoWorkbench : MonoBehaviour
 {
     private AmmoWorkbenchCore core;
 
-    [Header("Ввод — снаряд")]
+    [Header("Р’РІРѕРґ вЂ” СЃРЅР°СЂСЏРґ")]
     public AmmoCalc.AmmoInput ammoInput = new AmmoCalc.AmmoInput();
 
-    [Header("Ввод — ствол (дополнительная оценка)")]
+    [Header("Р’РІРѕРґ вЂ” СЃС‚РІРѕР» (РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅР°СЏ РѕС†РµРЅРєР°)")]
     public AmmoCalc.BarrelInput barrelInput = new AmmoCalc.BarrelInput();
 
-    // --- Результаты (только для чтения извне) ---
+    [Header("Р СѓС‡РЅРѕР№ РІРІРѕРґ РєРѕРґР°")]
+    public string manualAmmoCode = "";
+
     private AmmoCalc.AmmoOutput output;
     private AmmoCalc.BarrelOutput barrelOutput;
     private List<AmmoCalc.ResourceCost> costs;
     private bool canCraft;
     private string craftError = "";
 
-    // --- Геттеры ---
     public AmmoCalc.AmmoOutput Output => output;
     public AmmoCalc.BarrelOutput BarrelOutput => barrelOutput;
     public IReadOnlyList<AmmoCalc.ResourceCost> Costs => costs;
@@ -33,19 +34,83 @@ public class AmmoWorkbench : MonoBehaviour
 
     private void Awake()
     {
-        core = GetComponent<AmmoWorkbenchCore>();
+        EnsureCore();
+        ResetToDefaults();
     }
 
-    /// <summary>
-    /// Полный пересчёт параметров, стоимости, проверка ресурсов.
-    /// Вызывать при любом изменении ввода.
-    /// </summary>
+    private void EnsureCore()
+    {
+        if (core == null)
+            core = GetComponent<AmmoWorkbenchCore>();
+    }
+
+    public void ResetToDefaults()
+    {
+        ammoInput = new AmmoCalc.AmmoInput
+        {
+            chargeType = AmmoCalc.ChargeType.FM,
+            shellTier = 1,
+            diameterMm = 10f,
+            lengthMm = 20f,
+            explosiveTier = 1,
+            explosiveMassKg = 0f,
+            damageElementType = AmmoCalc.DamageElementType.Buckshot,
+            buckshotCount = 2,
+            damageElementTier = 1,
+            damageElementMassKg = 0f,
+            areaType = AmmoCalc.AreaType.Point,
+            fuzeType = AmmoCalc.FuzeType.No,
+            propellantTier = 1,
+            propellantMassKg = 0.001f,
+            caseTier = 1,
+            caseMassKg = 0.001f,
+            craftCount = 1
+        };
+
+        barrelInput = new AmmoCalc.BarrelInput
+        {
+            barrelDiameterMm = ammoInput.diameterMm,
+            barrelLengthMm = ammoInput.lengthMm * 10f
+        };
+
+        manualAmmoCode = "";
+        Recalculate();
+    }
+
+    public bool TryApplyManualCode()
+    {
+        EnsureCore();
+
+        if (!AmmoCalc.TryParseCode(manualAmmoCode, out var parsedInput, out var error))
+        {
+            craftError = error;
+            return false;
+        }
+
+        ammoInput = parsedInput;
+        barrelInput.barrelDiameterMm = ammoInput.diameterMm;
+        barrelInput.barrelLengthMm = ammoInput.lengthMm * 10f;
+
+        Recalculate();
+        return true;
+    }
+
     public void Recalculate()
     {
+        EnsureCore();
+
         canCraft = false;
         craftError = "";
 
-        // Проверка ядра
+        if (core == null)
+        {
+            craftError = "РќРµ РЅР°Р№РґРµРЅ РєРѕРјРїРѕРЅРµРЅС‚ AmmoWorkbenchCore.";
+            output = null;
+            barrelOutput = null;
+            costs = null;
+            return;
+        }
+
         if (!core.IsReady)
         {
             craftError = core.GetReadyError();
@@ -55,27 +120,30 @@ public class AmmoWorkbench : MonoBehaviour
             return;
         }
 
-        // Расчёт снаряда
+        AmmoCalc.NormalizeInput(ammoInput);
         output = AmmoCalc.Calculate(ammoInput);
 
-        if (!string.IsNullOrEmpty(output.error))
+        if (output == null)
         {
-            craftError = output.error;
+            craftError = "РћС€РёР±РєР° СЂР°СЃС‡С‘С‚Р° СЃРЅР°СЂСЏРґР°.";
             barrelOutput = null;
             costs = null;
             return;
         }
 
-        // Расчёт ствола
-        barrelOutput = AmmoCalc.CalculateBarrel(output, barrelInput);
+        if (!string.IsNullOrEmpty(output.error))
+        {
+            craftError = output.error;
+            barrelOutput = AmmoCalc.CalculateBarrel(output, barrelInput);
+            costs = null;
+            return;
+        }
 
-        // Стоимость
+        barrelOutput = AmmoCalc.CalculateBarrel(output, barrelInput);
         costs = AmmoCalc.CalculateCosts(output);
 
-        // Количество
         int count = Mathf.Max(ammoInput.craftCount, 1);
 
-        // Проверка ресурсов
         string resErr = AmmoCalc.ValidateResources(core.ResourcesStorage, costs, count);
         if (!string.IsNullOrEmpty(resErr))
         {
@@ -87,34 +155,30 @@ public class AmmoWorkbench : MonoBehaviour
         canCraft = true;
     }
 
-    /// <summary>
-    /// Крафт. Возвращает true при успехе.
-    /// </summary>
     public bool TryCraft()
     {
+        EnsureCore();
         Recalculate();
 
         if (!canCraft)
         {
-            Debug.LogWarning($"[AmmoWorkbench] Крафт невозможен: {craftError}");
+            Debug.LogWarning($"[AmmoWorkbench] РР·РіРѕС‚РѕРІР»РµРЅРёРµ РЅРµРІРѕР·РјРѕР¶РЅРѕ: {craftError}");
             return false;
         }
 
         int count = Mathf.Max(ammoInput.craftCount, 1);
 
-        // Списание ресурсов
         if (!AmmoCalc.ConsumeResources(core.ResourcesStorage, costs, count))
         {
-            craftError = "Ошибка списания ресурсов.";
+            craftError = "РћС€РёР±РєР° СЃРїРёСЃР°РЅРёСЏ СЂРµСЃСѓСЂСЃРѕРІ.";
             canCraft = false;
             Debug.LogError($"[AmmoWorkbench] {craftError}");
             return false;
         }
 
-        // Запись в склад боеприпасов
         core.AmmoStorage.AddAmmo(output.ammoCode, count, output.totalShotMassKg);
 
-        Debug.Log($"[AmmoWorkbench] Скрафчено {count} выстрелов: {output.ammoCode}");
+        Debug.Log($"[AmmoWorkbench] РР·РіРѕС‚РѕРІР»РµРЅРѕ {count} РІС‹СЃС‚СЂРµР»РѕРІ: {output.ammoCode}");
         return true;
     }
 }

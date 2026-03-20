@@ -19,11 +19,6 @@ public class PepelacGridBuilder : MonoBehaviour
     [Tooltip("Ссылка на ModuleStorage для списания/возврата модулей")]
     public ModuleStorage moduleStorage;
 
-    [Header("Databases (legacy fallback)")]
-    public GeneratorDatabase generatorDb;
-    public EnergyStorageDatabase energyStorageDb;
-    public FuelTankDatabase fuelTankDb;
-
     [Header("Ghost & Highlight Visuals")]
     public Material validGhostMaterial;
     public Material invalidGhostMaterial;
@@ -44,6 +39,27 @@ public class PepelacGridBuilder : MonoBehaviour
     [Header("Raycast")]
     [Min(1f)]
     [SerializeField] private float maxBuildRayDistance = 500f;
+
+    [Header("Debug / Placement Diagnostics")]
+    [SerializeField] private bool showPlacementDiagnostics = true;
+
+    [SerializeField, HideInInspector] private bool hasPlacementQuery;
+    [SerializeField, HideInInspector] private bool lastPlacementQueryValid;
+    [SerializeField, HideInInspector] private PlacementBlockReason lastPlacementBlockReason = PlacementBlockReason.Unknown;
+    [SerializeField, HideInInspector] private Vector2Int lastPlacementBlockedCell = new Vector2Int(-1, -1);
+    [SerializeField, HideInInspector] private int lastPlacementExpectedRegionId = -1;
+    [SerializeField, HideInInspector] private int lastPlacementBlockedRegionId = -1;
+    [SerializeField, HideInInspector] private Vector2Int lastPlacementAnchorCell = new Vector2Int(-1, -1);
+
+    [Header("Region Debug")]
+    [SerializeField] private bool showRegionDebugOverlay = true;
+    [SerializeField] private Color hoveredRegionDebugColor = new Color(0.15f, 0.75f, 1f, 0.45f);
+
+    [SerializeField, HideInInspector] private int hoveredBuildableRegionId = -1;
+
+    private PlacementQueryResult lastPlacementQuery;
+    private PlacementBlockReason lastLoggedBlockReason = PlacementBlockReason.Unknown;
+    private Vector2Int lastLoggedBlockedCell = new Vector2Int(-999, -999);
 
     private PepelacGrid grid;
     private PepelacBuildSurface buildSurface;
@@ -136,10 +152,17 @@ public class PepelacGridBuilder : MonoBehaviour
             SetHighlight(hoveredInstalledModule, false);
             hoveredInstalledModule = null;
         }
+
+        hoveredBuildableRegionId = -1;
+        gridOverlay?.HideRegionDebug();
+        gridOverlay?.HideAnchorDebug();
+        gridOverlay?.HideBlockedCellDebug();
+
+        ClearPlacementDiagnostics();
     }
 
     // =========================================
-    // ВЗАИМОДЕЙСТВИЕ С UI
+    // UI / SELECTION
     // =========================================
 
     public void SetSelectedModule(ModuleData data, string code)
@@ -171,7 +194,106 @@ public class PepelacGridBuilder : MonoBehaviour
         DestroyGhost();
 
         if (gridOverlay != null)
+        {
             gridOverlay.HideFootprint();
+            gridOverlay.HideAnchorDebug();
+            gridOverlay.HideBlockedCellDebug();
+        }
+
+        ClearPlacementDiagnostics();
+    }
+
+    // =========================================
+    // DIAGNOSTICS
+    // =========================================
+
+    private void ClearPlacementDiagnostics()
+    {
+        hasPlacementQuery = false;
+        lastPlacementQuery = null;
+        lastPlacementQueryValid = false;
+        lastPlacementBlockReason = PlacementBlockReason.Unknown;
+        lastPlacementBlockedCell = new Vector2Int(-1, -1);
+        lastPlacementExpectedRegionId = -1;
+        lastPlacementBlockedRegionId = -1;
+        lastPlacementAnchorCell = new Vector2Int(-1, -1);
+
+        lastLoggedBlockReason = PlacementBlockReason.Unknown;
+        lastLoggedBlockedCell = new Vector2Int(-999, -999);
+    }
+
+    private void ApplyPlacementDiagnostics(PlacementQueryResult query, Vector2Int anchorCell)
+    {
+        lastPlacementQuery = query;
+        hasPlacementQuery = query != null;
+        lastPlacementAnchorCell = anchorCell;
+
+        if (query == null)
+        {
+            lastPlacementQueryValid = false;
+            lastPlacementBlockReason = PlacementBlockReason.Unknown;
+            lastPlacementBlockedCell = new Vector2Int(-1, -1);
+            lastPlacementExpectedRegionId = -1;
+            lastPlacementBlockedRegionId = -1;
+            return;
+        }
+
+        lastPlacementQueryValid = query.isValid;
+        lastPlacementBlockReason = query.blockReason;
+        lastPlacementBlockedCell = query.firstBlockedCell;
+        lastPlacementExpectedRegionId = query.expectedRegionId;
+        lastPlacementBlockedRegionId = query.blockedRegionId;
+    }
+
+    private void LogPlacementDiagnosticsIfNeeded()
+    {
+        if (!showPlacementDiagnostics || !hasPlacementQuery || lastPlacementQuery == null)
+            return;
+
+        if (lastPlacementQuery.isValid)
+            return;
+
+        bool sameReason = lastLoggedBlockReason == lastPlacementBlockReason;
+        bool sameCell = lastLoggedBlockedCell == lastPlacementBlockedCell;
+
+        if (sameReason && sameCell)
+            return;
+
+        lastLoggedBlockReason = lastPlacementBlockReason;
+        lastLoggedBlockedCell = lastPlacementBlockedCell;
+
+        string extra = string.Empty;
+        if (lastPlacementBlockReason == PlacementBlockReason.RegionMismatch)
+        {
+            extra = $" expectedRegion={lastPlacementExpectedRegionId}, blockedRegion={lastPlacementBlockedRegionId}";
+        }
+
+        Debug.Log(
+            $"[PepelacGridBuilder] Placement invalid: {lastPlacementBlockReason}, " +
+            $"anchor={lastPlacementAnchorCell}, blockedCell={lastPlacementBlockedCell}{extra}");
+    }
+
+    public string GetPlacementDiagnosticsText()
+    {
+        if (!hasPlacementQuery)
+            return "No placement query.";
+
+        if (lastPlacementQueryValid)
+            return $"VALID | anchor={lastPlacementAnchorCell}";
+
+        string text =
+            $"INVALID | reason={lastPlacementBlockReason} | anchor={lastPlacementAnchorCell} | blocked={lastPlacementBlockedCell}";
+
+        if (lastPlacementBlockReason == PlacementBlockReason.RegionMismatch)
+            text += $" | expectedRegion={lastPlacementExpectedRegionId} | blockedRegion={lastPlacementBlockedRegionId}";
+
+        return text;
+    }
+
+    [ContextMenu("Debug Print Placement Diagnostics")]
+    private void DebugPrintPlacementDiagnostics()
+    {
+        Debug.Log($"[PepelacGridBuilder] {GetPlacementDiagnosticsText()}");
     }
 
     // =========================================
@@ -185,6 +307,8 @@ public class PepelacGridBuilder : MonoBehaviour
             return;
 
         ghostObject.name = "GridGhost";
+
+        EnsureReferenceVisualScale(data, ghostObject.transform);
 
         Collider[] colliders = ghostObject.GetComponentsInChildren<Collider>();
         foreach (var col in colliders)
@@ -210,16 +334,92 @@ public class PepelacGridBuilder : MonoBehaviour
         }
     }
 
+    private Vector3 GetReferenceVisualScale(ModuleData data, Transform currentTransform)
+    {
+        if (data != null && data.referenceVisualScale != Vector3.zero)
+            return data.referenceVisualScale;
+
+        if (currentTransform != null && currentTransform.localScale != Vector3.zero)
+            return currentTransform.localScale;
+
+        return Vector3.one;
+    }
+
+    private void EnsureReferenceVisualScale(ModuleData data, Transform target)
+    {
+        if (data == null || target == null)
+            return;
+
+        if (data.referenceVisualScale == Vector3.zero)
+            data.referenceVisualScale = target.localScale;
+    }
+
+    private float GetFinalVisualYaw(ModuleData data, ModuleOrientation orientation)
+    {
+        float orientationYaw = 0f;
+
+        switch (orientation)
+        {
+            case ModuleOrientation.Deg90: orientationYaw = 90f; break;
+            case ModuleOrientation.Deg180: orientationYaw = 180f; break;
+            case ModuleOrientation.Deg270: orientationYaw = 270f; break;
+        }
+
+        float visualOffset = data != null ? data.buildVisualYawOffset : 0f;
+        return orientationYaw + visualOffset;
+    }
+
+    private void ApplyModuleVisualTransform(
+        Transform target,
+        ModuleData data,
+        ModuleOrientation orientation,
+        Vector3 localPlacementPoint)
+    {
+        if (target == null || data == null)
+            return;
+
+        float scaleFactor = Mathf.Max(0.001f, data.scaleFactor);
+        Vector3 referenceVisualScale = GetReferenceVisualScale(data, target);
+
+        float finalYaw = GetFinalVisualYaw(data, orientation);
+        Quaternion visualRotation = Quaternion.Euler(0f, finalYaw, 0f);
+
+        target.localScale = referenceVisualScale * scaleFactor;
+        target.localRotation = visualRotation;
+
+        Vector3 automaticFootprintOffset = Vector3.zero;
+        if (grid != null)
+        {
+            automaticFootprintOffset = grid.GetAnchorToFootprintCenterOffset(
+                data.length,
+                data.width,
+                orientation,
+                data.buildAnchorCellLocal
+            );
+        }
+
+        // Ручной offset — только для тонкой визуальной подстройки
+        Vector3 manualVisualOffset = visualRotation * data.buildAnchorLocal;
+
+        target.localPosition = localPlacementPoint + automaticFootprintOffset + manualVisualOffset;
+    }
+
     private void UpdateGhostTransformOnly()
     {
         if (ghostObject == null || selectedData == null)
             return;
 
-        float s = Mathf.Max(0.001f, selectedData.scaleFactor);
-        ghostObject.transform.localScale = Vector3.one * s;
+        float scaleFactor = Mathf.Max(0.001f, selectedData.scaleFactor);
+        Vector3 referenceVisualScale = GetReferenceVisualScale(selectedData, ghostObject.transform);
 
-        float yRot = GetFinalVisualYaw(selectedData);
-        ghostObject.transform.localRotation = Quaternion.Euler(0f, yRot, 0f);
+        float finalYaw = GetFinalVisualYaw(selectedData, currentOrientation);
+        Quaternion visualRotation = Quaternion.Euler(0f, finalYaw, 0f);
+
+        ghostObject.transform.localScale = referenceVisualScale * scaleFactor;
+        ghostObject.transform.localRotation = visualRotation;
+
+        Vector3 manualVisualOffset = visualRotation * selectedData.buildAnchorLocal;
+        ghostObject.transform.localPosition = manualVisualOffset;
     }
 
     private void UpdateGhostPlacementVisual()
@@ -227,10 +427,9 @@ public class PepelacGridBuilder : MonoBehaviour
         if (ghostObject == null || selectedData == null || !isHoveringGrid)
             return;
 
-        Vector2Int gridSize = grid.CalculateGridSize(selectedData.length, selectedData.width, currentOrientation);
-        Vector3 localSnapPos = grid.GridToLocalPosition(currentHoverCell.x, currentHoverCell.y, gridSize);
+        Vector3 localPlacementPoint = GetPlacementPoint(currentHoverCell);
 
-        ghostObject.transform.localPosition = localSnapPos;
+        ApplyModuleVisualTransform(ghostObject.transform, selectedData, currentOrientation, localPlacementPoint);
 
         Material targetMat = isPlacementValid ? validGhostMaterial : invalidGhostMaterial;
         if (targetMat != null)
@@ -244,6 +443,10 @@ public class PepelacGridBuilder : MonoBehaviour
         }
     }
 
+    // =========================================
+    // INPUT / UPDATE
+    // =========================================
+
     private void OnRotatePerformed(InputAction.CallbackContext ctx)
     {
         if (selectedData == null || ghostObject == null)
@@ -254,18 +457,23 @@ public class PepelacGridBuilder : MonoBehaviour
 
         if (isHoveringGrid)
         {
-            Vector2Int gridSize = grid.CalculateGridSize(selectedData.length, selectedData.width, currentOrientation);
-            List<Vector2Int> footprint = grid.GetPlacementFootprint(currentHoverCell, gridSize);
-            isPlacementValid = footprint != null;
+            PlacementQueryResult query = grid.QueryPlacement(
+                currentHoverCell,
+                selectedData.length,
+                selectedData.width,
+                currentOrientation,
+                selectedData.buildAnchorCellLocal
+            );
+
+            ApplyPlacementDiagnostics(query, currentHoverCell);
+
+            isPlacementValid = query != null && query.isValid;
 
             UpdateGhostPlacementVisual();
-            UpdateFootprintOverlay(footprint, gridSize);
+            UpdateFootprintOverlay(query);
+            LogPlacementDiagnosticsIfNeeded();
         }
     }
-
-    // =========================================
-    // UPDATE
-    // =========================================
 
     private void Update()
     {
@@ -275,11 +483,14 @@ public class PepelacGridBuilder : MonoBehaviour
             return;
 
         UpdateHoveredCell();
+        UpdateRegionDebugOverlay();
 
         if (selectedData != null && ghostObject != null)
             UpdatePlacementMode();
         else
             UpdateRemovalHoverMode();
+
+        UpdatePlacementDebugOverlay();
     }
 
     private void UpdateHoveredCell()
@@ -316,6 +527,10 @@ public class PepelacGridBuilder : MonoBehaviour
         return null;
     }
 
+    // =========================================
+    // PLACEMENT MODE
+    // =========================================
+
     private void UpdatePlacementMode()
     {
         if (!isHoveringGrid)
@@ -328,38 +543,51 @@ public class PepelacGridBuilder : MonoBehaviour
             if (gridOverlay != null)
                 gridOverlay.HideFootprint();
 
+            ClearPlacementDiagnostics();
             return;
         }
 
         if (ghostObject != null)
             ghostObject.SetActive(true);
 
-        Vector2Int gridSize = grid.CalculateGridSize(selectedData.length, selectedData.width, currentOrientation);
-        List<Vector2Int> footprint = grid.GetPlacementFootprint(currentHoverCell, gridSize);
-        isPlacementValid = footprint != null;
+        PlacementQueryResult query = grid.QueryPlacement(
+            currentHoverCell,
+            selectedData.length,
+            selectedData.width,
+            currentOrientation,
+            selectedData.buildAnchorCellLocal
+        );
+
+        ApplyPlacementDiagnostics(query, currentHoverCell);
+
+        isPlacementValid = query != null && query.isValid;
 
         UpdateGhostPlacementVisual();
-        UpdateFootprintOverlay(footprint, gridSize);
+        UpdateFootprintOverlay(query);
+        LogPlacementDiagnosticsIfNeeded();
     }
 
-    private void UpdateFootprintOverlay(List<Vector2Int> footprint, Vector2Int gridSize)
+    private void UpdateFootprintOverlay(PlacementQueryResult query)
     {
         if (gridOverlay == null)
             return;
 
-        if (footprint != null && footprint.Count > 0)
+        if (query == null)
         {
-            gridOverlay.ShowFootprint(
-                footprint,
-                isPlacementValid ? validFootprintColor : invalidFootprintColor
-            );
+            gridOverlay.HideFootprint();
             return;
         }
 
-        List<Vector2Int> rawFootprint = BuildRawFootprint(currentHoverCell, gridSize);
-        if (rawFootprint != null && rawFootprint.Count > 0)
+        List<Vector2Int> cellsToShow = query.isValid
+            ? query.validatedFootprint
+            : query.rawFootprint;
+
+        if (cellsToShow != null && cellsToShow.Count > 0)
         {
-            gridOverlay.ShowFootprint(rawFootprint, invalidFootprintColor);
+            gridOverlay.ShowFootprint(
+                cellsToShow,
+                query.isValid ? validFootprintColor : invalidFootprintColor
+            );
         }
         else
         {
@@ -367,30 +595,18 @@ public class PepelacGridBuilder : MonoBehaviour
         }
     }
 
-    private List<Vector2Int> BuildRawFootprint(Vector2Int anchorCell, Vector2Int gridSize)
-    {
-        List<Vector2Int> footprint = new List<Vector2Int>();
-
-        int startX = anchorCell.x;
-        int startZ = anchorCell.y;
-        int endX = startX + gridSize.x - 1;
-        int endZ = startZ + gridSize.y - 1;
-
-        for (int x = startX; x <= endX; x++)
-        {
-            for (int z = startZ; z <= endZ; z++)
-            {
-                footprint.Add(new Vector2Int(x, z));
-            }
-        }
-
-        return footprint;
-    }
+    // =========================================
+    // REMOVE MODE
+    // =========================================
 
     private void UpdateRemovalHoverMode()
     {
         if (gridOverlay != null)
+        {
             gridOverlay.HideFootprint();
+            gridOverlay.HideAnchorDebug();
+            gridOverlay.HideBlockedCellDebug();
+        }
 
         RuntimeModuleBase moduleUnderMouse = null;
 
@@ -437,7 +653,68 @@ public class PepelacGridBuilder : MonoBehaviour
     }
 
     // =========================================
-    // УСТАНОВКА
+    // REGION / DEBUG OVERLAYS
+    // =========================================
+
+    private void UpdateRegionDebugOverlay()
+    {
+        hoveredBuildableRegionId = -1;
+
+        if (!showRegionDebugOverlay || grid == null || gridOverlay == null || !isHoveringGrid)
+        {
+            gridOverlay?.HideRegionDebug();
+            return;
+        }
+
+        if (!grid.TryGetBuildableRegionId(currentHoverCell, out int regionId))
+        {
+            gridOverlay.HideRegionDebug();
+            return;
+        }
+
+        hoveredBuildableRegionId = regionId;
+
+        List<Vector2Int> regionCells = grid.GetCellsInBuildableRegion(regionId);
+        if (regionCells == null || regionCells.Count == 0)
+        {
+            gridOverlay.HideRegionDebug();
+            return;
+        }
+
+        gridOverlay.ShowRegionDebug(regionCells, hoveredRegionDebugColor);
+    }
+
+    private void UpdatePlacementDebugOverlay()
+    {
+        if (gridOverlay == null)
+            return;
+
+        bool inPlacementMode = selectedData != null && ghostObject != null;
+
+        if (!inPlacementMode || !isHoveringGrid)
+        {
+            gridOverlay.HideAnchorDebug();
+            gridOverlay.HideBlockedCellDebug();
+            return;
+        }
+
+        gridOverlay.ShowAnchorDebug(currentHoverCell);
+
+        if (hasPlacementQuery &&
+            !lastPlacementQueryValid &&
+            lastPlacementBlockedCell.x >= 0 &&
+            lastPlacementBlockedCell.y >= 0)
+        {
+            gridOverlay.ShowBlockedCellDebug(lastPlacementBlockedCell);
+        }
+        else
+        {
+            gridOverlay.HideBlockedCellDebug();
+        }
+    }
+
+    // =========================================
+    // PLACE / REMOVE
     // =========================================
 
     private void OnClickPerformed(InputAction.CallbackContext ctx)
@@ -445,12 +722,32 @@ public class PepelacGridBuilder : MonoBehaviour
         if (selectedData == null || !isHoveringGrid || !isPlacementValid)
             return;
 
+        bool requiresStorage = !string.IsNullOrEmpty(selectedCode);
+
+        if (requiresStorage)
+        {
+            if (moduleStorage == null)
+            {
+                Debug.LogWarning("[PepelacGridBuilder] Невозможно установить модуль: ModuleStorage не назначен.");
+                return;
+            }
+
+            if (!moduleStorage.HasModule(selectedCode, 1))
+            {
+                Debug.LogWarning($"[PepelacGridBuilder] Модуль '{selectedCode}' больше не доступен на складе.");
+                ClearSelection();
+                return;
+            }
+        }
+
         GameObject newModuleObj = SpawnRealModulePrefab(selectedData);
         if (newModuleObj == null)
         {
             Debug.LogError("[PepelacGridBuilder] Не удалось найти префаб для спавна!");
             return;
         }
+
+        EnsureReferenceVisualScale(selectedData, newModuleObj.transform);
 
         CraftedModule craftedComp = newModuleObj.AddComponent<CraftedModule>();
         craftedComp.SetData(selectedData);
@@ -468,13 +765,24 @@ public class PepelacGridBuilder : MonoBehaviour
         {
             RuntimeVolatileModule volatileModule = newModuleObj.AddComponent<RuntimeVolatileModule>();
             volatileModule.Initialize(
+                selectedData.explosionRadiusMeters,
+                selectedData.explosionPenetration,
+                selectedData.explosionDamage,
+                selectedData.explosionDamageType,
                 selectedData.totalMassKg,
                 selectedData.moduleTier,
-                selectedData.effectiveVolume,
-                selectedData.explosionDamageType);
+                selectedData.effectiveVolume
+            );
         }
 
-        bool success = grid.TryPlaceModule(runtimeMod, currentHoverCell, selectedData.length, selectedData.width);
+        bool success = grid.TryPlaceModule(
+            runtimeMod,
+            currentHoverCell,
+            selectedData.length,
+            selectedData.width,
+            selectedData.buildAnchorCellLocal
+        );
+
         if (!success)
         {
             Destroy(newModuleObj);
@@ -483,31 +791,26 @@ public class PepelacGridBuilder : MonoBehaviour
 
         newModuleObj.transform.SetParent(transform, false);
 
-        Vector2Int gridSize = grid.CalculateGridSize(selectedData.length, selectedData.width, currentOrientation);
-        Vector3 localPos = grid.GridToLocalPosition(currentHoverCell.x, currentHoverCell.y, gridSize);
-        newModuleObj.transform.localPosition = localPos;
+        Vector3 localPlacementPoint = GetPlacementPoint(currentHoverCell);
+        ApplyModuleVisualTransform(newModuleObj.transform, selectedData, currentOrientation, localPlacementPoint);
 
-        float yRot = GetFinalVisualYaw(selectedData);
-        newModuleObj.transform.localRotation = Quaternion.Euler(0f, yRot, 0f);
-        newModuleObj.transform.localScale = Vector3.one * Mathf.Max(0.001f, selectedData.scaleFactor);
+        if (requiresStorage)
+        {
+            bool removedFromStorage = moduleStorage.RemoveModule(selectedCode, 1);
+            if (!removedFromStorage)
+            {
+                Debug.LogError($"[PepelacGridBuilder] Не удалось списать модуль '{selectedCode}' со склада. Placement откатывается.");
 
-        if (moduleStorage != null)
-        {
-            moduleStorage.RemoveModule(selectedCode, 1);
-        }
-        else
-        {
-            Debug.LogWarning("[PepelacGridBuilder] ModuleStorage не назначен, модуль не будет списан со склада.");
+                grid.RemoveModule(runtimeMod);
+                Destroy(newModuleObj);
+                return;
+            }
         }
 
         Debug.Log($"[PepelacGridBuilder] Установлен модуль {selectedData.moduleType} в anchor cell {currentHoverCell}.");
 
         ClearSelection();
     }
-
-    // =========================================
-    // УДАЛЕНИЕ / ОТМЕНА
-    // =========================================
 
     private void OnCancelPerformed(InputAction.CallbackContext ctx)
     {
@@ -526,27 +829,53 @@ public class PepelacGridBuilder : MonoBehaviour
 
         RuntimeModuleBase moduleToRemove = cell.occupant;
 
+        CraftedModule craftedComp = moduleToRemove.GetComponent<CraftedModule>();
+        if (craftedComp == null)
+        {
+            Debug.LogWarning("[PepelacGridBuilder] Нельзя снять модуль: отсутствует CraftedModule.");
+            return;
+        }
+
+        ModuleData dataToReturn = craftedComp.GetData();
+        if (dataToReturn == null)
+        {
+            Debug.LogWarning("[PepelacGridBuilder] Нельзя снять модуль: не удалось прочитать ModuleData.");
+            return;
+        }
+
+        if (moduleStorage == null)
+        {
+            Debug.LogWarning("[PepelacGridBuilder] Нельзя снять модуль: ModuleStorage не назначен.");
+            return;
+        }
+
+        string returnedCode = moduleStorage.AddModule(dataToReturn);
+        if (string.IsNullOrEmpty(returnedCode))
+        {
+            Debug.LogError("[PepelacGridBuilder] Не удалось вернуть модуль на склад. Снятие отменено.");
+            return;
+        }
+
         if (moduleToRemove == hoveredInstalledModule)
             hoveredInstalledModule = null;
 
-        CraftedModule craftedComp = moduleToRemove.GetComponent<CraftedModule>();
-        if (craftedComp != null)
-        {
-            ModuleData dataToReturn = craftedComp.GetData();
-            if (dataToReturn != null && moduleStorage != null)
-            {
-                moduleStorage.AddModule(dataToReturn);
-                Debug.Log($"[PepelacGridBuilder] Модуль {dataToReturn.moduleType} возвращён на склад.");
-            }
-        }
-
         grid.RemoveModule(moduleToRemove);
         Destroy(moduleToRemove.gameObject);
+
+        Debug.Log($"[PepelacGridBuilder] Модуль {dataToReturn.moduleType} возвращён на склад.");
     }
 
     // =========================================
-    // ХЕЛПЕРЫ СПАВНА
+    // HELPERS
     // =========================================
+
+    private Vector3 GetPlacementPoint(Vector2Int anchorCell)
+    {
+        if (grid == null)
+            return Vector3.zero;
+
+        return grid.AnchorCellToLocalCenter(anchorCell.x, anchorCell.y);
+    }
 
     private GameObject SpawnRealModulePrefab(ModuleData data)
     {
@@ -556,12 +885,8 @@ public class PepelacGridBuilder : MonoBehaviour
             return null;
         }
 
-        StandardModuleBase reference = null;
-
-        if (!ModuleTypeRegistry.TryResolveReference(data.moduleType, data.referenceName, out reference) || reference == null)
-            reference = ResolveReferenceLegacy(data);
-
-        if (reference == null)
+        if (!ModuleTypeRegistry.TryResolveReference(data.moduleType, data.referenceName, out StandardModuleBase reference) ||
+            reference == null)
         {
             Debug.LogError($"[PepelacGridBuilder] Не найден эталон для типа '{data.moduleType}' и reference '{data.referenceName}'.");
             return null;
@@ -579,23 +904,6 @@ public class PepelacGridBuilder : MonoBehaviour
         return instance;
     }
 
-    private StandardModuleBase ResolveReferenceLegacy(ModuleData data)
-    {
-        if (data == null)
-            return null;
-
-        if (data.moduleType == StandardGenerator.TYPE_GENERATOR)
-            return generatorDb != null ? generatorDb.GetByName(data.referenceName) : null;
-
-        if (data.moduleType == StandardEnergyStorage.TYPE_ENERGY_STORAGE)
-            return energyStorageDb != null ? energyStorageDb.GetByName(data.referenceName) : null;
-
-        if (data.moduleType == StandardFuelTank.TYPE_FUELTANK)
-            return fuelTankDb != null ? fuelTankDb.GetByName(data.referenceName) : null;
-
-        return null;
-    }
-
     private RuntimeModuleBase AddRuntimeComponent(GameObject obj, ModuleData data)
     {
         if (obj == null || data == null)
@@ -604,31 +912,7 @@ public class PepelacGridBuilder : MonoBehaviour
         if (ModuleTypeRegistry.TryAddRuntimeComponent(data.moduleType, obj, out RuntimeModuleBase runtimeModule))
             return runtimeModule;
 
-        if (data.moduleType == StandardGenerator.TYPE_GENERATOR)
-            return obj.AddComponent<RuntimeGenerator>();
-
-        if (data.moduleType == StandardEnergyStorage.TYPE_ENERGY_STORAGE)
-            return obj.AddComponent<RuntimeEnergyStorage>();
-
-        if (data.moduleType == StandardFuelTank.TYPE_FUELTANK)
-            return obj.AddComponent<RuntimeFuelTank>();
-
         Debug.LogError($"[PepelacGridBuilder] Неизвестный тип модуля: '{data.moduleType}'. RuntimeModuleBase не добавлен!");
         return null;
     }
-    private float GetFinalVisualYaw(ModuleData data)
-    {
-        float orientationYaw = 0f;
-
-        switch (currentOrientation)
-        {
-            case ModuleOrientation.Deg90: orientationYaw = 90f; break;
-            case ModuleOrientation.Deg180: orientationYaw = 180f; break;
-            case ModuleOrientation.Deg270: orientationYaw = 270f; break;
-        }
-
-        float visualOffset = data != null ? data.buildVisualYawOffset : 0f;
-        return orientationYaw + visualOffset;
-    }
-
 }

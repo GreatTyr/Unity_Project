@@ -92,7 +92,21 @@ public class ModuleStorage : MonoBehaviour
         if (autoSave) Save();
         return true;
     }
+    public int GetQuantity(string code)
+    {
+        if (string.IsNullOrEmpty(code)) return 0;
 
+        int idx = entries.FindIndex(e => e.moduleCode == code);
+        if (idx < 0) return 0;
+
+        return Mathf.Max(0, entries[idx].quantity);
+    }
+
+    public bool HasModule(string code, int amount = 1)
+    {
+        if (amount <= 0) return true;
+        return GetQuantity(code) >= amount;
+    }
     // НОВЫЙ МЕТОД: Для изменения количества прямо из инспектора
     public void SetEntryQuantity(int index, int newQuantity)
     {

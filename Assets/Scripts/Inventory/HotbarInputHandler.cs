@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -15,31 +16,65 @@ namespace UnityProject.Inventory
         [Header("Settings")]
         [SerializeField] private float highlightDuration = 0.3f;
 
+        private Action<InputAction.CallbackContext>[] hotbarPerformedHandlers;
+
         private void Awake()
         {
             if (playerInventory == null)
                 playerInventory = GetComponent<PlayerInventory>();
+
+            EnsureHandlersArray();
         }
 
         private void OnEnable()
         {
+            EnsureHandlersArray();
+
             for (int i = 0; i < hotbarActions.Length; i++)
             {
-                if (hotbarActions[i]?.action == null) continue;
+                var action = hotbarActions[i]?.action;
+                if (action == null) continue;
 
-                int slotIndex = i;
-                hotbarActions[i].action.performed += ctx => OnHotbarPressed(slotIndex);
-                hotbarActions[i].action.Enable();
+                if (hotbarPerformedHandlers[i] == null)
+                {
+                    int slotIndex = i;
+                    hotbarPerformedHandlers[i] = ctx =>
+                    {
+                        if (ctx.performed)
+                            OnHotbarPressed(slotIndex);
+                    };
+                }
+
+                // Защитно снимаем перед повторной подпиской,
+                // чтобы не копить дубли при нестандартном lifecycle.
+                action.performed -= hotbarPerformedHandlers[i];
+                action.performed += hotbarPerformedHandlers[i];
+                action.Enable();
             }
         }
 
         private void OnDisable()
         {
+            if (hotbarPerformedHandlers == null) return;
+
             for (int i = 0; i < hotbarActions.Length; i++)
             {
-                if (hotbarActions[i]?.action == null) continue;
-                hotbarActions[i].action.Disable();
+                var action = hotbarActions[i]?.action;
+                if (action == null) continue;
+
+                if (i < hotbarPerformedHandlers.Length && hotbarPerformedHandlers[i] != null)
+                    action.performed -= hotbarPerformedHandlers[i];
+
+                action.Disable();
             }
+        }
+
+        private void EnsureHandlersArray()
+        {
+            int size = hotbarActions != null ? hotbarActions.Length : 0;
+
+            if (hotbarPerformedHandlers == null || hotbarPerformedHandlers.Length != size)
+                hotbarPerformedHandlers = new Action<InputAction.CallbackContext>[size];
         }
 
         private void OnHotbarPressed(int index)

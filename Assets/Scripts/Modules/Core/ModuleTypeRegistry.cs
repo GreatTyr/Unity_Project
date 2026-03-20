@@ -70,6 +70,18 @@ public static class ModuleTypeRegistry
                 : null,
             addRuntimeComponent = go => go != null ? go.AddComponent<RuntimeFuelTank>() : null
         });
+
+        Register(new ModuleTypeDescriptor
+        {
+            moduleType = StandardCooler.TYPE_COOLER,
+            dataTypeName = nameof(CoolerData),
+            standardComponentType = typeof(StandardCooler),
+            deserialize = json => JsonUtility.FromJson<CoolerData>(json),
+            resolveReferenceByName = name => CoolerDatabase.Instance != null
+                ? CoolerDatabase.Instance.GetByName(name)
+                : null,
+            addRuntimeComponent = go => go != null ? go.AddComponent<RuntimeCooler>() : null
+        });
     }
 
     private static void Register(ModuleTypeDescriptor descriptor)

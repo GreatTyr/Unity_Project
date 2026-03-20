@@ -18,9 +18,11 @@ public class EnergyStorageWorkbenchController
     {
         float effectiveVolumeDm3 = Scaler.CalcEffectiveVolume * 1000f;
         float moduleCoeff = TierCoeffs.Get(SelectedRef.ModuleTier);
+        float fillFactor = Scaler.RefFillPercent / 100f;
 
         CalcEnergyCapacity = (float)Math.Round(
-            effectiveVolumeDm3 * moduleCoeff * SelectedRef.CapacityCoefficient, 3);
+            effectiveVolumeDm3 * moduleCoeff * SelectedRef.CapacityCoefficient * fillFactor,
+            3);
     }
 
     protected override string BuildSecondCodeLine()
