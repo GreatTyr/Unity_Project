@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System;
+using System.Collections.Generic;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -20,6 +21,17 @@ public class StandardCooler : StandardModuleBase
     [Header("Thermal Physics")]
     [Min(0f)] public float BaseHeating = 0f;
     [Min(0.001f)] public float HeatCapacityCoeff = 1f;
+
+    [Header("Operation")]
+    [Tooltip("Расход ресурсов в секунду за 1 литр рабочего объёма.")]
+    public List<OperationalResourceCostPerLiterPerSecond> OperationalResourceCostsPerLiterPerSecond =
+        new List<OperationalResourceCostPerLiterPerSecond>();
+
+    [Tooltip("Коэффициент максимальной статической ёмкости объекта.")]
+    [Min(0f)] public float StaticCapacityCoefficient = 1f;
+
+    [Tooltip("Коэффициент заземления. Влияет на скорость снижения статики.")]
+    [Min(0.01f)] public float GroundingCoefficient = 1f;
 
     [SerializeField, HideInInspector] private float specificCoolingPower;
     [SerializeField, HideInInspector] private float coolingPower;
@@ -44,6 +56,9 @@ public class StandardCooler : StandardModuleBase
         SpecificEnergyConsumption = Mathf.Max(0f, SpecificEnergyConsumption);
         BaseHeating = Mathf.Max(0f, BaseHeating);
         HeatCapacityCoeff = Mathf.Max(0.001f, HeatCapacityCoeff);
+
+        StaticCapacityCoefficient = Mathf.Max(0f, StaticCapacityCoefficient);
+        GroundingCoefficient = Mathf.Max(0.01f, GroundingCoefficient);
     }
 
     protected override void ComputeSpecificOutputs()
@@ -56,7 +71,10 @@ public class StandardCooler : StandardModuleBase
         energyConsumption = SpecificEnergyConsumption * effectiveVolumeDm3;
         coolingRadius = (LengthMeters + WidthMeters) / 2f * RadiusCoefficient;
         maxCoolingDifference = 30f * moduleCoeff;
-        minTemperature = -20f * ModuleTier;
+
+        // Новая формула:
+        // T1 = +20, далее -15 за каждый следующий тир
+        minTemperature = 20f - ((ModuleTier - 1) * 15f);
     }
 
     protected override void RoundAndStoreSpecificResults()
@@ -86,13 +104,16 @@ public class StandardCoolerEditor : Editor
     private SerializedProperty pHeatCapacityCoeff;
     private SerializedProperty pCraftTime;
 
+    private SerializedProperty pOperationalCostsPerLiterPerSecond;
+    private SerializedProperty pStaticCapacityCoefficient;
+    private SerializedProperty pGroundingCoefficient;
+
     private SerializedProperty pFactionShortName;
     private SerializedProperty pBlueprintId;
 
     private SerializedProperty pBuildVisualYawOffset;
     private SerializedProperty pBuildAnchorLocal;
-    private SerializedProperty pUseBuildAnchorPlacement;
-            private SerializedProperty pBuildAnchorCellLocal;
+    private SerializedProperty pBuildAnchorCellLocal;
 
     private SerializedProperty pIsVolatile;
     private SerializedProperty pExplosionDamageType;
@@ -121,15 +142,16 @@ public class StandardCoolerEditor : Editor
         pHeatCapacityCoeff = serializedObject.FindProperty("HeatCapacityCoeff");
         pCraftTime = serializedObject.FindProperty("CraftCoefficient");
 
+        pOperationalCostsPerLiterPerSecond = serializedObject.FindProperty("OperationalResourceCostsPerLiterPerSecond");
+        pStaticCapacityCoefficient = serializedObject.FindProperty("StaticCapacityCoefficient");
+        pGroundingCoefficient = serializedObject.FindProperty("GroundingCoefficient");
+
         pFactionShortName = serializedObject.FindProperty("factionShortName");
         pBlueprintId = serializedObject.FindProperty("blueprintId");
 
         pBuildVisualYawOffset = serializedObject.FindProperty("BuildVisualYawOffset");
         pBuildAnchorLocal = serializedObject.FindProperty("BuildAnchorLocal");
-        pUseBuildAnchorPlacement = serializedObject.FindProperty("UseBuildAnchorPlacement");
         pBuildAnchorCellLocal = serializedObject.FindProperty("BuildAnchorCellLocal");
-
-
 
         pIsVolatile = serializedObject.FindProperty("IsVolatile");
         pExplosionDamageType = serializedObject.FindProperty("ExplosionDamageType");
@@ -171,14 +193,12 @@ public class StandardCoolerEditor : Editor
         if (t == null) return;
         serializedObject.Update();
 
-        // ================= IDENTITY =================
         EditorGUILayout.LabelField("Identity", EditorStyles.boldLabel);
         GUI.enabled = false;
         EditorGUILayout.TextField("Module Type", t.ModuleType);
         GUI.enabled = true;
         EditorGUILayout.PropertyField(pModuleTier);
 
-        // ================= FACTION & BLUEPRINT =================
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Faction & Blueprint", EditorStyles.boldLabel);
 
@@ -207,25 +227,21 @@ public class StandardCoolerEditor : Editor
 
         EditorGUILayout.PropertyField(pBlueprintId, new GUIContent("Blueprint ID"));
 
-        // ================= VOLUME / FILL / RECIPE =================
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Volume / Fill / Recipe", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(pVolumeCoeff, new GUIContent("Volume Coeff %"));
         EditorGUILayout.PropertyField(pConstantFill, new GUIContent("Constant Fill %"));
         EditorGUILayout.PropertyField(pInternalResourceCosts, new GUIContent("Resources per Liter (1 dm3)"), true);
 
-        // ================= BUILD VISUAL =================
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Build Visual", EditorStyles.boldLabel);
         if (pBuildVisualYawOffset != null)
             EditorGUILayout.PropertyField(pBuildVisualYawOffset, new GUIContent("Build Visual Yaw Offset"));
         if (pBuildAnchorLocal != null)
             EditorGUILayout.PropertyField(pBuildAnchorLocal, new GUIContent("Build Anchor Local"));
-        if (pUseBuildAnchorPlacement != null)
-            EditorGUILayout.PropertyField(pUseBuildAnchorPlacement, new GUIContent("Use Build Anchor Placement"));
         if (pBuildAnchorCellLocal != null)
             EditorGUILayout.PropertyField(pBuildAnchorCellLocal, new GUIContent("Build Anchor Cell Local"));
-        // ================= SPECIFIC INPUTS =================
+
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Specific Inputs", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(pRadiusCoefficient, new GUIContent("Radius Coefficient"));
@@ -234,13 +250,17 @@ public class StandardCoolerEditor : Editor
         EditorGUILayout.PropertyField(pBaseHeating, new GUIContent("Base Heating (°/s)"));
         EditorGUILayout.PropertyField(pHeatCapacityCoeff, new GUIContent("Heat Capacity Coeff"));
 
-        // ================= CRAFTING =================
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("Operation", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(pOperationalCostsPerLiterPerSecond, new GUIContent("Operational Resource Usage / Liter / Second"), true);
+        EditorGUILayout.PropertyField(pStaticCapacityCoefficient, new GUIContent("Static Capacity Coefficient"));
+        EditorGUILayout.PropertyField(pGroundingCoefficient, new GUIContent("Grounding Coefficient"));
+
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Crafting", EditorStyles.boldLabel);
         if (pCraftTime != null)
             EditorGUILayout.PropertyField(pCraftTime, new GUIContent("Craft Coefficient"));
 
-        // ================= MODULE CAPABILITIES =================
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Module Capabilities", EditorStyles.boldLabel);
         var pTurn = serializedObject.FindProperty("CanTurnOnOff");
@@ -255,7 +275,6 @@ public class StandardCoolerEditor : Editor
         if (pPulseInt != null) EditorGUILayout.PropertyField(pPulseInt, new GUIContent("Pulse Interval"));
         if (pControl != null) EditorGUILayout.PropertyField(pControl, new GUIContent("Is Controllable"));
 
-        // ================= DESTRUCTION =================
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Destruction", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(pIsVolatile, new GUIContent("Is Volatile (Взрывоопасен)"));
@@ -267,7 +286,6 @@ public class StandardCoolerEditor : Editor
             EditorGUILayout.PropertyField(pExplosionDamageCoeff, new GUIContent("Damage Coefficient"));
         }
 
-        // ================= COMPUTED GEOMETRY & MASS =================
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Расчётная геометрия и масса", EditorStyles.boldLabel);
         EditorGUILayout.LabelField("Length (X, m)", t.LengthMeters.ToString("0.###"));
@@ -279,7 +297,6 @@ public class StandardCoolerEditor : Editor
         EditorGUILayout.LabelField("Fill % used", t.FillPercentUsed.ToString() + "%");
         EditorGUILayout.LabelField("Reference Inner Mass (kg)", t.MassKg.ToString("0.###"));
 
-        // ================= COMPUTED SPECIFIC =================
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Специфичные расчётные параметры", EditorStyles.boldLabel);
         EditorGUILayout.LabelField("Specific Cooling Power (with tier)", t.SpecificCoolingPower.ToString("F3"));

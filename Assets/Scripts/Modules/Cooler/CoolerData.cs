@@ -1,7 +1,7 @@
 using System;
 
 [Serializable]
-public class CoolerData : ModuleData
+public class CoolerData : CommonModuleData
 {
     public float coolingRadius;
     public float coolingPower;
@@ -10,12 +10,11 @@ public class CoolerData : ModuleData
     public float specificCoolingPowerBase;
     public float specificEnergyConsumption;
     public float radiusCoefficient;
-    public float maxTemperature;
     public float maxCoolingDifference;
     public float minTemperature;
 
     public void Initialize(
-        ModuleCraftDTO baseDto,
+        CommonModuleCraftData commonData,
         float coolingRadius,
         float coolingPower,
         float energyConsumption,
@@ -23,11 +22,11 @@ public class CoolerData : ModuleData
         float specificCoolingPowerBase,
         float specificEnergyConsumption,
         float radiusCoefficient,
-        float maxTemperature,
         float maxCoolingDifference,
         float minTemperature)
     {
-        base.Initialize(baseDto);
+        InitializeCommon(commonData);
+
         this.coolingRadius = coolingRadius;
         this.coolingPower = coolingPower;
         this.energyConsumption = energyConsumption;
@@ -35,7 +34,6 @@ public class CoolerData : ModuleData
         this.specificCoolingPowerBase = specificCoolingPowerBase;
         this.specificEnergyConsumption = specificEnergyConsumption;
         this.radiusCoefficient = radiusCoefficient;
-        this.maxTemperature = maxTemperature;
         this.maxCoolingDifference = maxCoolingDifference;
         this.minTemperature = minTemperature;
     }

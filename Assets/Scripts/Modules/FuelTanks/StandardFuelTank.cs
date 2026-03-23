@@ -1,12 +1,15 @@
 using UnityEngine;
-using System;
+using System.Collections.Generic;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
 
 /// <summary>
-/// Эталонный модуль Топливного Бака. Наследует общие параметры от StandardModuleBase.
-/// Бак — пассивный модуль, состоящий только из оболочки (стенки) и полости (для топлива).
+/// Эталонный модуль Топливного Бака.
+/// Бак — special-case модуль:
+/// - не использует FillFactor как смысл внутренней начинки;
+/// - не использует InternalResourceCosts как обычный модульный рецепт внутренностей;
+/// - основная логика бака: оболочка + полость под топливо.
 /// </summary>
 public class StandardFuelTank : StandardModuleBase
 {
@@ -19,6 +22,17 @@ public class StandardFuelTank : StandardModuleBase
     [Header("Thermal Physics")]
     [Min(0.001f)] public float HeatCapacityCoeff = 1000f;
 
+    [Header("Operation")]
+    [Tooltip("Расход ресурсов в секунду за 1 литр рабочего объёма. Для бака обычно пусто, но поле оставлено как часть нового общего шаблона.")]
+    public List<OperationalResourceCostPerLiterPerSecond> OperationalResourceCostsPerLiterPerSecond =
+        new List<OperationalResourceCostPerLiterPerSecond>();
+
+    [Tooltip("Коэффициент максимальной статической ёмкости объекта.")]
+    [Min(0f)] public float StaticCapacityCoefficient = 1f;
+
+    [Tooltip("Коэффициент заземления. Влияет на скорость снижения статики.")]
+    [Min(0.01f)] public float GroundingCoefficient = 1f;
+
     [SerializeField, HideInInspector] private float capacity;
 
     public float Capacity => capacity;
@@ -26,14 +40,19 @@ public class StandardFuelTank : StandardModuleBase
     protected override void OnValidate()
     {
         base.OnValidate();
+
         CapacityCoefficient = Mathf.Max(0f, CapacityCoefficient);
         HeatCapacityCoeff = Mathf.Max(0.001f, HeatCapacityCoeff);
+
+        StaticCapacityCoefficient = Mathf.Max(0f, StaticCapacityCoefficient);
+        GroundingCoefficient = Mathf.Max(0.01f, GroundingCoefficient);
     }
 
     protected override void ComputeSpecificOutputs()
     {
         float effectiveVolumeDm3 = effectiveVolume * 1000f;
         float moduleCoeff = TierCoeffs.Get(ModuleTier);
+
         capacity = effectiveVolumeDm3 * moduleCoeff * CapacityCoefficient;
     }
 
@@ -55,8 +74,13 @@ public class StandardFuelTankEditor : Editor
     private SerializedProperty pHeatCapacityCoeff;
     private SerializedProperty pCraftTime;
 
+    private SerializedProperty pOperationalCostsPerLiterPerSecond;
+    private SerializedProperty pStaticCapacityCoefficient;
+    private SerializedProperty pGroundingCoefficient;
+
     private SerializedProperty pBuildVisualYawOffset;
     private SerializedProperty pBuildAnchorLocal;
+    private SerializedProperty pBuildAnchorCellLocal;
 
     private SerializedProperty pCanTurnOnOff;
     private SerializedProperty pTurnOnOffTime;
@@ -69,9 +93,6 @@ public class StandardFuelTankEditor : Editor
     private SerializedProperty pExplosionRadiusCoeff;
     private SerializedProperty pExplosionPenetrationCoeff;
     private SerializedProperty pExplosionDamageCoeff;
-    private SerializedProperty pUseBuildAnchorPlacement;
-    private SerializedProperty pBuildAnchorCellLocal;
-
 
     private StandardFuelTank t;
     private string[] factionDisplayNames;
@@ -90,9 +111,12 @@ public class StandardFuelTankEditor : Editor
         pHeatCapacityCoeff = serializedObject.FindProperty("HeatCapacityCoeff");
         pCraftTime = serializedObject.FindProperty("CraftCoefficient");
 
+        pOperationalCostsPerLiterPerSecond = serializedObject.FindProperty("OperationalResourceCostsPerLiterPerSecond");
+        pStaticCapacityCoefficient = serializedObject.FindProperty("StaticCapacityCoefficient");
+        pGroundingCoefficient = serializedObject.FindProperty("GroundingCoefficient");
+
         pBuildVisualYawOffset = serializedObject.FindProperty("BuildVisualYawOffset");
         pBuildAnchorLocal = serializedObject.FindProperty("BuildAnchorLocal");
-        pUseBuildAnchorPlacement = serializedObject.FindProperty("UseBuildAnchorPlacement");
         pBuildAnchorCellLocal = serializedObject.FindProperty("BuildAnchorCellLocal");
 
         pCanTurnOnOff = serializedObject.FindProperty("CanTurnOnOff");
@@ -141,14 +165,12 @@ public class StandardFuelTankEditor : Editor
         if (t == null) return;
         serializedObject.Update();
 
-        // ================= IDENTITY =================
         EditorGUILayout.LabelField("Identity", EditorStyles.boldLabel);
         GUI.enabled = false;
         EditorGUILayout.TextField("Module Type", t.ModuleType);
         GUI.enabled = true;
         EditorGUILayout.PropertyField(pModuleTier);
 
-        // ================= FACTION & BLUEPRINT =================
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Faction & Blueprint", EditorStyles.boldLabel);
 
@@ -177,36 +199,40 @@ public class StandardFuelTankEditor : Editor
 
         EditorGUILayout.PropertyField(pBlueprintId, new GUIContent("Blueprint ID"));
 
-        // ================= VOLUME / FILL / RECIPE =================
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Volume / Fill / Recipe", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(pVolumeCoeff, new GUIContent("Volume Coeff %"));
-        EditorGUILayout.HelpBox("FuelTank не использует FillFactor и InternalResourceCosts. Масса определяется оболочкой и геометрией.", MessageType.Info);
+        EditorGUILayout.HelpBox(
+            "FuelTank — special-case модуль.\n" +
+            "FillFactor и InternalResourceCosts не используются как у обычных модулей.\n" +
+            "Основной смысл: оболочка + полость под топливо.",
+            MessageType.Info);
 
-        // ================= BUILD VISUAL =================
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Build Visual", EditorStyles.boldLabel);
         if (pBuildVisualYawOffset != null)
             EditorGUILayout.PropertyField(pBuildVisualYawOffset, new GUIContent("Build Visual Yaw Offset"));
         if (pBuildAnchorLocal != null)
             EditorGUILayout.PropertyField(pBuildAnchorLocal, new GUIContent("Build Anchor Local"));
-        if (pUseBuildAnchorPlacement != null)
-            EditorGUILayout.PropertyField(pUseBuildAnchorPlacement, new GUIContent("Use Build Anchor Placement"));
         if (pBuildAnchorCellLocal != null)
             EditorGUILayout.PropertyField(pBuildAnchorCellLocal, new GUIContent("Build Anchor Cell Local"));
-        // ================= SPECIFIC INPUTS =================
+
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Specific Inputs", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(pCapacityCoefficient, new GUIContent("Capacity Coefficient"));
         EditorGUILayout.PropertyField(pHeatCapacityCoeff, new GUIContent("Heat Capacity Coeff"));
 
-        // ================= CRAFTING =================
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("Operation", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(pOperationalCostsPerLiterPerSecond, new GUIContent("Operational Resource Usage / Liter / Second"), true);
+        EditorGUILayout.PropertyField(pStaticCapacityCoefficient, new GUIContent("Static Capacity Coefficient"));
+        EditorGUILayout.PropertyField(pGroundingCoefficient, new GUIContent("Grounding Coefficient"));
+
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Crafting", EditorStyles.boldLabel);
         if (pCraftTime != null)
             EditorGUILayout.PropertyField(pCraftTime, new GUIContent("Craft Coefficient"));
 
-        // ================= MODULE CAPABILITIES =================
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Module Capabilities", EditorStyles.boldLabel);
         if (pCanTurnOnOff != null) EditorGUILayout.PropertyField(pCanTurnOnOff, new GUIContent("Can Turn On/Off"));
@@ -215,7 +241,6 @@ public class StandardFuelTankEditor : Editor
         if (pPulseInterval != null) EditorGUILayout.PropertyField(pPulseInterval, new GUIContent("Pulse Interval"));
         if (pIsControllable != null) EditorGUILayout.PropertyField(pIsControllable, new GUIContent("Is Controllable"));
 
-        // ================= DESTRUCTION =================
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Destruction", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(pIsVolatile, new GUIContent("Is Volatile (Взрывоопасен)"));
@@ -227,7 +252,6 @@ public class StandardFuelTankEditor : Editor
             EditorGUILayout.PropertyField(pExplosionDamageCoeff, new GUIContent("Damage Coefficient"));
         }
 
-        // ================= COMPUTED GEOMETRY & MASS =================
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Расчётная геометрия и масса", EditorStyles.boldLabel);
         EditorGUILayout.LabelField("Length (X, m)", t.LengthMeters.ToString("0.###"));
@@ -238,7 +262,6 @@ public class StandardFuelTankEditor : Editor
         EditorGUILayout.LabelField("Effective Volume (m³)", t.EffectiveVolumeM3.ToString("F6"));
         EditorGUILayout.LabelField("Reference Inner Mass (kg)", t.MassKg.ToString("0.###"));
 
-        // ================= COMPUTED SPECIFIC =================
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Специфичные расчётные параметры", EditorStyles.boldLabel);
         EditorGUILayout.LabelField("Capacity", t.Capacity.ToString("F3"));

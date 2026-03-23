@@ -1,20 +1,15 @@
 using System;
+
 [Serializable]
-public class FuelTankData : ModuleData
+public class FuelTankData : CommonModuleData
 {
-    public float capacity;          // Ёмкость бака (количество топлива)
-    public float maxTemperature;    // Максимальная температура
-    public float heatCapacity;      // Теплоёмкость
-    // wallThicknessMm перенесён в базовый класс ModuleData
+    public float capacity;
+
     public void Initialize(
-        ModuleCraftDTO baseDto,
-        float capacity,
-        float maxTemperature,
-        float heatCapacity)
+        CommonModuleCraftData commonData,
+        float capacity)
     {
-        base.Initialize(baseDto); // Заполняет все базовые поля, включая wallThicknessMm
+        InitializeCommon(commonData);
         this.capacity = capacity;
-        this.maxTemperature = maxTemperature;
-        this.heatCapacity = heatCapacity;
     }
 }

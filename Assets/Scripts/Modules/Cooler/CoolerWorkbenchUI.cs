@@ -6,7 +6,8 @@ using UnityEngine.InputSystem;
 /// <summary>
 /// Представление (View) для Верстака Охлаждающих Радиаторов.
 /// Рисует IMGUI интерфейс и передает команды в CoolerWorkbenchController.
-/// Не содержит никакой математики и бизнес-логики.
+/// Не содержит математики и бизнес-логики модуля,
+/// кроме чисто UI-слоя отображения.
 /// </summary>
 [RequireComponent(typeof(CoolerWorkbenchController))]
 public class CoolerWorkbenchUI : MonoBehaviour, IWorkbenchUI
@@ -64,14 +65,20 @@ public class CoolerWorkbenchUI : MonoBehaviour, IWorkbenchUI
 
         if (!windowRectInitialized)
         {
-            windowRect = new Rect(Screen.width * 0.02f, Screen.height * 0.05f, Mathf.Min(1100f, Screen.width * 0.96f), Screen.height * 0.9f);
+            windowRect = new Rect(
+                Screen.width * 0.02f,
+                Screen.height * 0.05f,
+                Mathf.Min(1100f, Screen.width * 0.96f),
+                Screen.height * 0.9f);
             windowRectInitialized = true;
         }
 
         windowRect.x = Mathf.Clamp(windowRect.x, 0, Mathf.Max(0, Screen.width - windowRect.width));
         windowRect.y = Mathf.Clamp(windowRect.y, 0, Mathf.Max(0, Screen.height - windowRect.height));
 
-        if (WorkbenchPopup.IsShowing && Event.current.type == EventType.MouseDown && !WorkbenchPopup.PopupRect.Contains(Event.current.mousePosition))
+        if (WorkbenchPopup.IsShowing &&
+            Event.current.type == EventType.MouseDown &&
+            !WorkbenchPopup.PopupRect.Contains(Event.current.mousePosition))
         {
             WorkbenchPopup.Hide();
             Event.current.Use();
@@ -90,31 +97,31 @@ public class CoolerWorkbenchUI : MonoBehaviour, IWorkbenchUI
         scrollPos = GUILayout.BeginScrollView(scrollPos, false, true);
         GUILayout.BeginVertical();
 
-        // Отрисовка сообщений об ошибках/успехе
+        // Сообщения
         if (!string.IsNullOrEmpty(controller.ErrorMessage))
             GUILayout.Label($"<color=#FF4444><b>⚠ ОШИБКА: {controller.ErrorMessage}</b></color>", GetCenteredBoldStyle());
+
         if (!string.IsNullOrEmpty(controller.WarningMessage))
             GUILayout.Label($"<color=#FFCC00><b>⚠ ПРЕДУПРЕЖДЕНИЕ: {controller.WarningMessage}</b></color>", GetCenteredBoldStyle());
+
         if (!string.IsNullOrEmpty(controller.SuccessMessage))
             GUILayout.Label($"<color=#00FF66><b>✓ {controller.SuccessMessage}</b></color>", GetCenteredBoldStyle());
 
-        GUILayout.Label($"<color=#AAAAAA>Параметры Верстака:</color> Тир {controller.workbenchTier} | Вместимость: {controller.innerLength}×{controller.innerHeight}×{controller.innerWidth} м",
-            new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
-
-        // Блокируем верхнюю/среднюю интерактивную часть UI во время крафта
         if (isCrafting) GUI.enabled = false;
 
-        // Блок Кодов
+        // Коды
         GUILayout.BeginHorizontal();
         GUILayout.BeginVertical(GUILayout.Width((windowRect.width - 40) * 0.75f));
 
-        string genCode = controller.CurrentModuleCode;
-        DrawCompactCodeSection("ГЕНЕРАЦИЯ КОДА", ref genCode, true, "КОПИРОВАТЬ", () =>
+        string generatedCode = controller.CurrentModuleCode;
+        DrawCompactCodeSection("ГЕНЕРАЦИЯ КОДА", ref generatedCode, true, "КОПИРОВАТЬ", () =>
         {
-            if (!string.IsNullOrEmpty(controller.CurrentModuleCode)) GUIUtility.systemCopyBuffer = controller.CurrentModuleCode;
+            if (!string.IsNullOrEmpty(controller.CurrentModuleCode))
+                GUIUtility.systemCopyBuffer = controller.CurrentModuleCode;
         });
 
         GUILayout.Space(5);
+
         DrawCompactCodeSection("ВВОД ЧЕРТЕЖА", ref codeInputField, false, "ВСТАВИТЬ", () =>
         {
             codeInputField = (GUIUtility.systemCopyBuffer ?? "").Trim();
@@ -130,8 +137,13 @@ public class CoolerWorkbenchUI : MonoBehaviour, IWorkbenchUI
 
         DrawSeparator();
 
+        DrawWorkbenchSection();
+
+        DrawSeparator();
+
         // Основной блок параметров
         GUILayout.BeginHorizontal();
+
         GUILayout.BeginVertical(GUILayout.Width(((windowRect.width - 40) - 30) * 0.55f));
         DrawSelectionSection();
         DrawShellSection();
@@ -143,7 +155,11 @@ public class CoolerWorkbenchUI : MonoBehaviour, IWorkbenchUI
         GUILayout.BeginVertical();
         DrawComputedSection();
         GUILayout.EndVertical();
+
         GUILayout.EndHorizontal();
+
+        DrawSeparator();
+        DrawCommonParametersSection();
 
         DrawSeparator();
         DrawCoolerSpecificSection();
@@ -153,10 +169,8 @@ public class CoolerWorkbenchUI : MonoBehaviour, IWorkbenchUI
 
         DrawSeparator();
 
-        // Перед нижним блоком возвращаем GUI, чтобы корректно рисовать прогресс/кнопки
         if (isCrafting) GUI.enabled = true;
 
-        // Нижний блок: Стоимость и Крафт
         GUILayout.BeginHorizontal();
         GUILayout.BeginVertical(GUILayout.Width((windowRect.width - 40) * 0.75f));
         DrawCostsAndButtons(isCrafting);
@@ -168,11 +182,27 @@ public class CoolerWorkbenchUI : MonoBehaviour, IWorkbenchUI
         GUILayout.EndScrollView();
         GUILayout.EndArea();
 
-        // Гарантированно возвращаем GUI
         GUI.enabled = true;
     }
 
-    // ================= ОТРИСОВКА СЕКЦИЙ =================
+    // =========================================
+    // СЕКЦИИ
+    // =========================================
+
+    private void DrawWorkbenchSection()
+    {
+        GUILayout.BeginVertical(_panelStyle);
+        GUILayout.Label("<color=#E0E0E0>ПАРАМЕТРЫ ВЕРСТАКА</color>", GetBoldStyle());
+
+        GUILayout.BeginHorizontal();
+        ParamBox("Тир верстака", $"T{controller.workbenchTier}");
+        ParamBox("Длина камеры", $"{controller.innerLength:F2} м");
+        ParamBox("Ширина камеры", $"{controller.innerWidth:F2} м");
+        ParamBox("Высота камеры", $"{controller.innerHeight:F2} м");
+        GUILayout.EndHorizontal();
+
+        GUILayout.EndVertical();
+    }
 
     private void DrawSelectionSection()
     {
@@ -196,8 +226,10 @@ public class CoolerWorkbenchUI : MonoBehaviour, IWorkbenchUI
         {
             var r = controller.SelectedRef;
             string fac = string.IsNullOrEmpty(r.FactionShortName) ? "—" : r.FactionShortName;
-            GUILayout.Label($"<color=#AAAAAA>Тир:</color> {r.ModuleTier}  |  <color=#AAAAAA>ID:</color> {fac}-{r.BlueprintId}  |  <color=#AAAAAA>VolCoeff:</color> {r.VolumeCoefficientPercent:F1}%");
+            GUILayout.Label(
+                $"<color=#AAAAAA>Тир:</color> {r.ModuleTier}  |  <color=#AAAAAA>ID:</color> {fac}-{r.BlueprintId}  |  <color=#AAAAAA>VolCoeff:</color> {r.VolumeCoefficientPercent:F1}%");
         }
+
         GUILayout.EndVertical();
     }
 
@@ -252,7 +284,8 @@ public class CoolerWorkbenchUI : MonoBehaviour, IWorkbenchUI
         string[] modeNames = { "По Длине", "По Ширине", "По Высоте", "По Массе", "По Объёму" };
         int curMode = (int)controller.Scaler.CurrentScaleMode;
         int newMode = GUILayout.SelectionGrid(curMode, modeNames, 3);
-        if (newMode != curMode) controller.SetScaleMode((ModuleScaler.ScaleMode)newMode);
+        if (newMode != curMode)
+            controller.SetScaleMode((ModuleScaler.ScaleMode)newMode);
 
         GUILayout.Space(5);
 
@@ -260,7 +293,8 @@ public class CoolerWorkbenchUI : MonoBehaviour, IWorkbenchUI
         GUILayout.Label("Ввод:", GUILayout.Width(80));
         string currentStr = controller.Scaler.ScaleInputStr;
         string newScaleStr = GUILayout.TextField(currentStr);
-        if (newScaleStr != currentStr) controller.HandleScaleInput(newScaleStr);
+        if (newScaleStr != currentStr)
+            controller.HandleScaleInput(newScaleStr);
         GUILayout.EndHorizontal();
 
         GUILayout.Space(5);
@@ -275,33 +309,79 @@ public class CoolerWorkbenchUI : MonoBehaviour, IWorkbenchUI
     private void DrawComputedSection()
     {
         GUILayout.BeginVertical(_panelStyle);
-        GUILayout.Label("<color=#E0E0E0>ГЕОМЕТРИЯ И ФИЗИКА</color>", GetBoldStyle());
+        GUILayout.Label("<color=#E0E0E0>ГЕОМЕТРИЯ И ПРОВЕРКА ГАБАРИТОВ</color>", GetBoldStyle());
 
         var sc = controller.Scaler;
-        bool fits = sc.CalcLength <= controller.innerLength && sc.CalcWidth <= controller.innerWidth && sc.CalcHeight <= controller.innerHeight;
+        bool fits = sc.CalcLength <= controller.innerLength &&
+                    sc.CalcWidth <= controller.innerWidth &&
+                    sc.CalcHeight <= controller.innerHeight;
+
         string dimColor = fits ? "#00FF00" : "#FF4444";
 
-        DrawGridRow("Длина (X):", $"<color={dimColor}>{sc.CalcLength:F3} м</color>", "Объём Real:", $"{sc.CalcRealVolume:F4} м³");
-        DrawGridRow("Ширина (Z):", $"<color={dimColor}>{sc.CalcWidth:F3} м</color>", "Объём оболочки:", $"{sc.CalcShellVolume:F4} м³");
-        DrawGridRow("Высота (Y):", $"<color={dimColor}>{sc.CalcHeight:F3} м</color>", "Эфф. внутр. объём:", $"{sc.CalcEffectiveVolume:F4} м³");
-
-        DrawSeparator();
-
-        DrawGridRow("Масса оболочки:", $"{sc.CalcShellMass:F1} кг", "Прочность:", $"<color=#FFD700>{sc.CalcDurability:F1}</color>");
-        DrawGridRow("Масса внутр. объема:", $"{sc.CalcInnerMass:F1} кг", "", "");
-        DrawGridRow("ОБЩАЯ МАССА:", $"<b>{sc.CalcTotalMass:F1} кг</b>", "", "");
+        DrawGridRow("Длина (X):", $"<color={dimColor}>{sc.CalcLength:F3} м</color>", "Real Volume:", $"{sc.CalcRealVolume:F4} м³");
+        DrawGridRow("Ширина (Z):", $"<color={dimColor}>{sc.CalcWidth:F3} м</color>", "Shell Volume:", $"{sc.CalcShellVolume:F4} м³");
+        DrawGridRow("Высота (Y):", $"<color={dimColor}>{sc.CalcHeight:F3} м</color>", "Eff. Volume:", $"{sc.CalcEffectiveVolume:F4} м³");
 
         if (!fits)
         {
             GUILayout.Space(10);
-            GUILayout.Label($"<color=#FF4444><b>⚠ ГАБАРИТЫ ПРЕВЫШАЮТ КАМЕРУ ВЕРСТАКА (Макс: {controller.innerLength}x{controller.innerWidth}x{controller.innerHeight})</b></color>", GetCenteredBoldStyle());
+            GUILayout.Label(
+                $"<color=#FF4444><b>⚠ ГАБАРИТЫ ПРЕВЫШАЮТ КАМЕРУ ВЕРСТАКА (Макс: {controller.innerLength}x{controller.innerWidth}x{controller.innerHeight})</b></color>",
+                GetCenteredBoldStyle());
         }
 
         if (controller.SelectedRef != null && controller.SelectedRef.ModuleTier > controller.workbenchTier)
         {
             GUILayout.Space(5);
-            GUILayout.Label($"<color=#FF4444><b>⚠ ТИР ЭТАЛОНА (T{controller.SelectedRef.ModuleTier}) ВЫШЕ ТИРА ВЕРСТАКА (T{controller.workbenchTier})</b></color>", GetCenteredBoldStyle());
+            GUILayout.Label(
+                $"<color=#FF4444><b>⚠ ТИР ЭТАЛОНА (T{controller.SelectedRef.ModuleTier}) ВЫШЕ ТИРА ВЕРСТАКА (T{controller.workbenchTier})</b></color>",
+                GetCenteredBoldStyle());
         }
+
+        GUILayout.EndVertical();
+    }
+
+    private void DrawCommonParametersSection()
+    {
+        GUILayout.BeginVertical("box");
+        GUILayout.Label("Общие параметры модуля", GetBoldStyle());
+
+        var sc = controller.Scaler;
+
+        GUILayout.BeginHorizontal();
+        ParamBox("Длина", $"{sc.CalcLength:F3} м");
+        ParamBox("Ширина", $"{sc.CalcWidth:F3} м");
+        ParamBox("Высота", $"{sc.CalcHeight:F3} м");
+        ParamBox("AABB объём", $"{sc.CalcAABBVolume:F4} м³");
+        GUILayout.EndHorizontal();
+
+        GUILayout.BeginHorizontal();
+        ParamBox("Real Volume", $"{sc.CalcRealVolume:F4} м³");
+        ParamBox("Shell Volume", $"{sc.CalcShellVolume:F4} м³");
+        ParamBox("Eff. Volume", $"{sc.CalcEffectiveVolume:F4} м³");
+        ParamBox("Прочность", $"{sc.CalcDurability:F1}");
+        GUILayout.EndHorizontal();
+
+        GUILayout.BeginHorizontal();
+        ParamBox("Масса оболочки", $"{sc.CalcShellMass:F1} кг");
+        ParamBox("Масса внутр.", $"{sc.CalcInnerMass:F1} кг");
+        ParamBox("Общая масса", $"{sc.CalcTotalMass:F1} кг");
+        ParamBox("Толщина стенок", $"{controller.CalcWallThicknessMm:F1} мм");
+        GUILayout.EndHorizontal();
+
+        GUILayout.BeginHorizontal();
+        ParamBox("Теплоемкость", $"{controller.CalcHeatCapacity:F1}");
+        ParamBox("Макс. температура", $"{controller.CalcMaxTemperature:F1}°");
+        ParamBox("Нагрев", $"{controller.CalcHeatingRate:F2}°/с");
+        ParamBox("Итоговое время крафта", $"{controller.CalcCraftTimeSeconds:F1} сек");
+        GUILayout.EndHorizontal();
+
+        GUILayout.BeginHorizontal();
+        ParamBox("Расход ресурсов/с", controller.CalcOperationalResourceUsageSummary);
+        ParamBox("Стат. ёмкость max", $"{controller.CalcStaticCapacityMax:F1}");
+        ParamBox("Стат. ёмкость cur", $"{controller.CalcStaticCapacityCurrent:F1}");
+        ParamBox("Разряд статики/с", $"{controller.CalcStaticCapacityDrainPerSecond:F3}");
+        GUILayout.EndHorizontal();
 
         GUILayout.EndVertical();
     }
@@ -309,25 +389,18 @@ public class CoolerWorkbenchUI : MonoBehaviour, IWorkbenchUI
     private void DrawCoolerSpecificSection()
     {
         GUILayout.BeginVertical("box");
-        GUILayout.Label("Параметры Охлаждающего Радиатора", GetBoldStyle());
+        GUILayout.Label("Специфичные параметры кулера", GetBoldStyle());
 
         GUILayout.BeginHorizontal();
         ParamBox("Охл. способность", $"{controller.CalcCoolingPower:F3}");
         ParamBox("Энергопотребление", $"{controller.CalcEnergyConsumption:F3} E/s");
-        ParamBox("Радиус действия", $"<color=#00FFFF>{controller.CalcCoolingRadius:F3} м</color>");
-        ParamBox("Время крафта", $"<color=#00FF00>{controller.CalcCraftTimeSeconds:F1} сек</color>");
+        ParamBox("Радиус действия", $"{controller.CalcCoolingRadius:F3} м");
+        ParamBox("Удельное охлаждение", $"{controller.CalcSpecificCoolingPower:F3}");
         GUILayout.EndHorizontal();
 
         GUILayout.BeginHorizontal();
-        ParamBox("Макс. разница охл.", $"<color=#66CCFF>{controller.CalcMaxCoolingDifference:F1}°</color>");
-        ParamBox("Мин. температура", $"<color=#4488FF>{controller.CalcMinTemperature:F1}°</color>");
-        ParamBox("Теплоемкость", $"{controller.CalcHeatCapacity:F1}");
-        ParamBox("Макс. T", $"{controller.CalcMaxTemperature:F0}°");
-        GUILayout.EndHorizontal();
-
-        GUILayout.BeginHorizontal();
-        ParamBox("Толщина стенок", $"{controller.CalcWallThicknessMm:F1} мм");
-        ParamBox("Нагрев", $"{controller.CalcHeatingRate:F2}°/с");
+        ParamBox("Макс. разница охл.", $"{controller.CalcMaxCoolingDifference:F1}°");
+        ParamBox("Мин. температура", $"{controller.CalcMinTemperature:F1}°");
         GUILayout.EndHorizontal();
 
         GUILayout.EndVertical();
@@ -370,10 +443,11 @@ public class CoolerWorkbenchUI : MonoBehaviour, IWorkbenchUI
         GUILayout.BeginVertical(_panelStyle);
         GUILayout.Label("<color=#E0E0E0>ТРЕБОВАНИЯ ПРОИЗВОДСТВА</color>", GetBoldStyle());
 
-        // Получаем информацию о складе для отображения
         float alloyReq = controller.Scaler.CalcShellMass;
         float alloyAvail = 0f;
-        if (controller.alloyStorage != null && controller.AlloyCodes.Length > 0 && controller.SelectedAlloyIndex >= 0)
+        if (controller.alloyStorage != null &&
+            controller.AlloyCodes.Length > 0 &&
+            controller.SelectedAlloyIndex >= 0)
         {
             alloyAvail = (float)controller.alloyStorage.GetMass(controller.AlloyCodes[controller.SelectedAlloyIndex]);
         }
@@ -381,7 +455,6 @@ public class CoolerWorkbenchUI : MonoBehaviour, IWorkbenchUI
         long energyReq = controller.CalcEnergyCost;
         long energyAvail = controller.resourcesStorage != null ? controller.resourcesStorage.EnergyUnits : 0;
 
-        // Строка 1: Сплав и Энергия
         GUILayout.BeginHorizontal();
         DrawCostItem("Сплав", alloyReq, alloyAvail, "кг", alloyAvail >= alloyReq - 0.001f);
         GUILayout.Space(15);
@@ -389,16 +462,19 @@ public class CoolerWorkbenchUI : MonoBehaviour, IWorkbenchUI
         GUILayout.FlexibleSpace();
         GUILayout.EndHorizontal();
 
-        // Строка 2: Внутренние ресурсы
         if (controller.RequiredInternalResources.Count > 0)
         {
             GUILayout.Space(8);
-            GUILayout.Label("<color=#AAAAAA>Внутренние компоненты (Рецепт):</color>", new GUIStyle(GUI.skin.label) { fontSize = 11 });
+            GUILayout.Label("<color=#AAAAAA>Внутренние компоненты (Рецепт):</color>",
+                new GUIStyle(GUI.skin.label) { fontSize = 11 });
+
             GUILayout.BeginHorizontal();
             foreach (var kvp in controller.RequiredInternalResources)
             {
                 float reqKg = kvp.Value / 1000f;
-                float availKg = controller.resourcesStorage != null ? controller.resourcesStorage.GetGrams(kvp.Key) / 1000f : 0f;
+                float availKg = controller.resourcesStorage != null
+                    ? controller.resourcesStorage.GetGrams(kvp.Key) / 1000f
+                    : 0f;
                 string resName = ResourcesStorage.ResourceFullName((int)kvp.Key);
 
                 DrawCostItem(resName, reqKg, availKg, "кг", availKg >= reqKg - 0.001f);
@@ -418,9 +494,10 @@ public class CoolerWorkbenchUI : MonoBehaviour, IWorkbenchUI
 
         GUI.enabled = !isCrafting;
         controller.placementMode = (CoolerWorkbenchController.CraftPlacementMode)GUILayout.Toolbar(
-            (int)controller.placementMode, new[] { "В сцену (Мир)", "На склад (Storage)" }, GUILayout.Height(24));
+            (int)controller.placementMode,
+            new[] { "В сцену (Мир)", "На склад (Storage)" },
+            GUILayout.Height(24));
         GUI.enabled = true;
-
         GUILayout.EndHorizontal();
 
         GUILayout.Space(10);
@@ -464,7 +541,9 @@ public class CoolerWorkbenchUI : MonoBehaviour, IWorkbenchUI
         GUILayout.EndVertical();
     }
 
-    // ================= УТИЛИТЫ ОТРИСОВКИ =================
+    // =========================================
+    // UI HELPERS
+    // =========================================
 
     private void DrawCompactCodeSection(string title, ref string text, bool readOnly, string btn1, Action act1, string btn2 = null, Action act2 = null)
     {
@@ -480,6 +559,7 @@ public class CoolerWorkbenchUI : MonoBehaviour, IWorkbenchUI
             act2
         );
     }
+
     private void DrawGridRow(string l1, string v1, string l2, string v2)
     {
         GUILayout.BeginHorizontal();
@@ -492,7 +572,7 @@ public class CoolerWorkbenchUI : MonoBehaviour, IWorkbenchUI
 
     private void ParamBox(string label, string val)
     {
-        GUILayout.BeginVertical(GUILayout.Width(130));
+        GUILayout.BeginVertical(GUILayout.Width(140));
         GUILayout.Label($"<color=#AAAAAA>{label}</color>", new GUIStyle(GUI.skin.label) { fontSize = 12 });
         GUILayout.Label(val, GetBoldStyle());
         GUILayout.EndVertical();
@@ -530,10 +610,19 @@ public class CoolerWorkbenchUI : MonoBehaviour, IWorkbenchUI
         if (options == null || options.Length == 0) return selected;
         selected = Mathf.Clamp(selected, 0, options.Length - 1);
 
-        GUIStyle btnStyle = new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = FontStyle.Normal };
+        GUIStyle btnStyle = new GUIStyle(GUI.skin.button)
+        {
+            fontSize = 13,
+            fontStyle = FontStyle.Normal
+        };
+
         if (GUILayout.Button(options[selected], btnStyle, GUILayout.MinWidth(150), GUILayout.Height(25)))
         {
-            WorkbenchPopup.Show(options, selected, GUIUtility.GUIToScreenPoint(Event.current.mousePosition), idx => _pendingSelections[tag] = idx);
+            WorkbenchPopup.Show(
+                options,
+                selected,
+                GUIUtility.GUIToScreenPoint(Event.current.mousePosition),
+                idx => _pendingSelections[tag] = idx);
         }
 
         if (_pendingSelections.TryGetValue(tag, out int result))
@@ -562,23 +651,46 @@ public class CoolerWorkbenchUI : MonoBehaviour, IWorkbenchUI
         if (_sepTex == null) _sepTex = WorkbenchPopup.MakeTex(1, 1, new Color(0.35f, 0.35f, 0.35f, 0.5f));
 
         if (_windowStyle == null)
-            _windowStyle = new GUIStyle(GUI.skin.window) { normal = { background = _bgTex, textColor = Color.white }, fontSize = 14, fontStyle = FontStyle.Bold };
+        {
+            _windowStyle = new GUIStyle(GUI.skin.window)
+            {
+                normal = { background = _bgTex, textColor = Color.white },
+                fontSize = 14,
+                fontStyle = FontStyle.Bold
+            };
+        }
 
         if (_panelStyle == null)
-            _panelStyle = new GUIStyle(GUI.skin.box) { normal = { background = _panelTex, textColor = Color.white }, padding = new RectOffset(10, 10, 10, 10), margin = new RectOffset(0, 0, 5, 5) };
+        {
+            _panelStyle = new GUIStyle(GUI.skin.box)
+            {
+                normal = { background = _panelTex, textColor = Color.white },
+                padding = new RectOffset(10, 10, 10, 10),
+                margin = new RectOffset(0, 0, 5, 5)
+            };
+        }
 
         GUI.skin.label.richText = true;
     }
 
     private GUIStyle GetCenteredBoldStyle()
     {
-        if (_centeredBold == null) _centeredBold = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, fontSize = 15 };
+        if (_centeredBold == null)
+            _centeredBold = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontStyle = FontStyle.Bold,
+                fontSize = 15
+            };
+
         return _centeredBold;
     }
 
     private GUIStyle GetBoldStyle()
     {
-        if (_boldStyle == null) _boldStyle = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold };
+        if (_boldStyle == null)
+            _boldStyle = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold };
+
         return _boldStyle;
     }
 }

@@ -125,7 +125,7 @@ MonoBehaviour:
   BuildVisualYawOffset: 0
   BuildAnchorLocal: {x: 0, y: 0, z: 0}
   BuildAnchorCellLocal: {x: 0, y: 0}
-  UseBuildAnchorPlacement: 1
+  useBuildAnchorPlacement: 1
   ExplosionRadiusCoefficient: 0.1
   ExplosionPenetrationCoefficient: 0.1
   ExplosionDamageCoefficient: 0.1
@@ -142,9 +142,12 @@ MonoBehaviour:
   SpecificEnergyConsumption: 1
   BaseHeating: 0
   HeatCapacityCoeff: 1
+  OperationalResourceCostsPerLiterPerSecond: []
+  StaticCapacityCoefficient: 1
+  GroundingCoefficient: 1
   specificCoolingPower: 1
   coolingPower: 2000.001
   energyConsumption: 2000.001
   coolingRadius: 3
   maxCoolingDifference: 30
-  minTemperature: -20
+  minTemperature: 20

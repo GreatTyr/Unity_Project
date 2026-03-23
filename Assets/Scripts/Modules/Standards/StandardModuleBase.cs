@@ -57,8 +57,7 @@ public abstract class StandardModuleBase : MonoBehaviour
     [Tooltip("Если включено, placement будет строиться от центра anchor cell, " +
          "а BuildAnchorLocal станет логической опорной точкой модуля. " +
          "Если выключено — используется старая legacy-модель от центра footprint-а.")]
-    [SerializeField, HideInInspector]
-    private bool useBuildAnchorPlacement = true;
+
 
     public bool UseBuildAnchorPlacement => true;
 
@@ -112,7 +111,6 @@ public abstract class StandardModuleBase : MonoBehaviour
         VolumeCoefficientPercent = Mathf.Clamp(VolumeCoefficientPercent, 0f, 100f);
         ConstantFillPercent = Mathf.Clamp(ConstantFillPercent, 0, 100);
         CraftCoefficient = Mathf.Max(0.01f, CraftCoefficient);
-        useBuildAnchorPlacement = true;
         RecalculateAll();
     }
 

@@ -1,17 +1,4 @@
 {
     "version": 2,
-    "entries": [
-        {
-            "moduleCode": "Generator-T1-m2550.000-d127.500-2.000/1.000/1.500-sp5.000-TESTF1-001\nP2422.500-F0.4845-FT1\n1-K1/000-T1/000-C0/000-E0/000",
-            "quantity": 2,
-            "dataTypeName": "GeneratorData",
-            "json": "{\"moduleType\":\"Generator\",\"moduleTier\":1,\"faction\":\"TESTF1\",\"referenceIndex\":0,\"referenceName\":\"StandardGenerator000\",\"alloyCode\":\"1-K1/000-T1/000-C0/000-E0/000\",\"alloyTier\":1,\"shellPercent\":5.0,\"length\":2.0,\"width\":1.0,\"height\":1.5,\"aabbVolume\":3.0,\"realVolume\":2.549999952316284,\"shellVolumeM3\":0.1274999976158142,\"effectiveVolume\":2.422499895095825,\"shellMassKg\":127.5,\"innerMassKg\":2422.5,\"totalMassKg\":2550.0,\"durability\":127.5,\"scaleFactor\":1.0,\"fillPercent\":100.0,\"moduleCode\":\"Generator-T1-m2550.000-d127.500-2.000/1.000/1.500-sp5.000-TESTF1-001\\nP2422.500-F0.4845-FT1\\n1-K1/000-T1/000-C0/000-E0/000\",\"wallThicknessMm\":12.0,\"craftTimestamp\":\"2026-03-19T22:01:44.7910679Z\",\"dataVersion\":8,\"canTurnOnOff\":true,\"turnOnOffTime\":1.0,\"canPulseMode\":false,\"pulseInterval\":0.0,\"isControllable\":false,\"isVolatile\":false,\"explosionDamageType\":0,\"explosionRadiusMeters\":0.0,\"explosionPenetration\":0.0,\"explosionDamage\":0.0,\"buildVisualYawOffset\":0.0,\"buildAnchorLocal\":{\"x\":0.0,\"y\":0.0,\"z\":0.0},\"useBuildAnchorPlacement\":true,\"buildAnchorCellLocal\":{\"x\":0,\"y\":0},\"referenceVisualScale\":{\"x\":1.0,\"y\":1.0,\"z\":1.0},\"specificPower\":2422.5,\"fuelKgPerS\":0.484499990940094,\"fuelTier\":1,\"powerTimesTierPer0001\":1.0,\"fuelPer0001m3Tiered\":0.00019999999494757503,\"powerBy0001m3\":1.0,\"fuelBy0001m3Base\":0.00019999999494757503,\"maxTemperature\":301.0,\"energyCapacity\":2422.5}"
-        },
-        {
-            "moduleCode": "Generator-T1-m318.750-d15.937-1.000/0.500/0.750-sp5.000-TESTF1-001\nP302.813-F0.0606-FT1\n1-K1/000-T1/000-C0/000-E0/000",
-            "quantity": 1,
-            "dataTypeName": "GeneratorData",
-            "json": "{\"moduleType\":\"Generator\",\"moduleTier\":1,\"faction\":\"TESTF1\",\"referenceIndex\":0,\"referenceName\":\"StandardGenerator000\",\"alloyCode\":\"1-K1/000-T1/000-C0/000-E0/000\",\"alloyTier\":1,\"shellPercent\":5.0,\"length\":1.0,\"width\":0.5,\"height\":0.75,\"aabbVolume\":0.375,\"realVolume\":0.3187499940395355,\"shellVolumeM3\":0.015937000513076783,\"effectiveVolume\":0.30281299352645876,\"shellMassKg\":15.937000274658204,\"innerMassKg\":302.81298828125,\"totalMassKg\":318.75,\"durability\":15.937000274658204,\"scaleFactor\":0.5,\"fillPercent\":100.0,\"moduleCode\":\"Generator-T1-m318.750-d15.937-1.000/0.500/0.750-sp5.000-TESTF1-001\\nP302.813-F0.0606-FT1\\n1-K1/000-T1/000-C0/000-E0/000\",\"wallThicknessMm\":6.0,\"craftTimestamp\":\"2026-03-19T22:21:03.0471728Z\",\"dataVersion\":8,\"canTurnOnOff\":true,\"turnOnOffTime\":1.0,\"canPulseMode\":false,\"pulseInterval\":0.0,\"isControllable\":false,\"isVolatile\":false,\"explosionDamageType\":0,\"explosionRadiusMeters\":0.0,\"explosionPenetration\":0.0,\"explosionDamage\":0.0,\"buildVisualYawOffset\":0.0,\"buildAnchorLocal\":{\"x\":0.0,\"y\":0.0,\"z\":0.0},\"useBuildAnchorPlacement\":true,\"buildAnchorCellLocal\":{\"x\":0,\"y\":0},\"referenceVisualScale\":{\"x\":1.0,\"y\":1.0,\"z\":1.0},\"specificPower\":302.81298828125,\"fuelKgPerS\":0.060600001364946368,\"fuelTier\":1,\"powerTimesTierPer0001\":1.0,\"fuelPer0001m3Tiered\":0.00019999999494757503,\"powerBy0001m3\":1.0,\"fuelBy0001m3Base\":0.00019999999494757503,\"maxTemperature\":301.0,\"energyCapacity\":302.81298828125}"
-        }
-    ]
+    "entries": []
 }
