@@ -180,7 +180,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9c8948c2bd5c3a543bec6141db8e155e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AmmoWorkbench
+  effectiveGravityA: 8
+  effectiveGravityB: 500
   ammoInput:
+    chargeType: 0
     shellTier: 1
     diameterMm: 10
     lengthMm: 20
@@ -200,6 +203,8 @@ MonoBehaviour:
   barrelInput:
     barrelLengthMm: 100
     barrelDiameterMm: 10
+    shotAngleDeg: 45
+  manualAmmoCode: 
 --- !u!114 &35090098
 MonoBehaviour:
   m_ObjectHideFlags: 0

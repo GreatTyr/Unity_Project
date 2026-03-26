@@ -1,9 +1,8 @@
-﻿// AmmoWorkbench.cs
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Логика крафта конических снарядов.
+/// Логика крафта конических боеприпасов.
 /// Связывает ввод, расчёт (AmmoCalc) и склады (через AmmoWorkbenchCore).
 /// </summary>
 [RequireComponent(typeof(AmmoWorkbenchCore))]
@@ -11,10 +10,17 @@ public class AmmoWorkbench : MonoBehaviour
 {
     private AmmoWorkbenchCore core;
 
-    [Header("Ввод — снаряд")]
+    [Header("Баллистика боеприпаса")]
+    [SerializeField] private float effectiveGravityA = 8f;
+    [SerializeField] private float effectiveGravityB = 145f;
+
+    public float EffectiveGravityA => effectiveGravityA;
+    public float EffectiveGravityB => effectiveGravityB;
+
+    [Header("Ввод — боеприпас")]
     public AmmoCalc.AmmoInput ammoInput = new AmmoCalc.AmmoInput();
 
-    [Header("Ввод — ствол (дополнительная оценка)")]
+    [Header("Ввод — ствол (оценка для верстака)")]
     public AmmoCalc.BarrelInput barrelInput = new AmmoCalc.BarrelInput();
 
     [Header("Ручной ввод кода")]
@@ -24,13 +30,16 @@ public class AmmoWorkbench : MonoBehaviour
     private AmmoCalc.BarrelOutput barrelOutput;
     private List<AmmoCalc.ResourceCost> costs;
     private bool canCraft;
-    private string craftError = "";
+
+    private readonly List<string> errors = new List<string>();
+    private readonly List<string> warnings = new List<string>();
 
     public AmmoCalc.AmmoOutput Output => output;
     public AmmoCalc.BarrelOutput BarrelOutput => barrelOutput;
     public IReadOnlyList<AmmoCalc.ResourceCost> Costs => costs;
     public bool CanCraft => canCraft;
-    public string CraftError => craftError;
+    public IReadOnlyList<string> Errors => errors;
+    public IReadOnlyList<string> Warnings => warnings;
 
     private void Awake()
     {
@@ -70,7 +79,8 @@ public class AmmoWorkbench : MonoBehaviour
         barrelInput = new AmmoCalc.BarrelInput
         {
             barrelDiameterMm = ammoInput.diameterMm,
-            barrelLengthMm = ammoInput.lengthMm * 10f
+            barrelLengthMm = ammoInput.lengthMm * 10f,
+            shotAngleDeg = 45f
         };
 
         manualAmmoCode = "";
@@ -81,15 +91,18 @@ public class AmmoWorkbench : MonoBehaviour
     {
         EnsureCore();
 
-        if (!AmmoCalc.TryParseCode(manualAmmoCode, out var parsedInput, out var error))
+        if (!AmmoValidator.TryParseCode(manualAmmoCode, out var parsedInput, out var error))
         {
-            craftError = error;
+            errors.Clear();
+            warnings.Clear();
+            errors.Add(error);
             return false;
         }
 
         ammoInput = parsedInput;
         barrelInput.barrelDiameterMm = ammoInput.diameterMm;
         barrelInput.barrelLengthMm = ammoInput.lengthMm * 10f;
+        barrelInput.shotAngleDeg = 45f;
 
         Recalculate();
         return true;
@@ -100,11 +113,12 @@ public class AmmoWorkbench : MonoBehaviour
         EnsureCore();
 
         canCraft = false;
-        craftError = "";
+        errors.Clear();
+        warnings.Clear();
 
         if (core == null)
         {
-            craftError = "Не найден компонент AmmoWorkbenchCore.";
+            errors.Add("Не найден компонент AmmoWorkbenchCore.");
             output = null;
             barrelOutput = null;
             costs = null;
@@ -113,7 +127,7 @@ public class AmmoWorkbench : MonoBehaviour
 
         if (!core.IsReady)
         {
-            craftError = core.GetReadyError();
+            errors.Add(core.GetReadyError());
             output = null;
             barrelOutput = null;
             costs = null;
@@ -121,11 +135,11 @@ public class AmmoWorkbench : MonoBehaviour
         }
 
         AmmoCalc.NormalizeInput(ammoInput);
-        output = AmmoCalc.Calculate(ammoInput);
+        output = AmmoCalc.Calculate(ammoInput, effectiveGravityA, effectiveGravityB);
 
         if (output == null)
         {
-            craftError = "Ошибка расчёта снаряда.";
+            errors.Add("Ошибка расчёта боеприпаса.");
             barrelOutput = null;
             costs = null;
             return;
@@ -133,8 +147,8 @@ public class AmmoWorkbench : MonoBehaviour
 
         if (!string.IsNullOrEmpty(output.error))
         {
-            craftError = output.error;
-            barrelOutput = AmmoCalc.CalculateBarrel(output, barrelInput);
+            errors.Add(output.error);
+            barrelOutput = null;
             costs = null;
             return;
         }
@@ -142,17 +156,22 @@ public class AmmoWorkbench : MonoBehaviour
         barrelOutput = AmmoCalc.CalculateBarrel(output, barrelInput);
         costs = AmmoCalc.CalculateCosts(output);
 
-        int count = Mathf.Max(ammoInput.craftCount, 1);
+        if (output.weakExplosiveCharge)
+            warnings.Add(output.weakExplosiveChargeWarning);
 
-        string resErr = AmmoCalc.ValidateResources(core.ResourcesStorage, costs, count);
+        if (output.caseStrength < output.propulsionForce)
+            errors.Add("Прочность гильзы ниже выталкивающей силы. Увеличьте массу/тир гильзы или уменьшите метательный заряд.");
+
+        if (barrelOutput != null && !barrelOutput.valid)
+            errors.Add(barrelOutput.error);
+
+        int craftCount = Mathf.Max(ammoInput.craftCount, 1);
+
+        string resErr = AmmoCalc.ValidateResources(core.ResourcesStorage, costs, craftCount);
         if (!string.IsNullOrEmpty(resErr))
-        {
-            craftError = resErr;
-            canCraft = false;
-            return;
-        }
+            errors.Add(resErr);
 
-        canCraft = true;
+        canCraft = errors.Count == 0;
     }
 
     public bool TryCraft()
@@ -162,7 +181,7 @@ public class AmmoWorkbench : MonoBehaviour
 
         if (!canCraft)
         {
-            Debug.LogWarning($"[AmmoWorkbench] Изготовление невозможно: {craftError}");
+            Debug.LogWarning("[AmmoWorkbench] Изготовление невозможно.");
             return false;
         }
 
@@ -170,15 +189,16 @@ public class AmmoWorkbench : MonoBehaviour
 
         if (!AmmoCalc.ConsumeResources(core.ResourcesStorage, costs, count))
         {
-            craftError = "Ошибка списания ресурсов.";
+            errors.Clear();
+            errors.Add("Ошибка списания ресурсов.");
             canCraft = false;
-            Debug.LogError($"[AmmoWorkbench] {craftError}");
+            Debug.LogError("[AmmoWorkbench] Ошибка списания ресурсов.");
             return false;
         }
 
-        core.AmmoStorage.AddAmmo(output.ammoCode, count, output.totalShotMassKg);
+        core.AmmoStorage.AddAmmo(output.ammoCode, count, output.totalAmmoMassKg);
 
-        Debug.Log($"[AmmoWorkbench] Изготовлено {count} выстрелов: {output.ammoCode}");
+        Debug.Log($"[AmmoWorkbench] Изготовлено {count} боеприпасов: {output.ammoCode}");
         return true;
     }
 }

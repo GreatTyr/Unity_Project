@@ -1,37 +1,34 @@
-﻿// AmmoCalc.cs
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Все расчёты для конического снаряда (тип S).
+/// Все расчёты для конического боеприпаса (тип S).
 /// Чистая статическая логика без MonoBehaviour.
 /// Не зависит от UI, складов и верстаков.
 /// </summary>
 public static class AmmoCalc
 {
-    // ===================== ПЕРЕЧИСЛЕНИЯ =====================
-
-    public enum ChargeType { FM, HE, EQ }
+    public enum ChargeType { FM = 0, HE = 1, EQ = 2 }
 
     public enum DamageElementType
     {
         None = 0,
-        Shrapnel = 1,   // Sh — только HE, авто
-        Buckshot = 2,   // Bag(n)
-        Pellet = 3,     // Pel
-        Fire = 4,       // F
-        Chemical = 5,   // Ch
-        Energy = 6      // En
+        Shrapnel = 1,
+        Buckshot = 2,
+        Pellet = 3,
+        Fire = 4,
+        Chemical = 5,
+        Energy = 6
     }
 
     public enum AreaType
     {
-        None = 0,   // трактуется как Point
-        Point = 1,  // P
-        Sphere = 2, // Sp
-        Cone = 3,   // Cn
-        Cloud = 4   // Cl
+        None = 0,
+        Point = 1,
+        Sphere = 2,
+        Cone = 3,
+        Cloud = 4
     }
 
     public enum FuzeType
@@ -44,12 +41,10 @@ public static class AmmoCalc
         Re = 5
     }
 
-    // ===================== ВХОДНЫЕ ДАННЫЕ =====================
-
     [Serializable]
     public class AmmoInput
     {
-        [Header("Тип снаряда")]
+        [Header("Тип боеприпаса")]
         public ChargeType chargeType = ChargeType.FM;
 
         [Header("Оболочка")]
@@ -63,7 +58,7 @@ public static class AmmoCalc
 
         [Header("Поражающий элемент")]
         public DamageElementType damageElementType = DamageElementType.Buckshot;
-        [Range(2, 10)] public int buckshotCount = 2;
+        [Range(0, 10)] public int buckshotCount = 0;
         [Range(1, 10)] public int damageElementTier = 1;
         public float damageElementMassKg = 0f;
 
@@ -73,7 +68,7 @@ public static class AmmoCalc
         [Header("Взрыватель")]
         public FuzeType fuzeType = FuzeType.No;
 
-        [Header("Толкающий заряд")]
+        [Header("Метательный заряд")]
         [Range(1, 10)] public int propellantTier = 1;
         public float propellantMassKg = 0.001f;
 
@@ -90,9 +85,8 @@ public static class AmmoCalc
     {
         public float barrelLengthMm = 100f;
         public float barrelDiameterMm = 10f;
+        public float shotAngleDeg = 45f;
     }
-
-    // ===================== ВЫХОДНЫЕ ДАННЫЕ =====================
 
     [Serializable]
     public class AmmoOutput
@@ -104,26 +98,40 @@ public static class AmmoCalc
         public float totalProjectileMassKg;
         public float shellMassKg;
         public float shellStrength;
+
         public int explosiveTier;
         public float explosiveMassKg;
         public float explosivePower;
+
         public DamageElementType damageElementType;
         public int buckshotCount;
-        public AreaType areaType;
         public int damageElementTier;
         public float damageElementMassKg;
+        public float buckshotSingleMassKg;
+
+        public AreaType areaType;
         public float damageRadius;
         public float areaPenetration;
         public float areaDamage;
         public float coneAngleDeg;
+        public float buckshotSpreadAngleDeg;
+
         public FuzeType fuzeType;
+
         public int propellantTier;
         public float propellantMassKg;
         public float propulsionForce;
+
         public int caseTier;
         public float caseMassKg;
         public float caseStrength;
-        public float totalShotMassKg;
+
+        public float totalAmmoMassKg;
+        public float effectiveGravity;
+
+        public bool weakExplosiveCharge;
+        public string weakExplosiveChargeWarning;
+
         public string ammoCode;
         public string error;
     }
@@ -135,8 +143,8 @@ public static class AmmoCalc
         public string error = "";
         public float projectileSpeed;
         public float accuracy;
-        public float maxRange;
-        public float directFireRange;
+        public float flightDistance;
+        public float maxHeight;
         public float directDamage;
         public float directPenetration;
     }
@@ -170,22 +178,14 @@ public static class AmmoCalc
         }
     }
 
-    // ===================== УТИЛИТЫ =====================
+    private const float SHELL_STRENGTH_SAFETY_RATIO = 0.10f;
+    private const float GAME_GRAVITY = 10f;
+    private const float SHOT_HEIGHT_METERS = 1.5f;
+    private const float MAX_UI_ANGLE_DEG = 89.999f;
 
-    public static float Ceil3(float v)
-    {
-        return Mathf.Ceil(v * 1000f) / 1000f;
-    }
-
-    public static float Ceil2(float v)
-    {
-        return Mathf.Ceil(v * 100f) / 100f;
-    }
-
-    public static float Ceil1(float v)
-    {
-        return Mathf.Ceil(v);
-    }
+    public static float Ceil3(float v) => Mathf.Ceil(v * 1000f) / 1000f;
+    public static float Ceil2(float v) => Mathf.Ceil(v * 100f) / 100f;
+    public static float Ceil1(float v) => Mathf.Ceil(v);
 
     public static float NormalizeDiameterMm(float v)
     {
@@ -195,24 +195,30 @@ public static class AmmoCalc
     public static float NormalizeLengthMm(float v, float diameterMm)
     {
         float minLen = Ceil1(diameterMm * 2f);
-        return Ceil1(Mathf.Clamp(v, minLen, 1000000f));
+        float maxLen = Ceil1(diameterMm * 10f);
+        return Ceil1(Mathf.Clamp(v, minLen, maxLen));
     }
 
-    /// <summary>
-    /// Игровая условность:
-    /// масса снаряда (кг) = диаметр(мм) * длина(мм) / 1000.
-    /// Пример: 10 * 20 = 200 г = 0.2 кг.
-    /// </summary>
+    public static float NormalizeMassKg(float v)
+    {
+        return Ceil3(Mathf.Max(0f, v));
+    }
+
+    public static float NormalizeAngleDeg(float v)
+    {
+        return Ceil3(Mathf.Clamp(v, 0f, MAX_UI_ANGLE_DEG));
+    }
+
     public static float ProjectileMassKg(float diamMm, float lengthMm)
     {
-        return (diamMm * lengthMm) / 1000f;
+        return (diamMm * diamMm * lengthMm) / 200000f;
     }
 
     public static float GetMinPartKg(float totalMassKg)
     {
-        float minPart = totalMassKg * 0.0001f; // 0.01%
+        float minPart = totalMassKg * 0.0001f;
         if (minPart < 0.001f) minPart = 0.001f;
-        return minPart;
+        return Ceil3(minPart);
     }
 
     public static ResourcesStorage.ResourceIndex GetResourceIndex(
@@ -227,8 +233,8 @@ public static class AmmoCalc
         switch (type)
         {
             case ChargeType.FM: return projectileMassKg > 0f;
-            case ChargeType.HE: return projectileMassKg >= 0.1f;
-            case ChargeType.EQ: return projectileMassKg >= 0.3f;
+            case ChargeType.HE: return projectileMassKg >= 0.5f;
+            case ChargeType.EQ: return projectileMassKg >= 1.0f;
             default: return false;
         }
     }
@@ -237,8 +243,6 @@ public static class AmmoCalc
     {
         return a == AreaType.None ? AreaType.Point : a;
     }
-
-    // ===================== НОРМАЛИЗАЦИЯ ВВОДА =====================
 
     public static void NormalizeInput(AmmoInput input)
     {
@@ -249,20 +253,20 @@ public static class AmmoCalc
         input.damageElementTier = Mathf.Clamp(input.damageElementTier, 1, 10);
         input.propellantTier = Mathf.Clamp(input.propellantTier, 1, 10);
         input.caseTier = Mathf.Clamp(input.caseTier, 1, 10);
-        input.buckshotCount = Mathf.Clamp(input.buckshotCount, 2, 10);
+        input.buckshotCount = Mathf.Clamp(input.buckshotCount, 0, 10);
         input.craftCount = Mathf.Max(1, input.craftCount);
 
         input.diameterMm = NormalizeDiameterMm(input.diameterMm);
         input.lengthMm = NormalizeLengthMm(input.lengthMm, input.diameterMm);
 
-        input.propellantMassKg = Mathf.Max(input.propellantMassKg, 0.001f);
-        input.caseMassKg = Mathf.Max(input.caseMassKg, 0.001f);
-        input.explosiveMassKg = Mathf.Max(input.explosiveMassKg, 0f);
-        input.damageElementMassKg = Mathf.Max(input.damageElementMassKg, 0f);
+        input.propellantMassKg = Ceil3(Mathf.Max(input.propellantMassKg, 0.001f));
+        input.caseMassKg = Ceil3(Mathf.Max(input.caseMassKg, 0.001f));
+        input.explosiveMassKg = NormalizeMassKg(input.explosiveMassKg);
+        input.damageElementMassKg = NormalizeMassKg(input.damageElementMassKg);
 
         input.areaType = NormalizeAreaType(input.areaType);
 
-        float totalMassKg = ProjectileMassKg(input.diameterMm, input.lengthMm);
+        float totalMassKg = Ceil3(ProjectileMassKg(input.diameterMm, input.lengthMm));
         float minPart = GetMinPartKg(totalMassKg);
 
         if (!IsChargeTypeAllowed(input.chargeType, totalMassKg))
@@ -271,27 +275,27 @@ public static class AmmoCalc
         switch (input.chargeType)
         {
             case ChargeType.FM:
+                input.explosiveTier = 0;
                 input.explosiveMassKg = 0f;
-                input.damageElementMassKg = 0f;
                 input.damageElementType = DamageElementType.None;
+                input.buckshotCount = 0;
+                input.damageElementTier = 0;
+                input.damageElementMassKg = 0f;
                 input.fuzeType = FuzeType.No;
                 input.areaType = AreaType.Point;
                 break;
 
             case ChargeType.HE:
-                input.damageElementMassKg = 0f;
                 input.damageElementType = DamageElementType.Shrapnel;
+                input.buckshotCount = 0;
+                input.damageElementTier = 0;
+                input.damageElementMassKg = 0f;
                 input.areaType = AreaType.Sphere;
 
-                if (totalMassKg >= 0.1f)
                 {
                     float maxExp = Mathf.Max(minPart, totalMassKg - minPart);
-                    if (input.explosiveMassKg < minPart) input.explosiveMassKg = minPart;
-                    if (input.explosiveMassKg > maxExp) input.explosiveMassKg = maxExp;
-                }
-                else
-                {
-                    input.explosiveMassKg = 0f;
+                    input.explosiveMassKg = Mathf.Clamp(input.explosiveMassKg, minPart, maxExp);
+                    input.explosiveMassKg = Ceil3(input.explosiveMassKg);
                 }
                 break;
 
@@ -302,26 +306,28 @@ public static class AmmoCalc
                     input.damageElementType = DamageElementType.Buckshot;
                 }
 
-                if (totalMassKg >= 0.3f)
+                if (input.damageElementType == DamageElementType.Buckshot)
                 {
-                    if (input.explosiveMassKg < minPart) input.explosiveMassKg = minPart;
-                    if (input.damageElementMassKg < minPart) input.damageElementMassKg = minPart;
-
-                    float maxExp = Mathf.Max(minPart, totalMassKg - minPart - input.damageElementMassKg);
-                    if (input.explosiveMassKg > maxExp) input.explosiveMassKg = maxExp;
-
-                    float maxDe = Mathf.Max(minPart, totalMassKg - minPart - input.explosiveMassKg);
-                    if (input.damageElementMassKg > maxDe) input.damageElementMassKg = maxDe;
+                    input.buckshotCount = Mathf.Clamp(input.buckshotCount, 2, 10);
                 }
                 else
                 {
-                    input.chargeType = ChargeType.FM;
-                    input.explosiveMassKg = 0f;
-                    input.damageElementMassKg = 0f;
-                    input.damageElementType = DamageElementType.None;
-                    input.fuzeType = FuzeType.No;
-                    input.areaType = AreaType.Point;
-                    break;
+                    input.buckshotCount = 0;
+                }
+
+                input.explosiveMassKg = Mathf.Max(input.explosiveMassKg, minPart);
+                input.damageElementMassKg = Mathf.Max(input.damageElementMassKg, minPart);
+
+                {
+                    float maxExp = Mathf.Max(minPart, totalMassKg - minPart - input.damageElementMassKg);
+                    input.explosiveMassKg = Mathf.Clamp(input.explosiveMassKg, minPart, maxExp);
+                    input.explosiveMassKg = Ceil3(input.explosiveMassKg);
+                }
+
+                {
+                    float maxDe = Mathf.Max(minPart, totalMassKg - minPart - input.explosiveMassKg);
+                    input.damageElementMassKg = Mathf.Clamp(input.damageElementMassKg, minPart, maxDe);
+                    input.damageElementMassKg = Ceil3(input.damageElementMassKg);
                 }
 
                 switch (input.damageElementType)
@@ -346,12 +352,14 @@ public static class AmmoCalc
         }
     }
 
-    // ===================== ОСНОВНОЙ РАСЧЁТ =====================
-
-    public static AmmoOutput Calculate(AmmoInput input)
+    public static AmmoOutput Calculate(AmmoInput input, float effectiveGravityA = 8f, float effectiveGravityB = 145f)
     {
-        var o = new AmmoOutput();
-        o.error = "";
+        var o = new AmmoOutput
+        {
+            error = "",
+            weakExplosiveCharge = false,
+            weakExplosiveChargeWarning = ""
+        };
 
         if (input == null)
         {
@@ -374,17 +382,17 @@ public static class AmmoCalc
         float totalMassKg = Ceil3(ProjectileMassKg(d, l));
         if (totalMassKg <= 0f)
         {
-            o.error = "Масса снаряда слишком мала.";
+            o.error = "Масса боеприпаса слишком мала.";
             return o;
         }
 
         if (!IsChargeTypeAllowed(chargeType, totalMassKg))
         {
             o.error = chargeType == ChargeType.HE
-                ? "Недостаточная масса снаряда для фугасного типа. Минимум 0.100 кг."
+                ? "Недостаточная масса боеприпаса для фугасного типа. Минимум 0.500 кг."
                 : chargeType == ChargeType.EQ
-                    ? "Недостаточная масса снаряда для снаряженного типа. Минимум 0.300 кг."
-                    : "Недопустимый тип снаряда.";
+                    ? "Недостаточная масса боеприпаса для снаряженного типа. Минимум 1.000 кг."
+                    : "Недопустимый тип боеприпаса.";
             return o;
         }
 
@@ -392,8 +400,8 @@ public static class AmmoCalc
 
         float minPart = GetMinPartKg(totalMassKg);
 
-        float expMass = Mathf.Max(input.explosiveMassKg, 0f);
-        float deMass = Mathf.Max(input.damageElementMassKg, 0f);
+        float expMass = input.explosiveMassKg;
+        float deMass = input.damageElementMassKg;
         DamageElementType deType = input.damageElementType;
         FuzeType fuze = input.fuzeType;
         int expTier = input.explosiveTier;
@@ -404,39 +412,48 @@ public static class AmmoCalc
         switch (chargeType)
         {
             case ChargeType.FM:
+                expTier = 0;
                 expMass = 0f;
-                deMass = 0f;
                 deType = DamageElementType.None;
+                buckshotCount = 0;
+                deTier = 0;
+                deMass = 0f;
                 fuze = FuzeType.No;
                 area = AreaType.Point;
                 break;
 
             case ChargeType.HE:
-                deMass = 0f;
                 deType = DamageElementType.Shrapnel;
+                buckshotCount = 0;
+                deTier = 0;
+                deMass = 0f;
                 area = AreaType.Sphere;
-                if (expMass < minPart) expMass = minPart;
-                {
-                    float maxExp = totalMassKg - minPart;
-                    if (expMass > maxExp) expMass = maxExp;
-                }
+                expMass = Mathf.Clamp(expMass, minPart, Mathf.Max(minPart, totalMassKg - minPart));
+                expMass = Ceil3(expMass);
                 break;
 
             case ChargeType.EQ:
                 if (deType == DamageElementType.None || deType == DamageElementType.Shrapnel)
                     deType = DamageElementType.Buckshot;
 
-                if (expMass < minPart) expMass = minPart;
-                if (deMass < minPart) deMass = minPart;
+                if (deType == DamageElementType.Buckshot)
+                    buckshotCount = Mathf.Clamp(buckshotCount, 2, 10);
+                else
+                    buckshotCount = 0;
+
+                expMass = Mathf.Max(expMass, minPart);
+                deMass = Mathf.Max(deMass, minPart);
 
                 {
-                    float maxExp = totalMassKg - minPart - deMass;
-                    if (expMass > maxExp) expMass = maxExp;
+                    float maxExp = Mathf.Max(minPart, totalMassKg - minPart - deMass);
+                    expMass = Mathf.Clamp(expMass, minPart, maxExp);
+                    expMass = Ceil3(expMass);
                 }
 
                 {
-                    float maxDe = totalMassKg - minPart - expMass;
-                    if (deMass > maxDe) deMass = maxDe;
+                    float maxDe = Mathf.Max(minPart, totalMassKg - minPart - expMass);
+                    deMass = Mathf.Clamp(deMass, minPart, maxDe);
+                    deMass = Ceil3(deMass);
                 }
 
                 switch (deType)
@@ -452,6 +469,9 @@ public static class AmmoCalc
                     case DamageElementType.Chemical:
                     case DamageElementType.Energy:
                         area = AreaType.Cloud;
+                        break;
+                    default:
+                        area = AreaType.Point;
                         break;
                 }
                 break;
@@ -473,87 +493,116 @@ public static class AmmoCalc
         }
 
         o.shellMassKg = shellMass;
-        o.explosiveMassKg = (chargeType == ChargeType.FM) ? 0f : expMass;
-        o.damageElementMassKg = (chargeType == ChargeType.EQ) ? deMass : 0f;
-        o.explosiveTier = (chargeType == ChargeType.FM) ? 0 : expTier;
-        o.damageElementTier = (chargeType == ChargeType.EQ) ? deTier : 0;
+        o.explosiveTier = expTier;
+        o.explosiveMassKg = expMass;
+        o.damageElementType = deType;
         o.buckshotCount = buckshotCount;
+        o.damageElementTier = deTier;
+        o.damageElementMassKg = deMass;
         o.fuzeType = fuze;
         o.areaType = area;
-        o.damageElementType = deType;
 
         float shellCoeff = TierCoeffs.Get(shellTier);
         o.shellStrength = Ceil3(shellMass * shellCoeff);
 
-        float expPower = 0f;
-        if (chargeType != ChargeType.FM && expMass > 0f)
-            expPower = Ceil3(expMass * TierCoeffs.Get(expTier));
-        o.explosivePower = expPower;
+        o.explosivePower = (expTier > 0 && expMass > 0f)
+            ? Ceil3(expMass * TierCoeffs.Get(expTier))
+            : 0f;
 
-        float radius = 0f;
-        float areaPen = 0f;
-        float areaDmg = 0f;
+        bool canExplode = o.explosivePower > o.shellStrength;
+
+        if (chargeType != ChargeType.FM && !canExplode)
+        {
+            o.weakExplosiveCharge = true;
+            o.weakExplosiveChargeWarning = "Слабый разрывной заряд. Боеприпас не сработает в стандартных условиях.";
+        }
+
+        o.damageRadius = 0f;
+        o.areaPenetration = 0f;
+        o.areaDamage = 0f;
+        o.coneAngleDeg = 0f;
+        o.buckshotSpreadAngleDeg = 0f;
+        o.buckshotSingleMassKg = 0f;
 
         if (chargeType == ChargeType.HE)
         {
-            radius = Ceil3(Mathf.Sqrt(expPower));
-            areaPen = Ceil3(expPower * shellMass * shellCoeff);
-            areaDmg = Ceil3(shellMass * shellCoeff);
+            if (canExplode)
+            {
+                if (fuze == FuzeType.No)
+                    o.damageRadius = Ceil3(Mathf.Sqrt(o.explosivePower));
+                else
+                    o.damageRadius = Ceil3(Mathf.Sqrt(Mathf.Max(0f, o.explosivePower - o.shellStrength)));
+
+                o.areaPenetration = Ceil3(o.explosivePower * shellMass * shellCoeff);
+                o.areaDamage = Ceil3(shellMass * shellCoeff);
+
+                if (fuze == FuzeType.No || fuze == FuzeType.Se)
+                    o.areaPenetration = Ceil3(o.areaPenetration * 0.5f);
+            }
         }
-        else if (chargeType == ChargeType.EQ)
+        else if (chargeType == ChargeType.EQ && deTier >= 1 && deMass > 0f)
         {
             float deCoeff = TierCoeffs.Get(deTier);
 
             switch (deType)
             {
                 case DamageElementType.Buckshot:
-                    radius = 0f;
-                    areaPen = 0f;
-                    areaDmg = 0f;
+                    o.buckshotSingleMassKg = Ceil3(deMass / Mathf.Max(1, buckshotCount));
+                    o.buckshotSpreadAngleDeg = Ceil3((d / l) * 100f);
                     break;
 
                 case DamageElementType.Pellet:
-                    radius = Ceil3(Mathf.Sqrt(expPower));
-                    areaPen = Ceil3(expPower * deMass * deCoeff);
-                    areaDmg = Ceil3(deMass * deCoeff);
-                    break;
-
                 case DamageElementType.Fire:
                 case DamageElementType.Chemical:
                 case DamageElementType.Energy:
-                    radius = Ceil3(Mathf.Sqrt(expPower));
-                    areaPen = Ceil3(expPower * deMass * deCoeff);
-                    areaDmg = Ceil3(deMass * deCoeff);
+                    if (canExplode)
+                    {
+                        if (fuze == FuzeType.No)
+                            o.damageRadius = Ceil3(Mathf.Sqrt(o.explosivePower));
+                        else
+                            o.damageRadius = Ceil3(Mathf.Sqrt(Mathf.Max(0f, o.explosivePower - o.shellStrength)));
+
+                        o.areaPenetration = Ceil3(o.explosivePower * deMass * deCoeff);
+                        o.areaDamage = Ceil3(deMass * deCoeff);
+
+                        if (fuze == FuzeType.No || fuze == FuzeType.Se)
+                            o.areaPenetration = Ceil3(o.areaPenetration * 0.5f);
+
+                        if (deType == DamageElementType.Pellet && area == AreaType.Cone)
+                        {
+                            o.coneAngleDeg = Ceil3((d / l) * 100f);
+                            float A = Mathf.Sqrt(360f / Mathf.Max(o.coneAngleDeg, 0.001f));
+                            o.areaDamage = Ceil3(o.areaDamage * A);
+                        }
+                    }
                     break;
             }
         }
 
-        o.damageRadius = radius;
-        o.areaPenetration = areaPen;
-        o.areaDamage = areaDmg;
-        o.coneAngleDeg = (area == AreaType.Cone) ? Ceil3(d / l * 100f) : 0f;
+        if (area == AreaType.Cone && deType != DamageElementType.Buckshot)
+            o.coneAngleDeg = Ceil3((d / l) * 100f);
 
         int propTier = input.propellantTier;
-        float propMass = Mathf.Max(input.propellantMassKg, 0.001f);
+        float propMass = Ceil3(Mathf.Max(input.propellantMassKg, 0.001f));
         o.propellantTier = propTier;
         o.propellantMassKg = propMass;
         o.propulsionForce = Ceil3(propMass * TierCoeffs.Get(propTier));
 
         int caseTier = input.caseTier;
-        float caseMass = Mathf.Max(input.caseMassKg, 0.001f);
+        float caseMass = Ceil3(Mathf.Max(input.caseMassKg, 0.001f));
         o.caseTier = caseTier;
         o.caseMassKg = caseMass;
         o.caseStrength = Ceil3(caseMass * TierCoeffs.Get(caseTier));
 
-        o.totalShotMassKg = Ceil3(totalMassKg + propMass + caseMass);
-        o.ammoCode = GenerateCode(o);
+        o.totalAmmoMassKg = Ceil3(totalMassKg + propMass + caseMass);
+        o.effectiveGravity = CalculateEffectiveGravity(o, effectiveGravityA, effectiveGravityB);
+
+        o.ammoCode = AmmoValidator.BuildCode(o);
 
         return o;
     }
 
-    // ===================== РАСЧЁТ СТВОЛА =====================
-
-    public static bool IsBarrelValid(AmmoOutput ammo, BarrelInput barrel)
+    public static bool IsBarrelGeometryValid(AmmoOutput ammo, BarrelInput barrel)
     {
         if (ammo == null || barrel == null) return false;
         if (barrel.barrelLengthMm < ammo.lengthMm) return false;
@@ -566,6 +615,84 @@ public static class AmmoCalc
         return true;
     }
 
+    public static float CalculateBaseSpeed(float propulsionForce, float projectileMassKg)
+    {
+        float m = Mathf.Max(projectileMassKg, 0.000001f);
+        float ratio = Mathf.Max(propulsionForce, 0f) / m;
+        float n = (Mathf.Sqrt(1f + 8f * ratio) - 1f) * 0.5f;
+        return 100f * n;
+    }
+
+    public static float CalculateEffectiveGravity(AmmoOutput ammo, float A = 8f, float B = 145f)
+    {
+        if (ammo == null) return GAME_GRAVITY;
+
+        float d = Mathf.Max(ammo.diameterMm / 1000f, 0.000001f);
+        float l = Mathf.Max(ammo.lengthMm / 1000f, 0.000001f);
+        float m = Mathf.Max(ammo.totalProjectileMassKg, 0.000001f);
+        float t = Mathf.Max(TierCoeffs.Get(ammo.shellTier), 0.000001f);
+
+        const float a = 0.55f;
+        const float b = 0.30f;
+        const float c = 0.30f;
+
+        float sectionalTerm = (d * d) / m;
+        float shapeTerm = d / l;
+
+        float geff =
+            A +
+            B *
+            Mathf.Pow(sectionalTerm, a) *
+            Mathf.Pow(shapeTerm, b) *
+            Mathf.Pow(t, -c);
+
+        return Ceil3(Mathf.Max(geff, 0.001f));
+    }
+
+    public static float CalculatePropellantMassForMaxSpeed(
+        AmmoOutput ammo,
+        BarrelInput barrel)
+    {
+        if (ammo == null || barrel == null) return 0.001f;
+        if (!IsBarrelGeometryValid(ammo, barrel)) return 0.001f;
+
+        float d = ammo.diameterMm;
+        float D = barrel.barrelDiameterMm;
+        float L = barrel.barrelLengthMm;
+        float mass = Mathf.Max(ammo.totalProjectileMassKg, 0.000001f);
+
+        float Z = d / D;
+        float Z2 = Z * Z;
+        float barrelMultiplier = Mathf.Min(10f, Mathf.Sqrt(L / D));
+
+        float totalMultiplier = barrelMultiplier * Z2;
+        if (totalMultiplier <= 0f) return 0.001f;
+
+        float targetSpeed = ammo.propellantTier * 300f;
+        float baseSpeedNeeded = targetSpeed / totalMultiplier;
+
+        float n = baseSpeedNeeded / 100f;
+        float requiredForce = mass * (n * (n + 1f) * 0.5f);
+
+        float tierCoeff = TierCoeffs.Get(ammo.propellantTier);
+        if (tierCoeff <= 0f) return 0.001f;
+
+        float requiredPropellantMass = requiredForce / tierCoeff;
+        return Mathf.Max(0.001f, Ceil3(requiredPropellantMass));
+    }
+
+    public static float CalculateCaseMassForMinStrength(AmmoOutput ammo)
+    {
+        if (ammo == null) return 0.001f;
+
+        float requiredStrength = Mathf.Max(ammo.propulsionForce, 0f);
+        float tierCoeff = TierCoeffs.Get(ammo.caseTier);
+        if (tierCoeff <= 0f) return 0.001f;
+
+        float requiredCaseMass = requiredStrength / tierCoeff;
+        return Mathf.Max(0.001f, Ceil3(requiredCaseMass));
+    }
+
     public static BarrelOutput CalculateBarrel(AmmoOutput ammo, BarrelInput barrel)
     {
         var b = new BarrelOutput();
@@ -573,54 +700,87 @@ public static class AmmoCalc
         if (ammo == null || barrel == null)
         {
             b.valid = false;
-            b.error = "неверные параметры ствола";
+            b.error = "Неверные параметры ствола.";
             return b;
         }
 
-        if (!IsBarrelValid(ammo, barrel))
+        if (!IsBarrelGeometryValid(ammo, barrel))
         {
             b.valid = false;
-            b.error = "неверные параметры ствола";
+            b.error = "Неверные параметры ствола.";
             return b;
         }
 
         float d = ammo.diameterMm;
         float l = ammo.lengthMm;
+        float D = barrel.barrelDiameterMm;
+        float L = barrel.barrelLengthMm;
 
-        float barrelLen = barrel.barrelLengthMm;
-        float barrelD = barrel.barrelDiameterMm;
-
-        float barrelLenM = barrelLen / 1000f;
-        float barrelDM = barrelD / 1000f;
         float dM = d / 1000f;
+        float mass = Mathf.Max(ammo.totalProjectileMassKg, 0.000001f);
 
-        float mass = ammo.totalProjectileMassKg;
-        if (mass <= 0f) mass = 0.001f;
+        float Z = d / D;
+        float Z2 = Z * Z;
 
-        b.projectileSpeed = Ceil3(ammo.propulsionForce * barrelLenM / (barrelDM * mass));
-        b.accuracy = Ceil3((barrelD / barrelLen) * (d / l));
-        b.maxRange = Ceil3(b.projectileSpeed * 10f);
-        b.directFireRange = Ceil3(b.projectileSpeed * 5f);
-        b.directDamage = Ceil3(b.projectileSpeed * ammo.totalProjectileMassKg * dM);
-        b.directPenetration = Ceil3(
-            b.projectileSpeed * ammo.shellMassKg * TierCoeffs.Get(ammo.shellTier) / dM);
+        float baseSpeed = CalculateBaseSpeed(ammo.propulsionForce, mass);
+        float barrelMultiplier = Mathf.Min(10f, Mathf.Sqrt(L / D));
+        float rawSpeed = baseSpeed * barrelMultiplier * Z2;
+
+        float maxSpeedByPropellantTier = ammo.propellantTier * 300f;
+        b.projectileSpeed = Ceil3(Mathf.Min(rawSpeed, maxSpeedByPropellantTier));
+
+        b.accuracy = Ceil3(30f * D * d / (L * l) / Mathf.Max(Z2, 0.000001f));
+
+        float minRequiredStrength = SHELL_STRENGTH_SAFETY_RATIO * ammo.propulsionForce;
+        if (ammo.shellStrength < minRequiredStrength)
+        {
+            b.valid = false;
+            b.error = "Боеприпас разрушится в стволе. Увеличьте прочность оболочки или уменьшите метательный заряд.";
+            return b;
+        }
+
+        float angleDeg = NormalizeAngleDeg(barrel.shotAngleDeg);
+        float angleRad = angleDeg * Mathf.Deg2Rad;
+
+        float speed2 = b.projectileSpeed * b.projectileSpeed;
+        float geff = Mathf.Max(ammo.effectiveGravity, 0.0001f);
+
+        float rangeCoeff = speed2 / geff;
+        float heightCoeff = speed2 / (2f * geff);
+
+        float sin2A = Mathf.Sin(2f * angleRad);
+        if (sin2A < 0f) sin2A = 0f;
+
+        float sinA = Mathf.Sin(angleRad);
+        float sinA2 = sinA * sinA;
+
+        b.flightDistance = Ceil3(rangeCoeff * sin2A);
+        b.maxHeight = Ceil3(SHOT_HEIGHT_METERS + heightCoeff * sinA2);
+
+        if (ammo.fuzeType == FuzeType.Ct)
+        {
+            b.directDamage = 0f;
+            b.directPenetration = 0f;
+        }
+        else
+        {
+            b.directDamage = Ceil3(b.projectileSpeed * ammo.totalProjectileMassKg * dM);
+            b.directPenetration = Ceil3(
+                b.projectileSpeed * ammo.shellMassKg * TierCoeffs.Get(ammo.shellTier) / Mathf.Max(dM, 0.000001f));
+        }
 
         return b;
     }
-
-    // ===================== РАСЧЁТ СТОИМОСТИ =====================
 
     public static List<ResourceCost> CalculateCosts(AmmoOutput o)
     {
         var costs = new List<ResourceCost>();
 
-        costs.Add(new ResourceCost(
-            ResourcesStorage.ResourceType.Metal, o.shellTier, o.shellMassKg));
+        costs.Add(new ResourceCost(ResourcesStorage.ResourceType.Metal, o.shellTier, o.shellMassKg));
 
         if (o.chargeType != ChargeType.FM && o.explosiveMassKg > 0f && o.explosiveTier >= 1)
         {
-            costs.Add(new ResourceCost(
-                ResourcesStorage.ResourceType.Chemicals, o.explosiveTier, o.explosiveMassKg));
+            costs.Add(new ResourceCost(ResourcesStorage.ResourceType.Chemicals, o.explosiveTier, o.explosiveMassKg));
         }
 
         if (o.chargeType == ChargeType.EQ && o.damageElementMassKg > 0f && o.damageElementTier >= 1)
@@ -645,6 +805,7 @@ public static class AmmoCalc
                     deResType = ResourcesStorage.ResourceType.Metal;
                     break;
             }
+
             costs.Add(new ResourceCost(deResType, o.damageElementTier, o.damageElementMassKg));
         }
 
@@ -661,31 +822,26 @@ public static class AmmoCalc
                 case FuzeType.Re: fuzeTier = 5; break;
                 default: fuzeTier = 1; break;
             }
-            costs.Add(new ResourceCost(
-                ResourcesStorage.ResourceType.Nanites, fuzeTier, fuzeMassKg));
+
+            costs.Add(new ResourceCost(ResourcesStorage.ResourceType.Nanites, fuzeTier, fuzeMassKg));
         }
 
-        costs.Add(new ResourceCost(
-            ResourcesStorage.ResourceType.Chemicals, o.propellantTier, o.propellantMassKg));
+        costs.Add(new ResourceCost(ResourcesStorage.ResourceType.Chemicals, o.propellantTier, o.propellantMassKg));
+        costs.Add(new ResourceCost(ResourcesStorage.ResourceType.Metal, o.caseTier, o.caseMassKg));
 
-        costs.Add(new ResourceCost(
-            ResourcesStorage.ResourceType.Metal, o.caseTier, o.caseMassKg));
-
-        long energyCost = (long)Mathf.Ceil(o.totalShotMassKg * 10f);
+        long energyCost = (long)Mathf.Ceil(o.totalAmmoMassKg * 10f);
         costs.Add(ResourceCost.Energy(energyCost));
 
         return costs;
     }
 
-    // ===================== ПРОВЕРКА РЕСУРСОВ =====================
-
     public static string ValidateResources(
-        ResourcesStorage storage, List<ResourceCost> costsPerShot, int count)
+        ResourcesStorage storage, List<ResourceCost> costsPerAmmo, int count)
     {
         if (storage == null) return "Не назначен склад ресурсов.";
         if (count <= 0) return "Количество должно быть > 0.";
 
-        foreach (var cost in costsPerShot)
+        foreach (var cost in costsPerAmmo)
         {
             if (cost.isEnergy)
             {
@@ -714,12 +870,12 @@ public static class AmmoCalc
     }
 
     public static bool ConsumeResources(
-        ResourcesStorage storage, List<ResourceCost> costsPerShot, int count)
+        ResourcesStorage storage, List<ResourceCost> costsPerAmmo, int count)
     {
-        string err = ValidateResources(storage, costsPerShot, count);
+        string err = ValidateResources(storage, costsPerAmmo, count);
         if (!string.IsNullOrEmpty(err)) return false;
 
-        foreach (var cost in costsPerShot)
+        foreach (var cost in costsPerAmmo)
         {
             if (cost.isEnergy)
             {
@@ -735,230 +891,5 @@ public static class AmmoCalc
         }
 
         return true;
-    }
-
-    // ===================== КОД: ГЕНЕРАЦИЯ / ПАРСИНГ =====================
-
-    public static bool TryParseCode(string code, out AmmoInput input, out string error)
-    {
-        input = null;
-        error = "";
-
-        if (string.IsNullOrWhiteSpace(code))
-        {
-            error = "Код снаряда пуст.";
-            return false;
-        }
-
-        string[] p = code.Split('-');
-        if (p.Length != 26)
-        {
-            error = "Неверный формат кода снаряда.";
-            return false;
-        }
-
-        var parsed = new AmmoInput();
-
-        if (p[0] != "S")
-        {
-            error = "Неверный префикс кода.";
-            return false;
-        }
-
-        if (!Enum.TryParse(p[1], out ChargeType chargeType))
-        {
-            error = "Неверный тип снаряда в коде.";
-            return false;
-        }
-        parsed.chargeType = chargeType;
-
-        if (!int.TryParse(p[2], out parsed.shellTier)) { error = "Неверный тир оболочки."; return false; }
-        if (!TryParseFloatAny(p[3], out parsed.diameterMm)) { error = "Неверный диаметр."; return false; }
-        if (!TryParseFloatAny(p[4], out parsed.lengthMm)) { error = "Неверная длина."; return false; }
-
-        if (!int.TryParse(p[8], out parsed.explosiveTier)) { error = "Неверный тир заряда."; return false; }
-        if (!TryParseFloatAny(p[9], out parsed.explosiveMassKg)) { error = "Неверная масса заряда."; return false; }
-
-        if (!TryParseDamageElement(p[11], out DamageElementType deType, out int buckCount))
-        {
-            error = "Неверный поражающий элемент.";
-            return false;
-        }
-        parsed.damageElementType = deType;
-        parsed.buckshotCount = buckCount;
-
-        if (!TryParseArea(p[12], out parsed.areaType))
-        {
-            error = "Неверная область поражения.";
-            return false;
-        }
-
-        if (!int.TryParse(p[13], out parsed.damageElementTier)) { error = "Неверный тир поражающего элемента."; return false; }
-        if (!TryParseFloatAny(p[14], out parsed.damageElementMassKg)) { error = "Неверная масса поражающего элемента."; return false; }
-
-        if (!Enum.TryParse(p[18], out FuzeType fuzeType))
-        {
-            error = "Неверный взрыватель.";
-            return false;
-        }
-        parsed.fuzeType = fuzeType;
-
-        if (!int.TryParse(p[19], out parsed.propellantTier)) { error = "Неверный тир толкающего заряда."; return false; }
-        if (!TryParseFloatAny(p[20], out parsed.propellantMassKg)) { error = "Неверная масса толкающего заряда."; return false; }
-
-        if (!int.TryParse(p[22], out parsed.caseTier)) { error = "Неверный тир гильзы."; return false; }
-        if (!TryParseFloatAny(p[23], out parsed.caseMassKg)) { error = "Неверная масса гильзы."; return false; }
-
-        parsed.craftCount = 1;
-
-        NormalizeInput(parsed);
-        AmmoOutput calc = Calculate(parsed);
-        if (!string.IsNullOrEmpty(calc.error))
-        {
-            error = calc.error;
-            return false;
-        }
-
-        string normalizedCode = calc.ammoCode;
-        if (!string.Equals(normalizedCode, code, StringComparison.Ordinal))
-        {
-            error = "Код снаряда не соответствует допустимым правилам.";
-            return false;
-        }
-
-        input = parsed;
-        return true;
-    }
-
-    private static bool TryParseFloatAny(string s, out float value)
-    {
-        string normalized = s.Replace(',', '.');
-        return float.TryParse(
-            normalized,
-            System.Globalization.NumberStyles.Float,
-            System.Globalization.CultureInfo.InvariantCulture,
-            out value);
-    }
-
-    private static bool TryParseDamageElement(string s, out DamageElementType type, out int buckCount)
-    {
-        type = DamageElementType.None;
-        buckCount = 2;
-
-        if (s == "0") { type = DamageElementType.None; return true; }
-        if (s == "Sh") { type = DamageElementType.Shrapnel; return true; }
-        if (s == "Pel") { type = DamageElementType.Pellet; return true; }
-        if (s == "F") { type = DamageElementType.Fire; return true; }
-        if (s == "Ch") { type = DamageElementType.Chemical; return true; }
-        if (s == "En") { type = DamageElementType.Energy; return true; }
-
-        if (s.StartsWith("Bag"))
-        {
-            string num = s.Substring(3);
-            if (int.TryParse(num, out buckCount))
-            {
-                buckCount = Mathf.Clamp(buckCount, 2, 10);
-                type = DamageElementType.Buckshot;
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static bool TryParseArea(string s, out AreaType area)
-    {
-        area = AreaType.Point;
-
-        switch (s)
-        {
-            case "0":
-            case "P":
-                area = AreaType.Point;
-                return true;
-            case "Sp":
-                area = AreaType.Sphere;
-                return true;
-            case "Cn":
-                area = AreaType.Cone;
-                return true;
-            case "Cl":
-                area = AreaType.Cloud;
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    private static string GenerateCode(AmmoOutput o)
-    {
-        string[] p = new string[26];
-
-        p[0] = "S";
-        p[1] = o.chargeType.ToString();
-        p[2] = o.shellTier.ToString();
-        p[3] = FN(o.diameterMm);
-        p[4] = FN(o.lengthMm);
-        p[5] = FN(o.totalProjectileMassKg);
-        p[6] = FN(o.shellMassKg);
-        p[7] = FN(o.shellStrength);
-        p[8] = o.explosiveTier.ToString();
-        p[9] = FN(o.explosiveMassKg);
-        p[10] = FN(o.explosivePower);
-        p[11] = DECode(o.damageElementType, o.buckshotCount);
-        p[12] = AreaCode(o.areaType);
-        p[13] = (o.chargeType == ChargeType.EQ) ? o.damageElementTier.ToString() : "0";
-        p[14] = (o.chargeType == ChargeType.EQ) ? FN(o.damageElementMassKg) : "0";
-        p[15] = FN(o.damageRadius);
-        p[16] = FN(o.areaPenetration);
-        p[17] = FN(o.areaDamage);
-        p[18] = o.fuzeType.ToString();
-        p[19] = o.propellantTier.ToString();
-        p[20] = FN(o.propellantMassKg);
-        p[21] = FN(o.propulsionForce);
-        p[22] = o.caseTier.ToString();
-        p[23] = FN(o.caseMassKg);
-        p[24] = FN(o.caseStrength);
-        p[25] = FN(o.totalShotMassKg);
-
-        return string.Join("-", p);
-    }
-
-    private static string FN(float v)
-    {
-        float rounded = Ceil3(v);
-        if (rounded == Mathf.Floor(rounded) && rounded < 1000000f)
-            return ((int)rounded).ToString();
-        return rounded.ToString("F3").Replace('.', ',');
-    }
-
-    private static string DECode(DamageElementType t, int buckCount)
-    {
-        switch (t)
-        {
-            case DamageElementType.None: return "0";
-            case DamageElementType.Shrapnel: return "Sh";
-            case DamageElementType.Buckshot:
-                return "Bag" + Mathf.Clamp(buckCount, 2, 10);
-            case DamageElementType.Pellet: return "Pel";
-            case DamageElementType.Fire: return "F";
-            case DamageElementType.Chemical: return "Ch";
-            case DamageElementType.Energy: return "En";
-            default: return "0";
-        }
-    }
-
-    private static string AreaCode(AreaType a)
-    {
-        a = NormalizeAreaType(a);
-
-        switch (a)
-        {
-            case AreaType.Point: return "P";
-            case AreaType.Sphere: return "Sp";
-            case AreaType.Cone: return "Cn";
-            case AreaType.Cloud: return "Cl";
-            default: return "P";
-        }
     }
 }

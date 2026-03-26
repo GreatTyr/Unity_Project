@@ -1,46 +1,67 @@
-// AmmoStorage.cs
 using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Склад боеприпасов. Хранит список записей AmmoData.
-/// При совпадении кода — суммирует количество.
-/// Без лимитов по типам и массе.
+/// Склад боеприпасов.
+/// Хранит только код боеприпаса, массу одного боеприпаса, количество и массу стака.
+/// При совпадении кода — суммирует количество и массу стака.
 /// </summary>
 public class AmmoStorage : MonoBehaviour
 {
-    [SerializeField] private List<AmmoData> entries = new List<AmmoData>();
+    [System.Serializable]
+    public class AmmoEntry
+    {
+        [Tooltip("Код боеприпаса")]
+        public string ammoCode;
 
-    public IReadOnlyList<AmmoData> Entries => entries;
+        [Tooltip("Масса одного боеприпаса (кг)")]
+        public float singleAmmoMassKg;
+
+        [Tooltip("Количество боеприпасов в стаке")]
+        public int quantity;
+
+        [Tooltip("Суммарная масса стака (кг)")]
+        public float totalMassKg;
+    }
+
+    [SerializeField] private List<AmmoEntry> entries = new List<AmmoEntry>();
+
+    public IReadOnlyList<AmmoEntry> Entries => entries;
 
     /// <summary>
-    /// Добавить выстрелы. Если код уже есть — суммировать.
+    /// Добавить боеприпасы. Если код уже есть — суммировать.
     /// </summary>
-    public void AddAmmo(string code, int quantity, float singleShotMassKg)
+    public void AddAmmo(string code, int quantity, float singleAmmoMassKg)
     {
         if (quantity <= 0 || string.IsNullOrEmpty(code)) return;
+
+        float normalizedSingleMass = AmmoCalc.Ceil3(Mathf.Max(0f, singleAmmoMassKg));
+        float addedMass = AmmoCalc.Ceil3(normalizedSingleMass * quantity);
 
         for (int i = 0; i < entries.Count; i++)
         {
             if (entries[i] != null && entries[i].ammoCode == code)
             {
                 entries[i].quantity += quantity;
-                entries[i].Recalculate();
+                entries[i].singleAmmoMassKg = normalizedSingleMass;
+                entries[i].totalMassKg = AmmoCalc.Ceil3(entries[i].singleAmmoMassKg * entries[i].quantity);
                 return;
             }
         }
 
-        var newEntry = ScriptableObject.CreateInstance<AmmoData>();
-        newEntry.ammoCode = code;
-        newEntry.quantity = quantity;
-        newEntry.singleShotMassKg = singleShotMassKg;
-        newEntry.Recalculate();
-        newEntry.name = "Ammo_" + (code.Length > 30 ? code.Substring(0, 30) : code);
+        var newEntry = new AmmoEntry
+        {
+            ammoCode = code,
+            singleAmmoMassKg = normalizedSingleMass,
+            quantity = quantity,
+            totalMassKg = addedMass
+        };
+
         entries.Add(newEntry);
     }
 
     /// <summary>
-    /// Получить количество выстрелов по коду.
+    /// Получить количество боеприпасов по коду.
     /// </summary>
     public int GetQuantity(string code)
     {
@@ -53,7 +74,7 @@ public class AmmoStorage : MonoBehaviour
     }
 
     /// <summary>
-    /// Извлечь выстрелы со склада. Возвращает true при успехе.
+    /// Извлечь боеприпасы со склада. Возвращает true при успехе.
     /// </summary>
     public bool RemoveAmmo(string code, int quantity)
     {
@@ -64,15 +85,17 @@ public class AmmoStorage : MonoBehaviour
             if (entries[i] != null && entries[i].ammoCode == code)
             {
                 if (entries[i].quantity < quantity) return false;
+
                 entries[i].quantity -= quantity;
-                entries[i].Recalculate();
+                entries[i].totalMassKg = AmmoCalc.Ceil3(entries[i].singleAmmoMassKg * entries[i].quantity);
+
                 if (entries[i].quantity <= 0)
-                {
                     entries.RemoveAt(i);
-                }
+
                 return true;
             }
         }
+
         return false;
     }
 
