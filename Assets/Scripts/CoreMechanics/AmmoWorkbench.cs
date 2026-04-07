@@ -10,13 +10,6 @@ public class AmmoWorkbench : MonoBehaviour
 {
     private AmmoWorkbenchCore core;
 
-    [Header("Баллистика боеприпаса")]
-    [SerializeField] private float effectiveGravityA = 8f;
-    [SerializeField] private float effectiveGravityB = 145f;
-
-    public float EffectiveGravityA => effectiveGravityA;
-    public float EffectiveGravityB => effectiveGravityB;
-
     [Header("Ввод — боеприпас")]
     public AmmoCalc.AmmoInput ammoInput = new AmmoCalc.AmmoInput();
 
@@ -135,7 +128,7 @@ public class AmmoWorkbench : MonoBehaviour
         }
 
         AmmoCalc.NormalizeInput(ammoInput);
-        output = AmmoCalc.Calculate(ammoInput, effectiveGravityA, effectiveGravityB);
+        output = AmmoCalc.Calculate(ammoInput);
 
         if (output == null)
         {

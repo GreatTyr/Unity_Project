@@ -2,24 +2,22 @@
 using UnityEngine;
 
 /// <summary>
-/// OnGUI интерфейс верстака конических боеприпасов.
-/// Управляется через AmmoWorkbench.
+/// OnGUI интерфейс верстака ядер.
+/// Управляется через CannonballWorkbench.
 /// </summary>
-[RequireComponent(typeof(AmmoWorkbench))]
-public class AmmoWorkbenchUI : MonoBehaviour
+[RequireComponent(typeof(CannonballWorkbench))]
+public class CannonballWorkbenchUI : MonoBehaviour
 {
-    private AmmoWorkbench workbench;
+    private CannonballWorkbench workbench;
 
     private Vector2 scrollPos;
 
     private string sDiam = "10";
-    private string sLen = "20";
     private string sExpMass = "0";
     private string sDEMass = "0";
     private string sPropMass = "0,001";
-    private string sCaseMass = "0,001";
     private string sCraftCount = "1";
-    private string sBarrelLen = "200";
+    private string sBarrelLen = "100";
     private string sBarrelDiam = "10";
     private string sShotAngle = "45";
 
@@ -39,29 +37,27 @@ public class AmmoWorkbenchUI : MonoBehaviour
 
     private static readonly string[] DENames =
     {
-        "Картечь", "Дробь", "Огонь", "Химия", "Энергия"
+        "Дробь", "Огонь", "Химия", "Энергия"
     };
 
-    private static readonly AmmoCalc.DamageElementType[] DEValues =
+    private static readonly CannonballCalc.DamageElementType[] DEValues =
     {
-        AmmoCalc.DamageElementType.Buckshot,
-        AmmoCalc.DamageElementType.Pellet,
-        AmmoCalc.DamageElementType.Fire,
-        AmmoCalc.DamageElementType.Chemical,
-        AmmoCalc.DamageElementType.Energy
+        CannonballCalc.DamageElementType.Pellet,
+        CannonballCalc.DamageElementType.Fire,
+        CannonballCalc.DamageElementType.Chemical,
+        CannonballCalc.DamageElementType.Energy
     };
 
     private static readonly string[] AreaNames =
     {
-        "Точка(P)", "Сфера(Sp)", "Конус(Cn)", "Облако(Cl)"
+        "Точка(P)", "Сфера(Sp)", "Облако(Cl)"
     };
 
-    private static readonly AmmoCalc.AreaType[] AreaValues =
+    private static readonly CannonballCalc.AreaType[] AreaValues =
     {
-        AmmoCalc.AreaType.Point,
-        AmmoCalc.AreaType.Sphere,
-        AmmoCalc.AreaType.Cone,
-        AmmoCalc.AreaType.Cloud
+        CannonballCalc.AreaType.Point,
+        CannonballCalc.AreaType.Sphere,
+        CannonballCalc.AreaType.Cloud
     };
 
     private static readonly string[] FuzeNames =
@@ -71,7 +67,7 @@ public class AmmoWorkbenchUI : MonoBehaviour
 
     private void Awake()
     {
-        workbench = GetComponent<AmmoWorkbench>();
+        workbench = GetComponent<CannonballWorkbench>();
         PullBuffersFromInput();
         workbench.Recalculate();
     }
@@ -105,7 +101,7 @@ public class AmmoWorkbenchUI : MonoBehaviour
         }
 
         float panelW = Mathf.Min(1180f, Screen.width - 20f);
-        float panelH = Mathf.Min(Screen.height - 20f, 930f);
+        float panelH = Mathf.Min(Screen.height - 20f, 900f);
         float x = 10f;
         float y = 10f;
 
@@ -117,11 +113,11 @@ public class AmmoWorkbenchUI : MonoBehaviour
         bool changed = false;
         isEditingTextField = false;
 
-        GUILayout.Label("ВЕРСТАК КОНИЧЕСКИХ БОЕПРИПАСОВ", boxStyle);
+        GUILayout.Label("ВЕРСТАК ЯДЕР", boxStyle);
 
-        var inp = workbench.ammoInput;
+        var inp = workbench.cannonballInput;
 
-        SectionHeader("Код боеприпаса");
+        SectionHeader("Код ядра");
         GUI.enabled = false;
         GUILayout.TextField(workbench.Output != null ? workbench.Output.ammoCode : workbench.manualAmmoCode, readonlyFieldStyle);
         GUI.enabled = true;
@@ -144,7 +140,6 @@ public class AmmoWorkbenchUI : MonoBehaviour
         GUILayout.Space(6);
         GUILayout.BeginHorizontal();
 
-        // ===================== ЛЕВАЯ КОЛОНКА =====================
         GUILayout.BeginVertical(sectionStyle, GUILayout.Width((panelW - 60f) * 0.5f));
 
         SectionHeader("Вводимые параметры");
@@ -157,20 +152,17 @@ public class AmmoWorkbenchUI : MonoBehaviour
         }
 
         changed |= FloatField("Диаметр (мм)", ref sDiam, out _);
-        changed |= FloatField("Длина (мм)", ref sLen, out _);
 
         float previewDiam = TryParseBufferFloatOrDefault(sDiam, inp.diameterMm);
-        float previewLen = TryParseBufferFloatOrDefault(sLen, inp.lengthMm);
-        previewDiam = AmmoCalc.NormalizeDiameterMm(previewDiam);
-        previewLen = AmmoCalc.NormalizeLengthMm(previewLen, previewDiam);
+        previewDiam = CannonballCalc.NormalizeDiameterMm(previewDiam);
 
-        float previewMass = AmmoCalc.Ceil3(AmmoCalc.ProjectileMassKg(previewDiam, previewLen));
-        ValueLine($"Расч. масса снаряда: {previewMass:F3} кг");
+        float previewMass = CannonballCalc.Ceil3(CannonballCalc.ProjectileMassKg(previewDiam));
+        ValueLine($"Расч. масса ядра: {previewMass:F3} кг");
 
         GroupHeader("Тип боеприпаса");
         DrawChargeTypeSelector(inp, previewMass, ref changed);
 
-        if (inp.chargeType != AmmoCalc.ChargeType.FM)
+        if (inp.chargeType != CannonballCalc.ChargeType.FM)
         {
             GroupHeader("Разрывной заряд");
             if (TierSlider("Тир заряда", ref inp.explosiveTier))
@@ -179,8 +171,8 @@ public class AmmoWorkbenchUI : MonoBehaviour
                 recalcRequested = true;
             }
 
-            float minPart = AmmoCalc.GetMinPartKg(previewMass);
-            float maxExp = (inp.chargeType == AmmoCalc.ChargeType.HE)
+            float minPart = CannonballCalc.GetMinPartKg(previewMass);
+            float maxExp = (inp.chargeType == CannonballCalc.ChargeType.HE)
                 ? Mathf.Max(minPart, previewMass - minPart)
                 : Mathf.Max(minPart, previewMass - minPart - Mathf.Max(inp.damageElementMassKg, minPart));
 
@@ -188,27 +180,11 @@ public class AmmoWorkbenchUI : MonoBehaviour
             ValueLine($"Допустимо: {minPart:F3} .. {maxExp:F3} кг");
         }
 
-        if (inp.chargeType == AmmoCalc.ChargeType.EQ)
+        if (inp.chargeType == CannonballCalc.ChargeType.EQ)
         {
             GroupHeader("Поражающий элемент");
 
             DrawDESelector(inp, ref changed);
-
-            if (inp.damageElementType == AmmoCalc.DamageElementType.Buckshot)
-            {
-                GUILayout.BeginHorizontal();
-                GUILayout.Label($"Картечин: {inp.buckshotCount}", GUILayout.Width(220));
-                int newBuck = Mathf.RoundToInt(GUILayout.HorizontalSlider(inp.buckshotCount, 2, 10));
-                newBuck = Mathf.Clamp(newBuck, 2, 10);
-                if (newBuck != inp.buckshotCount)
-                {
-                    CommitBufferedFields();
-                    inp.buckshotCount = newBuck;
-                    changed = true;
-                    recalcRequested = true;
-                }
-                GUILayout.EndHorizontal();
-            }
 
             if (TierSlider("Тир ПЭ", ref inp.damageElementTier))
             {
@@ -216,7 +192,7 @@ public class AmmoWorkbenchUI : MonoBehaviour
                 recalcRequested = true;
             }
 
-            float minPart = AmmoCalc.GetMinPartKg(previewMass);
+            float minPart = CannonballCalc.GetMinPartKg(previewMass);
             float maxDe = Mathf.Max(minPart, previewMass - minPart - Mathf.Max(inp.explosiveMassKg, minPart));
 
             changed |= FloatField("Масса ПЭ (кг)", ref sDEMass, out _);
@@ -226,7 +202,7 @@ public class AmmoWorkbenchUI : MonoBehaviour
         GroupHeader("Область поражения");
         DrawAreaSelector(inp, ref changed);
 
-        if (inp.chargeType != AmmoCalc.ChargeType.FM)
+        if (inp.chargeType != CannonballCalc.ChargeType.FM)
         {
             GroupHeader("Взрыватель");
             int fuzeIdx = (int)inp.fuzeType;
@@ -234,7 +210,7 @@ public class AmmoWorkbenchUI : MonoBehaviour
             if (newFuze != fuzeIdx)
             {
                 CommitBufferedFields();
-                inp.fuzeType = (AmmoCalc.FuzeType)newFuze;
+                inp.fuzeType = (CannonballCalc.FuzeType)newFuze;
                 changed = true;
                 recalcRequested = true;
             }
@@ -264,42 +240,8 @@ public class AmmoWorkbenchUI : MonoBehaviour
             var currentOutput = workbench.Output;
             if (currentOutput != null)
             {
-                inp.propellantMassKg = AmmoCalc.CalculatePropellantMassForMaxSpeed(currentOutput, workbench.barrelInput);
+                inp.propellantMassKg = CannonballCalc.CalculatePropellantMassForMaxSpeed(currentOutput, workbench.barrelInput);
                 sPropMass = inp.propellantMassKg.ToString("0.###", CultureInfo.InvariantCulture).Replace('.', ',');
-                changed = true;
-                recalcRequested = true;
-            }
-        }
-        GUILayout.EndVertical();
-
-        GUILayout.EndHorizontal();
-
-        GroupHeader("Гильза");
-        if (TierSlider("Тир гильзы", ref inp.caseTier))
-        {
-            changed = true;
-            recalcRequested = true;
-        }
-
-        GUILayout.BeginHorizontal();
-
-        GUILayout.BeginVertical();
-        string caseBefore = sCaseMass;
-        sCaseMass = FloatFieldRaw("Масса гильзы (кг)", sCaseMass, out _);
-        if (sCaseMass != caseBefore) changed = true;
-        GUILayout.EndVertical();
-
-        GUILayout.BeginVertical(GUILayout.Width(120));
-        GUILayout.Space(2f);
-        if (GUILayout.Button("Мин. масса", GUILayout.Width(120), GUILayout.Height(20)))
-        {
-            CommitBufferedFields();
-            workbench.Recalculate();
-            var currentOutput = workbench.Output;
-            if (currentOutput != null)
-            {
-                inp.caseMassKg = AmmoCalc.CalculateCaseMassForMinStrength(currentOutput);
-                sCaseMass = inp.caseMassKg.ToString("0.###", CultureInfo.InvariantCulture).Replace('.', ',');
                 changed = true;
                 recalcRequested = true;
             }
@@ -319,7 +261,7 @@ public class AmmoWorkbenchUI : MonoBehaviour
         GUILayout.BeginHorizontal();
         GUILayout.Label($"Угол возвышения: {workbench.barrelInput.shotAngleDeg:F3}°", GUILayout.Width(220));
         float newAngle = GUILayout.HorizontalSlider(workbench.barrelInput.shotAngleDeg, 0f, 90f);
-        newAngle = AmmoCalc.NormalizeAngleDeg(newAngle);
+        newAngle = CannonballCalc.NormalizeAngleDeg(newAngle);
         if (Mathf.Abs(newAngle - workbench.barrelInput.shotAngleDeg) > 0.0001f)
         {
             CommitBufferedFields();
@@ -334,7 +276,6 @@ public class AmmoWorkbenchUI : MonoBehaviour
 
         GUILayout.Space(10);
 
-        // ===================== ПРАВАЯ КОЛОНКА =====================
         GUILayout.BeginVertical(sectionStyle, GUILayout.Width((panelW - 60f) * 0.5f));
 
         SectionHeader("Вычисляемые параметры");
@@ -344,48 +285,33 @@ public class AmmoWorkbenchUI : MonoBehaviour
 
         if (o != null)
         {
-            GroupHeader("Боеприпас");
+            GroupHeader("Ядро");
             ValueLine($"Тип: {o.chargeType}");
             ValueLine($"Область поражения: {AreaToText(o.areaType)}");
-            ValueLine($"Масса снаряда: {o.totalProjectileMassKg:F3} кг");
+            ValueLine($"Масса ядра: {o.totalProjectileMassKg:F3} кг");
             ValueLine($"Масса оболочки: {o.shellMassKg:F3} кг");
             ValueLine($"Прочность оболочки: {o.shellStrength:F3}");
 
-            if (o.chargeType != AmmoCalc.ChargeType.FM)
+            if (o.chargeType != CannonballCalc.ChargeType.FM)
             {
                 ValueLine($"Масса заряда: {o.explosiveMassKg:F3} кг");
                 ValueLine($"Мощность заряда: {o.explosivePower:F3}");
             }
 
-            if (o.chargeType == AmmoCalc.ChargeType.EQ)
+            if (o.chargeType == CannonballCalc.ChargeType.EQ)
             {
                 ValueLine($"ПЭ: {DamageElementToText(o.damageElementType)}");
                 ValueLine($"Масса ПЭ: {o.damageElementMassKg:F3} кг");
-
-                if (o.damageElementType == AmmoCalc.DamageElementType.Buckshot)
-                {
-                    ValueLine($"Картечин: {o.buckshotCount}");
-                    ValueLine($"Масса картечины: {o.buckshotSingleMassKg:F3} кг");
-                    ValueLine($"Угол разлёта картечи: {o.buckshotSpreadAngleDeg:F3}°");
-                }
             }
 
-            if (!(o.chargeType == AmmoCalc.ChargeType.EQ &&
-                  o.damageElementType == AmmoCalc.DamageElementType.Buckshot))
+            if (!(o.chargeType == CannonballCalc.ChargeType.FM))
             {
                 ValueLine($"Радиус поражения: {o.damageRadius:F3} м");
                 ValueLine($"Пробитие в области: {o.areaPenetration:F3}");
                 ValueLine($"Урон в области: {o.areaDamage:F3}");
             }
 
-            if (o.areaType == AmmoCalc.AreaType.Cone &&
-                o.damageElementType != AmmoCalc.DamageElementType.Buckshot)
-            {
-                ValueLine($"Угол конуса: {o.coneAngleDeg:F3}°");
-            }
-
             ValueLine($"Сила выталкивания: {o.propulsionForce:F3}");
-            ValueLine($"Прочность гильзы: {o.caseStrength:F3}");
             ValueLine($"Масса боеприпаса: {o.totalAmmoMassKg:F3} кг");
 
             GroupHeader("Стоимость");
@@ -401,9 +327,9 @@ public class AmmoWorkbenchUI : MonoBehaviour
                     }
                     else
                     {
-                        var ri = AmmoCalc.GetResourceIndex(c.resourceType, c.tier);
+                        var ri = CannonballCalc.GetResourceIndex(c.resourceType, c.tier);
                         string rName = ResourcesStorage.ResourceName(ri);
-                        float totalKg = AmmoCalc.Ceil3(c.amountKg * inp.craftCount);
+                        float totalKg = CannonballCalc.Ceil3(c.amountKg * inp.craftCount);
                         ValueLine($"{rName}: {totalKg:F3} кг");
                     }
                 }
@@ -412,7 +338,7 @@ public class AmmoWorkbenchUI : MonoBehaviour
             GroupHeader("Оценка для ствола");
             if (b != null && b.valid)
             {
-                ValueLine($"Скорость снаряда: {b.projectileSpeed:F3} м/с");
+                ValueLine($"Скорость ядра: {b.projectileSpeed:F3} м/с");
                 ValueLine($"Точность: {b.accuracy:F6}°");
                 ValueLine($"Дальность полёта: {b.flightDistance:F3} м");
                 ValueLine($"Макс. высота: {b.maxHeight:F3} м");
@@ -468,18 +394,18 @@ public class AmmoWorkbenchUI : MonoBehaviour
 
     private void CommitBufferedFields()
     {
-        var inp = workbench.ammoInput;
+        var inp = workbench.cannonballInput;
 
         if (TryParseBufferFloat(sDiam, out float diam))
         {
-            float newDiameter = AmmoCalc.NormalizeDiameterMm(diam);
+            float newDiameter = CannonballCalc.NormalizeDiameterMm(diam);
 
             if (Mathf.Abs(newDiameter - inp.diameterMm) > 0.0001f)
             {
                 inp.diameterMm = newDiameter;
 
                 workbench.barrelInput.barrelDiameterMm = inp.diameterMm;
-                workbench.barrelInput.barrelLengthMm = Mathf.Ceil(inp.diameterMm * 30f);
+                workbench.barrelInput.barrelLengthMm = Mathf.Ceil(inp.diameterMm * 10f);
 
                 sBarrelDiam = workbench.barrelInput.barrelDiameterMm
                     .ToString("0.00", CultureInfo.InvariantCulture)
@@ -495,40 +421,34 @@ public class AmmoWorkbenchUI : MonoBehaviour
             }
         }
 
-        if (TryParseBufferFloat(sLen, out float len))
-            inp.lengthMm = AmmoCalc.NormalizeLengthMm(len, inp.diameterMm);
-
-        float previewMass = AmmoCalc.Ceil3(AmmoCalc.ProjectileMassKg(inp.diameterMm, inp.lengthMm));
-        float minPart = AmmoCalc.GetMinPartKg(previewMass);
+        float previewMass = CannonballCalc.Ceil3(CannonballCalc.ProjectileMassKg(inp.diameterMm));
+        float minPart = CannonballCalc.GetMinPartKg(previewMass);
 
         if (TryParseBufferFloat(sExpMass, out float expMass))
         {
-            if (inp.chargeType == AmmoCalc.ChargeType.HE)
+            if (inp.chargeType == CannonballCalc.ChargeType.HE)
             {
                 float maxExp = Mathf.Max(minPart, previewMass - minPart);
-                inp.explosiveMassKg = AmmoCalc.Ceil3(Mathf.Clamp(expMass, minPart, maxExp));
+                inp.explosiveMassKg = CannonballCalc.Ceil3(Mathf.Clamp(expMass, minPart, maxExp));
             }
-            else if (inp.chargeType == AmmoCalc.ChargeType.EQ)
+            else if (inp.chargeType == CannonballCalc.ChargeType.EQ)
             {
                 float maxExp = Mathf.Max(minPart, previewMass - minPart - Mathf.Max(inp.damageElementMassKg, minPart));
-                inp.explosiveMassKg = AmmoCalc.Ceil3(Mathf.Clamp(expMass, minPart, maxExp));
+                inp.explosiveMassKg = CannonballCalc.Ceil3(Mathf.Clamp(expMass, minPart, maxExp));
             }
         }
 
         if (TryParseBufferFloat(sDEMass, out float deMass))
         {
-            if (inp.chargeType == AmmoCalc.ChargeType.EQ)
+            if (inp.chargeType == CannonballCalc.ChargeType.EQ)
             {
                 float maxDe = Mathf.Max(minPart, previewMass - minPart - Mathf.Max(inp.explosiveMassKg, minPart));
-                inp.damageElementMassKg = AmmoCalc.Ceil3(Mathf.Clamp(deMass, minPart, maxDe));
+                inp.damageElementMassKg = CannonballCalc.Ceil3(Mathf.Clamp(deMass, minPart, maxDe));
             }
         }
 
         if (TryParseBufferFloat(sPropMass, out float propMass))
-            inp.propellantMassKg = AmmoCalc.Ceil3(Mathf.Max(propMass, 0.001f));
-
-        if (TryParseBufferFloat(sCaseMass, out float caseMass))
-            inp.caseMassKg = AmmoCalc.Ceil3(Mathf.Max(caseMass, 0.001f));
+            inp.propellantMassKg = CannonballCalc.Ceil3(Mathf.Max(propMass, 0.001f));
 
         if (int.TryParse(sCraftCount, out int count))
             inp.craftCount = Mathf.Max(count, 1);
@@ -537,10 +457,10 @@ public class AmmoWorkbenchUI : MonoBehaviour
             workbench.barrelInput.barrelLengthMm = Mathf.Max(1f, Mathf.Ceil(barrelLen));
 
         if (TryParseBufferFloat(sBarrelDiam, out float barrelDiam))
-            workbench.barrelInput.barrelDiameterMm = AmmoCalc.Ceil2(Mathf.Max(1f, barrelDiam));
+            workbench.barrelInput.barrelDiameterMm = CannonballCalc.Ceil2(Mathf.Max(1f, barrelDiam));
 
         if (TryParseBufferFloat(sShotAngle, out float shotAngle))
-            workbench.barrelInput.shotAngleDeg = AmmoCalc.NormalizeAngleDeg(shotAngle);
+            workbench.barrelInput.shotAngleDeg = CannonballCalc.NormalizeAngleDeg(shotAngle);
     }
 
     private bool TryParseBufferFloat(string buffer, out float value)
@@ -558,7 +478,7 @@ public class AmmoWorkbenchUI : MonoBehaviour
         return TryParseBufferFloat(buffer, out float value) ? value : defaultValue;
     }
 
-    private void DrawChargeTypeSelector(AmmoCalc.AmmoInput inp, float previewMass, ref bool changed)
+    private void DrawChargeTypeSelector(CannonballCalc.CannonballInput inp, float previewMass, ref bool changed)
     {
         int current = (int)inp.chargeType;
 
@@ -566,8 +486,8 @@ public class AmmoWorkbenchUI : MonoBehaviour
 
         for (int i = 0; i < ChargeNames.Length; i++)
         {
-            AmmoCalc.ChargeType type = (AmmoCalc.ChargeType)i;
-            bool allowed = AmmoCalc.IsChargeTypeAllowed(type, previewMass);
+            CannonballCalc.ChargeType type = (CannonballCalc.ChargeType)i;
+            bool allowed = CannonballCalc.IsChargeTypeAllowed(type, previewMass);
 
             bool prevEnabled = GUI.enabled;
             GUI.enabled = allowed;
@@ -588,13 +508,13 @@ public class AmmoWorkbenchUI : MonoBehaviour
 
         GUILayout.EndHorizontal();
 
-        if (!AmmoCalc.IsChargeTypeAllowed(AmmoCalc.ChargeType.HE, previewMass))
-            WarningLine("HE доступен при массе снаряда от 0.500 кг");
-        if (!AmmoCalc.IsChargeTypeAllowed(AmmoCalc.ChargeType.EQ, previewMass))
-            WarningLine("EQ доступен при массе снаряда от 1.000 кг");
+        if (!CannonballCalc.IsChargeTypeAllowed(CannonballCalc.ChargeType.HE, previewMass))
+            WarningLine("HE доступен при массе ядра от 0.500 кг");
+        if (!CannonballCalc.IsChargeTypeAllowed(CannonballCalc.ChargeType.EQ, previewMass))
+            WarningLine("EQ доступен при массе ядра от 1.000 кг");
     }
 
-    private void DrawDESelector(AmmoCalc.AmmoInput inp, ref bool changed)
+    private void DrawDESelector(CannonballCalc.CannonballInput inp, ref bool changed)
     {
         GUILayout.BeginHorizontal();
 
@@ -616,15 +536,15 @@ public class AmmoWorkbenchUI : MonoBehaviour
         GUILayout.EndHorizontal();
     }
 
-    private void DrawAreaSelector(AmmoCalc.AmmoInput inp, ref bool changed)
+    private void DrawAreaSelector(CannonballCalc.CannonballInput inp, ref bool changed)
     {
         GUILayout.BeginHorizontal();
 
         for (int i = 0; i < AreaValues.Length; i++)
         {
-            AmmoCalc.AreaType area = AreaValues[i];
+            CannonballCalc.AreaType area = AreaValues[i];
             bool allowed = IsAreaAllowed(inp, area);
-            bool selected = AmmoCalc.NormalizeAreaType(inp.areaType) == area;
+            bool selected = CannonballCalc.NormalizeAreaType(inp.areaType) == area;
 
             bool prev = GUI.enabled;
             GUI.enabled = allowed;
@@ -646,27 +566,25 @@ public class AmmoWorkbenchUI : MonoBehaviour
         GUILayout.EndHorizontal();
     }
 
-    private bool IsAreaAllowed(AmmoCalc.AmmoInput inp, AmmoCalc.AreaType area)
+    private bool IsAreaAllowed(CannonballCalc.CannonballInput inp, CannonballCalc.AreaType area)
     {
         switch (inp.chargeType)
         {
-            case AmmoCalc.ChargeType.FM:
-                return area == AmmoCalc.AreaType.Point;
+            case CannonballCalc.ChargeType.FM:
+                return area == CannonballCalc.AreaType.Point;
 
-            case AmmoCalc.ChargeType.HE:
-                return area == AmmoCalc.AreaType.Sphere;
+            case CannonballCalc.ChargeType.HE:
+                return area == CannonballCalc.AreaType.Sphere;
 
-            case AmmoCalc.ChargeType.EQ:
+            case CannonballCalc.ChargeType.EQ:
                 switch (inp.damageElementType)
                 {
-                    case AmmoCalc.DamageElementType.Buckshot:
-                        return area == AmmoCalc.AreaType.Point;
-                    case AmmoCalc.DamageElementType.Pellet:
-                        return area == AmmoCalc.AreaType.Sphere || area == AmmoCalc.AreaType.Cone;
-                    case AmmoCalc.DamageElementType.Fire:
-                    case AmmoCalc.DamageElementType.Chemical:
-                    case AmmoCalc.DamageElementType.Energy:
-                        return area == AmmoCalc.AreaType.Cloud;
+                    case CannonballCalc.DamageElementType.Pellet:
+                        return area == CannonballCalc.AreaType.Sphere;
+                    case CannonballCalc.DamageElementType.Fire:
+                    case CannonballCalc.DamageElementType.Chemical:
+                    case CannonballCalc.DamageElementType.Energy:
+                        return area == CannonballCalc.AreaType.Cloud;
                 }
                 break;
         }
@@ -753,13 +671,11 @@ public class AmmoWorkbenchUI : MonoBehaviour
 
     private void PullBuffersFromInput()
     {
-        var inp = workbench.ammoInput;
+        var inp = workbench.cannonballInput;
         sDiam = inp.diameterMm.ToString("0.00", CultureInfo.InvariantCulture).Replace('.', ',');
-        sLen = Mathf.CeilToInt(inp.lengthMm).ToString();
         sExpMass = inp.explosiveMassKg.ToString("0.###", CultureInfo.InvariantCulture).Replace('.', ',');
         sDEMass = inp.damageElementMassKg.ToString("0.###", CultureInfo.InvariantCulture).Replace('.', ',');
         sPropMass = inp.propellantMassKg.ToString("0.###", CultureInfo.InvariantCulture).Replace('.', ',');
-        sCaseMass = inp.caseMassKg.ToString("0.###", CultureInfo.InvariantCulture).Replace('.', ',');
         sCraftCount = inp.craftCount.ToString();
         sBarrelLen = workbench.barrelInput.barrelLengthMm.ToString("0", CultureInfo.InvariantCulture).Replace('.', ',');
         sBarrelDiam = workbench.barrelInput.barrelDiameterMm.ToString("0.00", CultureInfo.InvariantCulture).Replace('.', ',');
@@ -836,29 +752,26 @@ public class AmmoWorkbenchUI : MonoBehaviour
         GUILayout.Label($"⚠ {text}", warningStyle);
     }
 
-    private string AreaToText(AmmoCalc.AreaType a)
+    private string AreaToText(CannonballCalc.AreaType a)
     {
-        a = AmmoCalc.NormalizeAreaType(a);
+        a = CannonballCalc.NormalizeAreaType(a);
         switch (a)
         {
-            case AmmoCalc.AreaType.Point: return "Точка";
-            case AmmoCalc.AreaType.Sphere: return "Сфера";
-            case AmmoCalc.AreaType.Cone: return "Конус";
-            case AmmoCalc.AreaType.Cloud: return "Облако";
+            case CannonballCalc.AreaType.Point: return "Точка";
+            case CannonballCalc.AreaType.Sphere: return "Сфера";
+            case CannonballCalc.AreaType.Cloud: return "Облако";
             default: return "Точка";
         }
     }
 
-    private string DamageElementToText(AmmoCalc.DamageElementType t)
+    private string DamageElementToText(CannonballCalc.DamageElementType t)
     {
         switch (t)
         {
-            case AmmoCalc.DamageElementType.Shrapnel: return "Осколки";
-            case AmmoCalc.DamageElementType.Buckshot: return "Картечь";
-            case AmmoCalc.DamageElementType.Pellet: return "Дробь";
-            case AmmoCalc.DamageElementType.Fire: return "Огонь";
-            case AmmoCalc.DamageElementType.Chemical: return "Химия";
-            case AmmoCalc.DamageElementType.Energy: return "Энергия";
+            case CannonballCalc.DamageElementType.Pellet: return "Дробь";
+            case CannonballCalc.DamageElementType.Fire: return "Огонь";
+            case CannonballCalc.DamageElementType.Chemical: return "Химия";
+            case CannonballCalc.DamageElementType.Energy: return "Энергия";
             default: return "Нет";
         }
     }

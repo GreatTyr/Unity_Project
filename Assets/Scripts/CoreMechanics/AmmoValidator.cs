@@ -39,9 +39,8 @@ public static class AmmoValidator
     // 27  caseMassKg
     // 28  caseStrength
     // 29  totalAmmoMassKg
-    // 30  effectiveGravity
 
-    public const int PartsCount = 31;
+    public const int PartsCount = 30;
     public const string Prefix = "S";
 
     public static string BuildCode(AmmoCalc.AmmoOutput o)
@@ -80,7 +79,6 @@ public static class AmmoValidator
         p[27] = FN(o.caseMassKg);
         p[28] = FN(o.caseStrength);
         p[29] = FN(o.totalAmmoMassKg);
-        p[30] = FN(o.effectiveGravity);
 
         return string.Join("-", p);
     }
