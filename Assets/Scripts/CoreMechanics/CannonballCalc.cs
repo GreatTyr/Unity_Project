@@ -1,3 +1,4 @@
+// CannonballCalc.cs
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -14,10 +15,11 @@ public static class CannonballCalc
     public enum DamageElementType
     {
         None = 0,
-        Pellet = 3,
-        Fire = 4,
-        Chemical = 5,
-        Energy = 6
+        Shrapnel = 1,
+        Pellet = 2,
+        Fire = 3,
+        Chemical = 4,
+        Energy = 5
     }
 
     public enum AreaType
@@ -25,7 +27,7 @@ public static class CannonballCalc
         None = 0,
         Point = 1,
         Sphere = 2,
-        Cloud = 4
+        Cloud = 3
     }
 
     public enum FuzeType
@@ -41,10 +43,10 @@ public static class CannonballCalc
     [Serializable]
     public class CannonballInput
     {
-        [Header("Тип боеприпаса")]
+        [Header("Тип ядра")]
         public ChargeType chargeType = ChargeType.FM;
 
-        [Header("Оболочка")]
+        [Header("Корпус ядра")]
         [Range(1, 10)] public int shellTier = 1;
         public float diameterMm = 10f;
 
@@ -63,10 +65,6 @@ public static class CannonballCalc
         [Header("Взрыватель")]
         public FuzeType fuzeType = FuzeType.No;
 
-        [Header("Метательный заряд")]
-        [Range(1, 10)] public int propellantTier = 1;
-        public float propellantMassKg = 0.001f;
-
         [Header("Количество")]
         public int craftCount = 1;
     }
@@ -77,6 +75,10 @@ public static class CannonballCalc
         public float barrelLengthMm = 100f;
         public float barrelDiameterMm = 10f;
         public float shotAngleDeg = 45f;
+
+        [Header("Метательный заряд для оценки")]
+        [Range(1, 10)] public int propellantTier = 1;
+        public float propellantMassKg = 0.001f;
     }
 
     [Serializable]
@@ -86,7 +88,8 @@ public static class CannonballCalc
         public int shellTier;
         public float diameterMm;
         public float lengthMm;
-        public float totalProjectileMassKg;
+
+        public float totalCannonballMassKg;
         public float shellMassKg;
         public float shellStrength;
 
@@ -105,16 +108,10 @@ public static class CannonballCalc
 
         public FuzeType fuzeType;
 
-        public int propellantTier;
-        public float propellantMassKg;
-        public float propulsionForce;
-
-        public float totalAmmoMassKg;
-
         public bool weakExplosiveCharge;
         public string weakExplosiveChargeWarning;
 
-        public string ammoCode;
+        public string cannonballCode;
         public string error;
     }
 
@@ -136,6 +133,8 @@ public static class CannonballCalc
 
         public float directDamage;
         public float directPenetration;
+
+        public float propulsionForce;
 
         public float ballisticP;
         public float ballisticK;
@@ -179,16 +178,8 @@ public static class CannonballCalc
     private const float REAL_GRAVITY = 9.81f;
     private const float C_RANGE_V2 = 0.040269f;
 
-    private const float SPEED_MULTIPLIER = 0.7f;
-    private const float ACCURACY_MULTIPLIER = 1.3f;
-    private const float SHELL_STRENGTH_MULTIPLIER = 1.5f;
-
-    // Масса шара при диаметре в мм и результате в кг.
-    // Коэффициент уже включает:
-    // - формулу объёма шара V = 4/3 * pi * (d/2)^3
-    // - условную плотность 8 г/см^3
-    // - перевод единиц в кг
-    private const float SPHERE_MASS_COEFF = 0.0000041887902f;
+    private const float SPEED_MULTIPLIER_CANNONBALL = 0.7f;
+    private const float SHELL_STRENGTH_MULTIPLIER_CANNONBALL = 1.5f;
 
     public static float Ceil3(float v) => Mathf.Ceil(v * 1000f) / 1000f;
     public static float Ceil2(float v) => Mathf.Ceil(v * 100f) / 100f;
@@ -197,6 +188,11 @@ public static class CannonballCalc
     public static float NormalizeDiameterMm(float v)
     {
         return Ceil2(Mathf.Clamp(v, 1f, 100000f));
+    }
+
+    public static float NormalizeLengthMm(float diameterMm)
+    {
+        return Ceil2(Mathf.Max(1f, diameterMm));
     }
 
     public static float NormalizeMassKg(float v)
@@ -209,9 +205,12 @@ public static class CannonballCalc
         return Ceil3(Mathf.Clamp(v, 0f, MAX_UI_ANGLE_DEG));
     }
 
-    public static float ProjectileMassKg(float diamMm)
+    public static float CannonballMassKg(float diamMm)
     {
-        return diamMm * diamMm * diamMm * SPHERE_MASS_COEFF;
+        float radiusMm = diamMm * 0.5f;
+        float volumeMm3 = (4f / 3f) * Mathf.PI * radiusMm * radiusMm * radiusMm;
+        float volumeDm3 = volumeMm3 / 1000000f;
+        return volumeDm3 * 8f;
     }
 
     public static float GetMinPartKg(float totalMassKg)
@@ -251,17 +250,15 @@ public static class CannonballCalc
         input.shellTier = Mathf.Clamp(input.shellTier, 1, 10);
         input.explosiveTier = Mathf.Clamp(input.explosiveTier, 1, 10);
         input.damageElementTier = Mathf.Clamp(input.damageElementTier, 1, 10);
-        input.propellantTier = Mathf.Clamp(input.propellantTier, 1, 10);
         input.craftCount = Mathf.Max(1, input.craftCount);
 
         input.diameterMm = NormalizeDiameterMm(input.diameterMm);
-        input.propellantMassKg = Ceil3(Mathf.Max(input.propellantMassKg, 0.001f));
         input.explosiveMassKg = NormalizeMassKg(input.explosiveMassKg);
         input.damageElementMassKg = NormalizeMassKg(input.damageElementMassKg);
 
         input.areaType = NormalizeAreaType(input.areaType);
 
-        float totalMassKg = Ceil3(ProjectileMassKg(input.diameterMm));
+        float totalMassKg = Ceil3(CannonballMassKg(input.diameterMm));
         float minPart = GetMinPartKg(totalMassKg);
 
         if (!IsChargeTypeAllowed(input.chargeType, totalMassKg))
@@ -280,7 +277,7 @@ public static class CannonballCalc
                 break;
 
             case ChargeType.HE:
-                input.damageElementType = DamageElementType.None;
+                input.damageElementType = DamageElementType.Shrapnel;
                 input.damageElementTier = 0;
                 input.damageElementMassKg = 0f;
                 input.areaType = AreaType.Sphere;
@@ -293,8 +290,11 @@ public static class CannonballCalc
                 break;
 
             case ChargeType.EQ:
-                if (input.damageElementType == DamageElementType.None)
+                if (input.damageElementType == DamageElementType.None ||
+                    input.damageElementType == DamageElementType.Shrapnel)
+                {
                     input.damageElementType = DamageElementType.Pellet;
+                }
 
                 input.explosiveMassKg = Mathf.Max(input.explosiveMassKg, minPart);
                 input.damageElementMassKg = Mathf.Max(input.damageElementMassKg, minPart);
@@ -322,12 +322,22 @@ public static class CannonballCalc
                         input.areaType = AreaType.Cloud;
                         break;
                     default:
-                        input.damageElementType = DamageElementType.Pellet;
-                        input.areaType = AreaType.Sphere;
+                        input.areaType = AreaType.Point;
                         break;
                 }
                 break;
         }
+    }
+
+    public static void NormalizeBarrelInput(BarrelInput input)
+    {
+        if (input == null) return;
+
+        input.barrelLengthMm = Mathf.Max(1f, Ceil1(input.barrelLengthMm));
+        input.barrelDiameterMm = Ceil2(Mathf.Max(1f, input.barrelDiameterMm));
+        input.shotAngleDeg = NormalizeAngleDeg(input.shotAngleDeg);
+        input.propellantTier = Mathf.Clamp(input.propellantTier, 1, 10);
+        input.propellantMassKg = Ceil3(Mathf.Max(input.propellantMassKg, 0.001f));
     }
 
     public static CannonballOutput Calculate(CannonballInput input)
@@ -348,7 +358,7 @@ public static class CannonballCalc
         NormalizeInput(input);
 
         float d = input.diameterMm;
-        float l = d;
+        float l = NormalizeLengthMm(d);
         int shellTier = input.shellTier;
         ChargeType chargeType = input.chargeType;
 
@@ -357,24 +367,24 @@ public static class CannonballCalc
         o.shellTier = shellTier;
         o.chargeType = chargeType;
 
-        float totalMassKg = Ceil3(ProjectileMassKg(d));
+        float totalMassKg = Ceil3(CannonballMassKg(d));
         if (totalMassKg <= 0f)
         {
-            o.error = "Масса боеприпаса слишком мала.";
+            o.error = "Масса ядра слишком мала.";
             return o;
         }
 
         if (!IsChargeTypeAllowed(chargeType, totalMassKg))
         {
             o.error = chargeType == ChargeType.HE
-                ? "Недостаточная масса боеприпаса для фугасного типа. Минимум 0.500 кг."
+                ? "Недостаточная масса ядра для фугасного типа. Минимум 0.500 кг."
                 : chargeType == ChargeType.EQ
-                    ? "Недостаточная масса боеприпаса для снаряженного типа. Минимум 1.000 кг."
-                    : "Недопустимый тип боеприпаса.";
+                    ? "Недостаточная масса ядра для снаряженного типа. Минимум 1.000 кг."
+                    : "Недопустимый тип ядра.";
             return o;
         }
 
-        o.totalProjectileMassKg = totalMassKg;
+        o.totalCannonballMassKg = totalMassKg;
 
         float minPart = GetMinPartKg(totalMassKg);
 
@@ -399,7 +409,7 @@ public static class CannonballCalc
                 break;
 
             case ChargeType.HE:
-                deType = DamageElementType.None;
+                deType = DamageElementType.Shrapnel;
                 deTier = 0;
                 deMass = 0f;
                 area = AreaType.Sphere;
@@ -408,7 +418,7 @@ public static class CannonballCalc
                 break;
 
             case ChargeType.EQ:
-                if (deType == DamageElementType.None)
+                if (deType == DamageElementType.None || deType == DamageElementType.Shrapnel)
                     deType = DamageElementType.Pellet;
 
                 expMass = Mathf.Max(expMass, minPart);
@@ -437,8 +447,8 @@ public static class CannonballCalc
                         area = AreaType.Cloud;
                         break;
                     default:
-                        o.error = "Недопустимый поражающий элемент для ядра.";
-                        return o;
+                        area = AreaType.Point;
+                        break;
                 }
                 break;
         }
@@ -468,8 +478,7 @@ public static class CannonballCalc
         o.areaType = area;
 
         float shellCoeff = TierCoeffs.Get(shellTier);
-        float baseShellStrength = shellMass * shellCoeff;
-        o.shellStrength = Ceil3(baseShellStrength * SHELL_STRENGTH_MULTIPLIER);
+        o.shellStrength = Ceil3(shellMass * shellCoeff * SHELL_STRENGTH_MULTIPLIER_CANNONBALL);
 
         o.explosivePower = (expTier > 0 && expMass > 0f)
             ? Ceil3(expMass * TierCoeffs.Get(expTier))
@@ -480,7 +489,7 @@ public static class CannonballCalc
         if (chargeType != ChargeType.FM && !canExplode)
         {
             o.weakExplosiveCharge = true;
-            o.weakExplosiveChargeWarning = "Слабый разрывной заряд. Боеприпас не сработает в стандартных условиях.";
+            o.weakExplosiveChargeWarning = "Слабый разрывной заряд. Ядро не сработает в стандартных условиях.";
         }
 
         o.damageRadius = 0f;
@@ -496,8 +505,8 @@ public static class CannonballCalc
                 else
                     o.damageRadius = Ceil3(Mathf.Sqrt(Mathf.Max(0f, o.explosivePower - o.shellStrength)));
 
-                o.areaPenetration = Ceil3(o.explosivePower * o.shellStrength);
-                o.areaDamage = Ceil3(o.shellStrength);
+                o.areaPenetration = Ceil3(o.explosivePower * shellMass * shellCoeff);
+                o.areaDamage = Ceil3(shellMass * shellCoeff);
 
                 if (fuze == FuzeType.No || fuze == FuzeType.Se)
                     o.areaPenetration = Ceil3(o.areaPenetration * 0.5f);
@@ -530,15 +539,7 @@ public static class CannonballCalc
             }
         }
 
-        int propTier = input.propellantTier;
-        float propMass = Ceil3(Mathf.Max(input.propellantMassKg, 0.001f));
-        o.propellantTier = propTier;
-        o.propellantMassKg = propMass;
-        o.propulsionForce = Ceil3(propMass * TierCoeffs.Get(propTier));
-
-        o.totalAmmoMassKg = Ceil3(totalMassKg + propMass);
-
-        o.ammoCode = CannonballValidator.BuildCode(o);
+        o.cannonballCode = CannonballValidator.BuildCode(o);
 
         return o;
     }
@@ -555,6 +556,13 @@ public static class CannonballCalc
         if (barrel.barrelDiameterMm > maxBarrelD) return false;
 
         return true;
+    }
+
+    public static float CalculatePropulsionForce(int propellantTier, float propellantMassKg)
+    {
+        float mass = Ceil3(Mathf.Max(propellantMassKg, 0.001f));
+        int tier = Mathf.Clamp(propellantTier, 1, 10);
+        return Ceil3(mass * TierCoeffs.Get(tier));
     }
 
     public static float CalculateBaseSpeed(float propulsionForce, float projectileMassKg)
@@ -575,22 +583,22 @@ public static class CannonballCalc
         float d = ammo.diameterMm;
         float D = barrel.barrelDiameterMm;
         float L = barrel.barrelLengthMm;
-        float mass = Mathf.Max(ammo.totalProjectileMassKg, 0.000001f);
+        float mass = Mathf.Max(ammo.totalCannonballMassKg, 0.000001f);
 
         float Z = d / D;
         float Z2 = Z * Z;
         float barrelMultiplier = Mathf.Min(10f, Mathf.Sqrt(L / D));
 
-        float totalMultiplier = barrelMultiplier * Z2 * SPEED_MULTIPLIER;
+        float totalMultiplier = barrelMultiplier * Z2 * SPEED_MULTIPLIER_CANNONBALL;
         if (totalMultiplier <= 0f) return 0.001f;
 
-        float targetSpeed = ammo.propellantTier * 300f;
+        float targetSpeed = barrel.propellantTier * 300f;
         float baseSpeedNeeded = targetSpeed / totalMultiplier;
 
         float n = baseSpeedNeeded / 100f;
         float requiredForce = mass * (n * (n + 1f) * 0.5f);
 
-        float tierCoeff = TierCoeffs.Get(ammo.propellantTier);
+        float tierCoeff = TierCoeffs.Get(barrel.propellantTier);
         if (tierCoeff <= 0f) return 0.001f;
 
         float requiredPropellantMass = requiredForce / tierCoeff;
@@ -608,6 +616,8 @@ public static class CannonballCalc
             return b;
         }
 
+        NormalizeBarrelInput(barrel);
+
         if (!IsBarrelGeometryValid(ammo, barrel))
         {
             b.valid = false;
@@ -621,27 +631,28 @@ public static class CannonballCalc
         float L = barrel.barrelLengthMm;
 
         float dM = d / 1000f;
-        float mass = Mathf.Max(ammo.totalProjectileMassKg, 0.000001f);
+        float mass = Mathf.Max(ammo.totalCannonballMassKg, 0.000001f);
 
         float Z = d / D;
         float Z2 = Z * Z;
 
-        float baseSpeed = CalculateBaseSpeed(ammo.propulsionForce, mass);
-        float barrelMultiplier = Mathf.Min(10f, Mathf.Sqrt(L / D));
-        float rawSpeed = baseSpeed * barrelMultiplier * Z2 * SPEED_MULTIPLIER;
+        float propulsionForce = CalculatePropulsionForce(barrel.propellantTier, barrel.propellantMassKg);
+        b.propulsionForce = propulsionForce;
 
-        float maxSpeedByPropellantTier = ammo.propellantTier * 300f;
+        float baseSpeed = CalculateBaseSpeed(propulsionForce, mass);
+        float barrelMultiplier = Mathf.Min(10f, Mathf.Sqrt(L / D));
+        float rawSpeed = baseSpeed * barrelMultiplier * Z2 * SPEED_MULTIPLIER_CANNONBALL;
+
+        float maxSpeedByPropellantTier = barrel.propellantTier * 300f;
         b.projectileSpeed = Ceil3(Mathf.Min(rawSpeed, maxSpeedByPropellantTier));
 
-        b.accuracy = Ceil3(
-            30f * D * d / (L * l) / Mathf.Max(Z2, 0.000001f) * ACCURACY_MULTIPLIER);
+        b.accuracy = Ceil3(30f * D * d / (L * l) / Mathf.Max(Z2, 0.000001f));
 
-        float minRequiredStrength = SHELL_STRENGTH_SAFETY_RATIO * ammo.propulsionForce;
+        float minRequiredStrength = SHELL_STRENGTH_SAFETY_RATIO * propulsionForce;
         if (ammo.shellStrength < minRequiredStrength)
         {
             b.valid = false;
-            b.error = "Боеприпас разрушится в стволе. Увеличьте прочность оболочки или уменьшите метательный заряд.";
-            return b;
+            b.error = "Ядро разрушится в стволе. Увеличьте прочность ядра или уменьшите метательный заряд.";
         }
 
         float angleDeg = NormalizeAngleDeg(barrel.shotAngleDeg);
@@ -723,7 +734,6 @@ public static class CannonballCalc
         b.flightDistance = Ceil3(Mathf.Max(0f, range));
         b.maxHeight = Ceil3(Mathf.Max(0f, maxHeight));
         b.flightTime = Ceil3(Mathf.Max(0f, flightTime));
-
         b.maxRangeAt45Deg = Ceil3(rMax);
         b.directFireRange = Ceil3(Mathf.Max(0f, directRange));
 
@@ -739,7 +749,7 @@ public static class CannonballCalc
         }
         else
         {
-            b.directDamage = Ceil3(b.projectileSpeed * ammo.totalProjectileMassKg * dM);
+            b.directDamage = Ceil3(b.projectileSpeed * ammo.totalCannonballMassKg * dM);
             b.directPenetration = Ceil3(
                 b.projectileSpeed * ammo.shellMassKg * TierCoeffs.Get(ammo.shellTier) / Mathf.Max(dM, 0.000001f));
         }
@@ -785,7 +795,7 @@ public static class CannonballCalc
 
         if (o.fuzeType != FuzeType.No)
         {
-            float fuzeMassKg = Ceil3(o.totalProjectileMassKg * 0.05f);
+            float fuzeMassKg = Ceil3(o.totalCannonballMassKg * 0.05f);
             int fuzeTier;
             switch (o.fuzeType)
             {
@@ -800,9 +810,7 @@ public static class CannonballCalc
             costs.Add(new ResourceCost(ResourcesStorage.ResourceType.Nanites, fuzeTier, fuzeMassKg));
         }
 
-        costs.Add(new ResourceCost(ResourcesStorage.ResourceType.Chemicals, o.propellantTier, o.propellantMassKg));
-
-        long energyCost = (long)Mathf.Ceil(o.totalAmmoMassKg * 10f);
+        long energyCost = (long)Mathf.Ceil(o.totalCannonballMassKg * 10f);
         costs.Add(ResourceCost.Energy(energyCost));
 
         return costs;

@@ -1,9 +1,10 @@
+// CannonballWorkbench.cs
 using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
 /// Логика крафта ядер.
-/// Связывает ввод, расчёт (CannonballCalc) и склады.
+/// Связывает ввод, расчёт (CannonballCalc) и склады (через CannonballWorkbenchCore).
 /// </summary>
 [RequireComponent(typeof(CannonballWorkbenchCore))]
 public class CannonballWorkbench : MonoBehaviour
@@ -17,7 +18,7 @@ public class CannonballWorkbench : MonoBehaviour
     public CannonballCalc.BarrelInput barrelInput = new CannonballCalc.BarrelInput();
 
     [Header("Ручной ввод кода")]
-    public string manualAmmoCode = "";
+    public string manualCannonballCode = "";
 
     private CannonballCalc.CannonballOutput output;
     private CannonballCalc.BarrelOutput barrelOutput;
@@ -52,7 +53,7 @@ public class CannonballWorkbench : MonoBehaviour
         {
             chargeType = CannonballCalc.ChargeType.FM,
             shellTier = 1,
-            diameterMm = 10f,
+            diameterMm = 100f,
             explosiveTier = 1,
             explosiveMassKg = 0f,
             damageElementType = CannonballCalc.DamageElementType.Pellet,
@@ -60,8 +61,6 @@ public class CannonballWorkbench : MonoBehaviour
             damageElementMassKg = 0f,
             areaType = CannonballCalc.AreaType.Point,
             fuzeType = CannonballCalc.FuzeType.No,
-            propellantTier = 1,
-            propellantMassKg = 0.001f,
             craftCount = 1
         };
 
@@ -69,10 +68,12 @@ public class CannonballWorkbench : MonoBehaviour
         {
             barrelDiameterMm = cannonballInput.diameterMm,
             barrelLengthMm = Mathf.Ceil(cannonballInput.diameterMm * 10f),
-            shotAngleDeg = 45f
+            shotAngleDeg = 45f,
+            propellantTier = 1,
+            propellantMassKg = 0.001f
         };
 
-        manualAmmoCode = "";
+        manualCannonballCode = "";
         Recalculate();
     }
 
@@ -80,7 +81,7 @@ public class CannonballWorkbench : MonoBehaviour
     {
         EnsureCore();
 
-        if (!CannonballValidator.TryParseCode(manualAmmoCode, out var parsedInput, out var error))
+        if (!CannonballValidator.TryParseCode(manualCannonballCode, out var parsedInput, out var error))
         {
             errors.Clear();
             warnings.Clear();
@@ -124,6 +125,8 @@ public class CannonballWorkbench : MonoBehaviour
         }
 
         CannonballCalc.NormalizeInput(cannonballInput);
+        CannonballCalc.NormalizeBarrelInput(barrelInput);
+
         output = CannonballCalc.Calculate(cannonballInput);
 
         if (output == null)
@@ -148,8 +151,8 @@ public class CannonballWorkbench : MonoBehaviour
         if (output.weakExplosiveCharge)
             warnings.Add(output.weakExplosiveChargeWarning);
 
-        if (barrelOutput != null && !barrelOutput.valid)
-            errors.Add(barrelOutput.error);
+        if (barrelOutput != null && !barrelOutput.valid && !string.IsNullOrEmpty(barrelOutput.error))
+            warnings.Add(barrelOutput.error);
 
         int craftCount = Mathf.Max(cannonballInput.craftCount, 1);
 
@@ -182,9 +185,9 @@ public class CannonballWorkbench : MonoBehaviour
             return false;
         }
 
-        core.AmmoStorage.AddAmmo(output.ammoCode, count, output.totalAmmoMassKg);
+        core.AmmoStorage.AddAmmo(output.cannonballCode, count, output.totalCannonballMassKg);
 
-        Debug.Log($"[CannonballWorkbench] Изготовлено {count} ядер: {output.ammoCode}");
+        Debug.Log($"[CannonballWorkbench] Изготовлено {count} ядер: {output.cannonballCode}");
         return true;
     }
 }

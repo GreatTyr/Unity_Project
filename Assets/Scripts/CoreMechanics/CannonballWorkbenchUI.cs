@@ -1,4 +1,5 @@
-﻿using System.Globalization;
+﻿// CannonballWorkbenchUI.cs
+using System.Globalization;
 using UnityEngine;
 
 /// <summary>
@@ -12,14 +13,14 @@ public class CannonballWorkbenchUI : MonoBehaviour
 
     private Vector2 scrollPos;
 
-    private string sDiam = "10";
+    private string sDiam = "100";
     private string sExpMass = "0";
     private string sDEMass = "0";
-    private string sPropMass = "0,001";
     private string sCraftCount = "1";
-    private string sBarrelLen = "100";
-    private string sBarrelDiam = "10";
+    private string sBarrelLen = "1000";
+    private string sBarrelDiam = "100";
     private string sShotAngle = "45";
+    private string sPropMass = "0,001";
 
     private bool stylesReady;
     private GUIStyle windowStyle;
@@ -119,14 +120,14 @@ public class CannonballWorkbenchUI : MonoBehaviour
 
         SectionHeader("Код ядра");
         GUI.enabled = false;
-        GUILayout.TextField(workbench.Output != null ? workbench.Output.ammoCode : workbench.manualAmmoCode, readonlyFieldStyle);
+        GUILayout.TextField(workbench.Output != null ? workbench.Output.cannonballCode : workbench.manualCannonballCode, readonlyFieldStyle);
         GUI.enabled = true;
 
         GUILayout.BeginHorizontal();
-        workbench.manualAmmoCode = LabeledTextField("Ввод кода", workbench.manualAmmoCode, 220f, ref changed);
+        workbench.manualCannonballCode = LabeledTextField("Ввод кода", workbench.manualCannonballCode, 220f, ref changed);
         if (GUILayout.Button("Вставить", GUILayout.Width(90), GUILayout.Height(24)))
         {
-            workbench.manualAmmoCode = GUIUtility.systemCopyBuffer ?? "";
+            workbench.manualCannonballCode = GUIUtility.systemCopyBuffer ?? "";
             changed = true;
         }
         if (GUILayout.Button("Применить", GUILayout.Width(90), GUILayout.Height(24)))
@@ -144,8 +145,8 @@ public class CannonballWorkbenchUI : MonoBehaviour
 
         SectionHeader("Вводимые параметры");
 
-        GroupHeader("Оболочка");
-        if (TierSlider("Тир оболочки", ref inp.shellTier))
+        GroupHeader("Корпус ядра");
+        if (TierSlider("Тир корпуса", ref inp.shellTier))
         {
             changed = true;
             recalcRequested = true;
@@ -156,10 +157,10 @@ public class CannonballWorkbenchUI : MonoBehaviour
         float previewDiam = TryParseBufferFloatOrDefault(sDiam, inp.diameterMm);
         previewDiam = CannonballCalc.NormalizeDiameterMm(previewDiam);
 
-        float previewMass = CannonballCalc.Ceil3(CannonballCalc.ProjectileMassKg(previewDiam));
+        float previewMass = CannonballCalc.Ceil3(CannonballCalc.CannonballMassKg(previewDiam));
         ValueLine($"Расч. масса ядра: {previewMass:F3} кг");
 
-        GroupHeader("Тип боеприпаса");
+        GroupHeader("Тип ядра");
         DrawChargeTypeSelector(inp, previewMass, ref changed);
 
         if (inp.chargeType != CannonballCalc.ChargeType.FM)
@@ -216,40 +217,6 @@ public class CannonballWorkbenchUI : MonoBehaviour
             }
         }
 
-        GroupHeader("Метательный заряд");
-        if (TierSlider("Тир мет. заряда", ref inp.propellantTier))
-        {
-            changed = true;
-            recalcRequested = true;
-        }
-
-        GUILayout.BeginHorizontal();
-
-        GUILayout.BeginVertical();
-        string propBefore = sPropMass;
-        sPropMass = FloatFieldRaw("Масса мет. заряда (кг)", sPropMass, out _);
-        if (sPropMass != propBefore) changed = true;
-        GUILayout.EndVertical();
-
-        GUILayout.BeginVertical(GUILayout.Width(120));
-        GUILayout.Space(2f);
-        if (GUILayout.Button("Макс. скорость", GUILayout.Width(120), GUILayout.Height(20)))
-        {
-            CommitBufferedFields();
-            workbench.Recalculate();
-            var currentOutput = workbench.Output;
-            if (currentOutput != null)
-            {
-                inp.propellantMassKg = CannonballCalc.CalculatePropellantMassForMaxSpeed(currentOutput, workbench.barrelInput);
-                sPropMass = inp.propellantMassKg.ToString("0.###", CultureInfo.InvariantCulture).Replace('.', ',');
-                changed = true;
-                recalcRequested = true;
-            }
-        }
-        GUILayout.EndVertical();
-
-        GUILayout.EndHorizontal();
-
         GroupHeader("Изготовление");
         changed |= IntField("Количество", ref sCraftCount, out _);
 
@@ -272,6 +239,41 @@ public class CannonballWorkbenchUI : MonoBehaviour
         }
         GUILayout.EndHorizontal();
 
+        GroupHeader("Метательный заряд");
+        if (TierSlider("Тир мет. заряда", ref workbench.barrelInput.propellantTier))
+        {
+            changed = true;
+            recalcRequested = true;
+        }
+
+        GUILayout.BeginHorizontal();
+
+        GUILayout.BeginVertical();
+        string propBefore = sPropMass;
+        sPropMass = FloatFieldRaw("Масса мет. заряда (кг)", sPropMass, out _);
+        if (sPropMass != propBefore) changed = true;
+        GUILayout.EndVertical();
+
+        GUILayout.BeginVertical(GUILayout.Width(120));
+        GUILayout.Space(2f);
+        if (GUILayout.Button("Макс. скорость", GUILayout.Width(120), GUILayout.Height(20)))
+        {
+            CommitBufferedFields();
+            workbench.Recalculate();
+            var currentOutput = workbench.Output;
+            if (currentOutput != null)
+            {
+                workbench.barrelInput.propellantMassKg =
+                    CannonballCalc.CalculatePropellantMassForMaxSpeed(currentOutput, workbench.barrelInput);
+                sPropMass = workbench.barrelInput.propellantMassKg.ToString("0.###", CultureInfo.InvariantCulture).Replace('.', ',');
+                changed = true;
+                recalcRequested = true;
+            }
+        }
+        GUILayout.EndVertical();
+
+        GUILayout.EndHorizontal();
+
         GUILayout.EndVertical();
 
         GUILayout.Space(10);
@@ -288,9 +290,9 @@ public class CannonballWorkbenchUI : MonoBehaviour
             GroupHeader("Ядро");
             ValueLine($"Тип: {o.chargeType}");
             ValueLine($"Область поражения: {AreaToText(o.areaType)}");
-            ValueLine($"Масса ядра: {o.totalProjectileMassKg:F3} кг");
-            ValueLine($"Масса оболочки: {o.shellMassKg:F3} кг");
-            ValueLine($"Прочность оболочки: {o.shellStrength:F3}");
+            ValueLine($"Масса ядра: {o.totalCannonballMassKg:F3} кг");
+            ValueLine($"Масса корпуса ядра: {o.shellMassKg:F3} кг");
+            ValueLine($"Прочность ядра: {o.shellStrength:F3}");
 
             if (o.chargeType != CannonballCalc.ChargeType.FM)
             {
@@ -304,15 +306,9 @@ public class CannonballWorkbenchUI : MonoBehaviour
                 ValueLine($"Масса ПЭ: {o.damageElementMassKg:F3} кг");
             }
 
-            if (!(o.chargeType == CannonballCalc.ChargeType.FM))
-            {
-                ValueLine($"Радиус поражения: {o.damageRadius:F3} м");
-                ValueLine($"Пробитие в области: {o.areaPenetration:F3}");
-                ValueLine($"Урон в области: {o.areaDamage:F3}");
-            }
-
-            ValueLine($"Сила выталкивания: {o.propulsionForce:F3}");
-            ValueLine($"Масса боеприпаса: {o.totalAmmoMassKg:F3} кг");
+            ValueLine($"Радиус поражения: {o.damageRadius:F3} м");
+            ValueLine($"Пробитие в области: {o.areaPenetration:F3}");
+            ValueLine($"Урон в области: {o.areaDamage:F3}");
 
             GroupHeader("Стоимость");
             var costs = workbench.Costs;
@@ -336,8 +332,9 @@ public class CannonballWorkbenchUI : MonoBehaviour
             }
 
             GroupHeader("Оценка для ствола");
-            if (b != null && b.valid)
+            if (b != null)
             {
+                ValueLine($"Сила выталкивания: {b.propulsionForce:F3}");
                 ValueLine($"Скорость ядра: {b.projectileSpeed:F3} м/с");
                 ValueLine($"Точность: {b.accuracy:F6}°");
                 ValueLine($"Дальность полёта: {b.flightDistance:F3} м");
@@ -395,6 +392,7 @@ public class CannonballWorkbenchUI : MonoBehaviour
     private void CommitBufferedFields()
     {
         var inp = workbench.cannonballInput;
+        var barrel = workbench.barrelInput;
 
         if (TryParseBufferFloat(sDiam, out float diam))
         {
@@ -404,14 +402,14 @@ public class CannonballWorkbenchUI : MonoBehaviour
             {
                 inp.diameterMm = newDiameter;
 
-                workbench.barrelInput.barrelDiameterMm = inp.diameterMm;
-                workbench.barrelInput.barrelLengthMm = Mathf.Ceil(inp.diameterMm * 10f);
+                barrel.barrelDiameterMm = inp.diameterMm;
+                barrel.barrelLengthMm = Mathf.Ceil(inp.diameterMm * 10f);
 
-                sBarrelDiam = workbench.barrelInput.barrelDiameterMm
+                sBarrelDiam = barrel.barrelDiameterMm
                     .ToString("0.00", CultureInfo.InvariantCulture)
                     .Replace('.', ',');
 
-                sBarrelLen = workbench.barrelInput.barrelLengthMm
+                sBarrelLen = barrel.barrelLengthMm
                     .ToString("0", CultureInfo.InvariantCulture)
                     .Replace('.', ',');
             }
@@ -421,7 +419,7 @@ public class CannonballWorkbenchUI : MonoBehaviour
             }
         }
 
-        float previewMass = CannonballCalc.Ceil3(CannonballCalc.ProjectileMassKg(inp.diameterMm));
+        float previewMass = CannonballCalc.Ceil3(CannonballCalc.CannonballMassKg(inp.diameterMm));
         float minPart = CannonballCalc.GetMinPartKg(previewMass);
 
         if (TryParseBufferFloat(sExpMass, out float expMass))
@@ -447,20 +445,20 @@ public class CannonballWorkbenchUI : MonoBehaviour
             }
         }
 
-        if (TryParseBufferFloat(sPropMass, out float propMass))
-            inp.propellantMassKg = CannonballCalc.Ceil3(Mathf.Max(propMass, 0.001f));
-
         if (int.TryParse(sCraftCount, out int count))
             inp.craftCount = Mathf.Max(count, 1);
 
         if (TryParseBufferFloat(sBarrelLen, out float barrelLen))
-            workbench.barrelInput.barrelLengthMm = Mathf.Max(1f, Mathf.Ceil(barrelLen));
+            barrel.barrelLengthMm = Mathf.Max(1f, Mathf.Ceil(barrelLen));
 
         if (TryParseBufferFloat(sBarrelDiam, out float barrelDiam))
-            workbench.barrelInput.barrelDiameterMm = CannonballCalc.Ceil2(Mathf.Max(1f, barrelDiam));
+            barrel.barrelDiameterMm = CannonballCalc.Ceil2(Mathf.Max(1f, barrelDiam));
 
         if (TryParseBufferFloat(sShotAngle, out float shotAngle))
-            workbench.barrelInput.shotAngleDeg = CannonballCalc.NormalizeAngleDeg(shotAngle);
+            barrel.shotAngleDeg = CannonballCalc.NormalizeAngleDeg(shotAngle);
+
+        if (TryParseBufferFloat(sPropMass, out float propMass))
+            barrel.propellantMassKg = CannonballCalc.Ceil3(Mathf.Max(propMass, 0.001f));
     }
 
     private bool TryParseBufferFloat(string buffer, out float value)
@@ -672,14 +670,16 @@ public class CannonballWorkbenchUI : MonoBehaviour
     private void PullBuffersFromInput()
     {
         var inp = workbench.cannonballInput;
+        var barrel = workbench.barrelInput;
+
         sDiam = inp.diameterMm.ToString("0.00", CultureInfo.InvariantCulture).Replace('.', ',');
         sExpMass = inp.explosiveMassKg.ToString("0.###", CultureInfo.InvariantCulture).Replace('.', ',');
         sDEMass = inp.damageElementMassKg.ToString("0.###", CultureInfo.InvariantCulture).Replace('.', ',');
-        sPropMass = inp.propellantMassKg.ToString("0.###", CultureInfo.InvariantCulture).Replace('.', ',');
         sCraftCount = inp.craftCount.ToString();
-        sBarrelLen = workbench.barrelInput.barrelLengthMm.ToString("0", CultureInfo.InvariantCulture).Replace('.', ',');
-        sBarrelDiam = workbench.barrelInput.barrelDiameterMm.ToString("0.00", CultureInfo.InvariantCulture).Replace('.', ',');
-        sShotAngle = workbench.barrelInput.shotAngleDeg.ToString("0.###", CultureInfo.InvariantCulture).Replace('.', ',');
+        sBarrelLen = barrel.barrelLengthMm.ToString("0", CultureInfo.InvariantCulture).Replace('.', ',');
+        sBarrelDiam = barrel.barrelDiameterMm.ToString("0.00", CultureInfo.InvariantCulture).Replace('.', ',');
+        sShotAngle = barrel.shotAngleDeg.ToString("0.###", CultureInfo.InvariantCulture).Replace('.', ',');
+        sPropMass = barrel.propellantMassKg.ToString("0.###", CultureInfo.InvariantCulture).Replace('.', ',');
     }
 
     private void EnsureStyles()
@@ -768,6 +768,7 @@ public class CannonballWorkbenchUI : MonoBehaviour
     {
         switch (t)
         {
+            case CannonballCalc.DamageElementType.Shrapnel: return "Осколки";
             case CannonballCalc.DamageElementType.Pellet: return "Дробь";
             case CannonballCalc.DamageElementType.Fire: return "Огонь";
             case CannonballCalc.DamageElementType.Chemical: return "Химия";

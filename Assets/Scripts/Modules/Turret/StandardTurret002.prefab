@@ -1,0 +1,138 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &1572262085106385933
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: 242ef4e7c2e89804ca3cfff2c84b83ac, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -11.08
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 242ef4e7c2e89804ca3cfff2c84b83ac, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.0000023841858
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 242ef4e7c2e89804ca3cfff2c84b83ac, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -6.186142
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 242ef4e7c2e89804ca3cfff2c84b83ac, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 242ef4e7c2e89804ca3cfff2c84b83ac, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 242ef4e7c2e89804ca3cfff2c84b83ac, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 242ef4e7c2e89804ca3cfff2c84b83ac, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 242ef4e7c2e89804ca3cfff2c84b83ac, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 242ef4e7c2e89804ca3cfff2c84b83ac, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 242ef4e7c2e89804ca3cfff2c84b83ac, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 242ef4e7c2e89804ca3cfff2c84b83ac, type: 3}
+      propertyPath: m_Name
+      value: StandardTurret002
+      objectReference: {fileID: 0}
+    - target: {fileID: 6830276475660266515, guid: 242ef4e7c2e89804ca3cfff2c84b83ac, type: 3}
+      propertyPath: m_Name
+      value: StandardTurret002_Collider
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects:
+    - {fileID: 6830276475660266515, guid: 242ef4e7c2e89804ca3cfff2c84b83ac, type: 3}
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 242ef4e7c2e89804ca3cfff2c84b83ac, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7997378810823708081}
+  m_SourcePrefab: {fileID: 100100000, guid: 242ef4e7c2e89804ca3cfff2c84b83ac, type: 3}
+--- !u!1 &1806125800401533276 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 242ef4e7c2e89804ca3cfff2c84b83ac, type: 3}
+  m_PrefabInstance: {fileID: 1572262085106385933}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &7997378810823708081
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1806125800401533276}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3450605b69adcc249b9e912f4d79738b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StandardTurret
+  ModuleTier: 1
+  factionShortName: TESTF2
+  blueprintId: 001
+  VolumeCoefficientPercent: 25
+  ConstantFillPercent: 100
+  InternalResourceCosts: []
+  CraftCoefficient: 1
+  CanTurnOnOff: 0
+  TurnOnOffTime: 1
+  CanPulseMode: 1
+  PulseInterval: 0
+  IsControllable: 1
+  IsVolatile: 0
+  ExplosionDamageType: 0
+  BuildVisualYawOffset: 0
+  BuildAnchorLocal: {x: 0, y: 0, z: 0}
+  BuildAnchorCellLocal: {x: 0, y: 0}
+  ExplosionRadiusCoefficient: 0.1
+  ExplosionPenetrationCoefficient: 0.1
+  ExplosionDamageCoefficient: 0.1
+  length: 1.5688453
+  width: 2.717845
+  height: 1.3316756
+  aabbVolume: 5.678103
+  realVolume: 1.419526
+  effectiveVolume: 1.419526
+  massKg: 1419.526
+  fillPercentUsed: 100
+  DurabilityCoeff: 1
+  LoadingPowerCoeff: 1
+  ChamberCapacityCoeff: 1
+  AmmoTierBonus: 0
+  ShotResourceUseCoeff: 1
+  OperationalUseCoeff: 1
+  MountCoeff: 1
+  AimSpeedCoeff: 1
+  RecoilCoeff: 1
+  RotationSpeedCoeff: 1
+  MaxElevationDeg: 45
+  MaxDepressionDeg: 10
+  TraverseArcDeg: 360
+  EnergyConsumption: 0
+  DefaultCorpusTier: 1
+  DefaultLoadingTier: 1
+  DefaultChamberTier: 1
+  DefaultLoadingPercent: 33
+  DefaultChamberPercent: 33
+  DefaultMotorPercent: 34
+  DefaultGyroPercent: 33
+  DefaultBarrelInnerDiameterMm: 100
+  DefaultBarrelOuterDiameterMm: 120
+  DefaultBarrelLengthMm: 1500
+  DefaultPropellantTier: 1
+  DefaultPropellantMassKg: 0.001

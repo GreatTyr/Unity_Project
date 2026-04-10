@@ -1,10 +1,11 @@
+// CannonballValidator.cs
 using System;
 using System.Globalization;
 using UnityEngine;
 
 /// <summary>
 /// Каноническая сборка, парсинг и строгая валидация кода ядра.
-/// Код описывает только свойства ядра и не содержит параметров конкретного ствола.
+/// Код описывает только свойства ядра и не содержит параметров конкретного ствола и метательного заряда.
 /// </summary>
 public static class CannonballValidator
 {
@@ -13,7 +14,7 @@ public static class CannonballValidator
     //  1  chargeType
     //  2  shellTier
     //  3  diameterMm
-    //  4  totalProjectileMassKg
+    //  4  totalCannonballMassKg
     //  5  shellMassKg
     //  6  shellStrength
     //  7  explosiveTier
@@ -27,12 +28,8 @@ public static class CannonballValidator
     // 15  areaPenetration
     // 16  areaDamage
     // 17  fuzeType
-    // 18  propellantTier
-    // 19  propellantMassKg
-    // 20  propulsionForce
-    // 21  totalAmmoMassKg
 
-    public const int PartsCount = 22;
+    public const int PartsCount = 18;
     public const string Prefix = "C";
 
     public static string BuildCode(CannonballCalc.CannonballOutput o)
@@ -45,7 +42,7 @@ public static class CannonballValidator
         p[1] = ((int)o.chargeType).ToString();
         p[2] = o.shellTier.ToString();
         p[3] = FN(o.diameterMm);
-        p[4] = FN(o.totalProjectileMassKg);
+        p[4] = FN(o.totalCannonballMassKg);
         p[5] = FN(o.shellMassKg);
         p[6] = FN(o.shellStrength);
         p[7] = o.explosiveTier.ToString();
@@ -59,10 +56,6 @@ public static class CannonballValidator
         p[15] = FN(o.areaPenetration);
         p[16] = FN(o.areaDamage);
         p[17] = ((int)o.fuzeType).ToString();
-        p[18] = o.propellantTier.ToString();
-        p[19] = FN(o.propellantMassKg);
-        p[20] = FN(o.propulsionForce);
-        p[21] = FN(o.totalAmmoMassKg);
 
         return string.Join("-", p);
     }
@@ -74,7 +67,7 @@ public static class CannonballValidator
 
         if (string.IsNullOrWhiteSpace(code))
         {
-            error = "Код боеприпаса пуст.";
+            error = "Код ядра пуст.";
             return false;
         }
 
@@ -96,12 +89,12 @@ public static class CannonballValidator
         if (!int.TryParse(p[1], out int chargeTypeInt) ||
             !Enum.IsDefined(typeof(CannonballCalc.ChargeType), chargeTypeInt))
         {
-            error = "Неверный тип боеприпаса.";
+            error = "Неверный тип ядра.";
             return false;
         }
         parsed.chargeType = (CannonballCalc.ChargeType)chargeTypeInt;
 
-        if (!int.TryParse(p[2], out parsed.shellTier)) { error = "Неверный тир оболочки."; return false; }
+        if (!int.TryParse(p[2], out parsed.shellTier)) { error = "Неверный тир корпуса ядра."; return false; }
         if (!TryParseFloatAny(p[3], out parsed.diameterMm)) { error = "Неверный диаметр."; return false; }
 
         if (!int.TryParse(p[7], out parsed.explosiveTier)) { error = "Неверный тир разрывного заряда."; return false; }
@@ -134,18 +127,9 @@ public static class CannonballValidator
         }
         parsed.fuzeType = (CannonballCalc.FuzeType)fuzeInt;
 
-        if (!int.TryParse(p[18], out parsed.propellantTier)) { error = "Неверный тир метательного заряда."; return false; }
-        if (!TryParseFloatAny(p[19], out parsed.propellantMassKg)) { error = "Неверная масса метательного заряда."; return false; }
-
         parsed.craftCount = 1;
 
-        // Строгое соответствие формату ядра без "несуществующих сущностей".
-        if (!IsStrictFormatAllowed(parsed))
-        {
-            error = "Неправильный формат кода ядра.";
-            return false;
-        }
-
+        CannonballCalc.NormalizeInput(parsed);
         CannonballCalc.CannonballOutput calc = CannonballCalc.Calculate(parsed);
 
         if (calc == null || !string.IsNullOrEmpty(calc.error))
@@ -163,58 +147,6 @@ public static class CannonballValidator
 
         input = parsed;
         return true;
-    }
-
-    private static bool IsStrictFormatAllowed(CannonballCalc.CannonballInput input)
-    {
-        if (input == null) return false;
-
-        float mass = CannonballCalc.Ceil3(CannonballCalc.ProjectileMassKg(
-            CannonballCalc.NormalizeDiameterMm(input.diameterMm)));
-
-        if (!CannonballCalc.IsChargeTypeAllowed(input.chargeType, mass))
-            return false;
-
-        switch (input.chargeType)
-        {
-            case CannonballCalc.ChargeType.FM:
-                if (input.explosiveTier != 0) return false;
-                if (Mathf.Abs(input.explosiveMassKg) > 0.0001f) return false;
-                if (input.damageElementType != CannonballCalc.DamageElementType.None) return false;
-                if (input.damageElementTier != 0) return false;
-                if (Mathf.Abs(input.damageElementMassKg) > 0.0001f) return false;
-                if (input.fuzeType != CannonballCalc.FuzeType.No) return false;
-                if (input.areaType != CannonballCalc.AreaType.Point) return false;
-                return true;
-
-            case CannonballCalc.ChargeType.HE:
-                if (input.damageElementType != CannonballCalc.DamageElementType.None) return false;
-                if (input.damageElementTier != 0) return false;
-                if (Mathf.Abs(input.damageElementMassKg) > 0.0001f) return false;
-                if (input.areaType != CannonballCalc.AreaType.Sphere) return false;
-                return input.explosiveTier >= 1 && input.explosiveMassKg > 0f;
-
-            case CannonballCalc.ChargeType.EQ:
-                if (input.explosiveTier < 1 || input.explosiveMassKg <= 0f) return false;
-                if (input.damageElementTier < 1 || input.damageElementMassKg <= 0f) return false;
-
-                switch (input.damageElementType)
-                {
-                    case CannonballCalc.DamageElementType.Pellet:
-                        return input.areaType == CannonballCalc.AreaType.Sphere;
-
-                    case CannonballCalc.DamageElementType.Fire:
-                    case CannonballCalc.DamageElementType.Chemical:
-                    case CannonballCalc.DamageElementType.Energy:
-                        return input.areaType == CannonballCalc.AreaType.Cloud;
-
-                    default:
-                        return false;
-                }
-
-            default:
-                return false;
-        }
     }
 
     private static bool TryParseFloatAny(string s, out float value)
