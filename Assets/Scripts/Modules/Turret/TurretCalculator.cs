@@ -13,8 +13,8 @@ public static class TurretCalculator
     // =========================================
 
     public const int MinComponentPercent = 1;
-    public const float BarrelDensity = 1f; // кг/дм³ (условная)
-    private const float Mm3ToDm3 = 1e-9f;
+    public const float BarrelDensity = 1f; // кг/дм³
+    private const float Mm3ToDm3 = 1e-6f; // ИСПРАВЛЕНО: было 1e-9f
 
     // =========================================
     // ВХОДНЫЕ ДАННЫЕ
@@ -23,12 +23,11 @@ public static class TurretCalculator
     public struct ReceiverInput
     {
         public float totalMassKg;       // из ModuleScaler
-        public int corpusTier;
+        public int alloyTier;           // ИЗМЕНЕНО: был corpusTier
         public int loadingTier;
         public int chamberTier;
-        public int loadingPercent;    // высокий приоритет
-        public int chamberPercent;    // высокий приоритет
-                                      // corpusPercent = 100 - loading - chamber
+        public int loadingPercent;      // высокий приоритет
+        public int chamberPercent;      // высокий приоритет
     }
 
     public struct BarrelInput
@@ -41,10 +40,10 @@ public static class TurretCalculator
     public struct MountInput
     {
         public float mountTotalMass;    // = receiverTotalMass * mountCoeff
-        public int corpusTier;        // тир корпуса = тир станины
-        public int motorPercent;      // высокий приоритет
-        public int gyroPercent;       // высокий приоритет
-                                      // compensatorPercent = 100 - motor - gyro
+        public int alloyTier;           // ИЗМЕНЕНО: был corpusTier
+        public int gyroPercent;         // ИЗМЕНЕНО: высокий приоритет
+        public int compensatorPercent;  // ИЗМЕНЕНО: высокий приоритет
+                                        // motorPercent = 100 - gyro - compensator
     }
 
     public struct AlloyInput
@@ -62,6 +61,7 @@ public static class TurretCalculator
     public struct Result
     {
         // Receiver
+        public float receiverMassKg;    // ДОБАВЛЕНО
         public float corpusMassKg;
         public float loadingMassKg;
         public float chamberMassKg;
@@ -82,7 +82,7 @@ public static class TurretCalculator
         public float motorMassKg;
         public float gyroMassKg;
         public float compensatorMassKg;
-        public int compensatorPercent;
+        public int motorPercent;        // ИЗМЕНЕНО: теперь вычисляемый
 
         public float aimSpeed;
         public float recoilResistance;
@@ -96,11 +96,6 @@ public static class TurretCalculator
         public float minCaliberMm;
         public float maxCaliberMm;
         public float maxAmmoLengthMm;
-        public float maxPropellantMassKg;
-
-        // Перезарядка (preview)
-        public float reloadTimeS;
-        public float propellantReloadTimeS;
 
         // Крафт
         public float craftTimeSeconds;
@@ -119,9 +114,7 @@ public static class TurretCalculator
         MountInput mount,
         AlloyInput alloy,
         int workbenchTier,
-        float innerVolumeM3,
-        float previewAmmoMassKg = 0f,
-        int previewAmmoMaxTier = 0)
+        float innerVolumeM3)
     {
         Result r = new Result();
 
@@ -138,8 +131,9 @@ public static class TurretCalculator
         CalculateMount(template, mount, ref r);
 
         // ---- ИТОГО ----
+        r.receiverMassKg = receiver.totalMassKg;
         r.totalTurretMass =
-            receiver.totalMassKg +
+            r.receiverMassKg +
             r.mountTotalMass +
             r.barrelMassKg;
 
@@ -154,19 +148,6 @@ public static class TurretCalculator
         r.minCaliberMm = Round2(barrel.innerDiameterMm * 0.75f);
         r.maxCaliberMm = Round2(barrel.innerDiameterMm);
         r.maxAmmoLengthMm = Round1(barrel.lengthMm);
-
-        // ---- МЕТАТЕЛЬНЫЙ ЗАРЯД ДЛЯ ЯДЕР ----
-        r.maxPropellantMassKg =
-            previewAmmoMassKg > 0f
-                ? Round3(Mathf.Max(0f, r.chamberMassKg - previewAmmoMassKg))
-                : Round3(r.chamberMassKg);
-
-        // ---- ПЕРЕЗАРЯДКА ----
-        if (previewAmmoMassKg > 0f && r.loadingPower > 0f)
-        {
-            r.reloadTimeS = Round3(previewAmmoMassKg / r.loadingPower);
-            r.propellantReloadTimeS = Round3(r.reloadTimeS * 3f);
-        }
 
         // ---- КРАФТ ----
         float moduleCoeff = TierCoeffs.Get(template.ModuleTier);
@@ -196,8 +177,7 @@ public static class TurretCalculator
 
         // Clamp процентов с высоким приоритетом
         int lp = Mathf.Clamp(inp.loadingPercent, MinComponentPercent, 98);
-        int cp = Mathf.Clamp(inp.chamberPercent, MinComponentPercent,
-                             99 - lp);
+        int cp = Mathf.Clamp(inp.chamberPercent, MinComponentPercent, 99 - lp);
         int corpP = 100 - lp - cp;
         corpP = Mathf.Max(corpP, MinComponentPercent);
 
@@ -214,23 +194,17 @@ public static class TurretCalculator
 
         // Вместимость патронника
         r.chamberCapacity = Round3(
-            r.chamberMassKg *
-            TierCoeffs.Get(inp.chamberTier) *
-            template.ChamberCapacityCoeff);
+      r.chamberMassKg *
+      template.ChamberCapacityCoeff);
 
         // Максимальный тир боеприпаса
         r.maxAmmoTier = Mathf.Clamp(inp.chamberTier + template.AmmoTierBonus, 1, 10);
 
         // Прочность корпуса
-        float alloyMult = alloy.hasAlloy
-            ? Mathf.Max(0f, 1f + alloy.kineticResistance / 100f)
-            : 1f;
-
         r.receiverDurability = Round3(
-            r.corpusMassKg *
-            TierCoeffs.Get(inp.corpusTier) *
-            template.DurabilityCoeff *
-            alloyMult);
+    r.corpusMassKg *
+    TierCoeffs.Get(inp.alloyTier) *
+    template.DurabilityCoeff);
     }
 
     // =========================================
@@ -276,19 +250,19 @@ public static class TurretCalculator
     {
         r.mountTotalMass = Round3(inp.mountTotalMass);
 
-        // Компенсатор — низкий приоритет (остаток)
-        int mp = Mathf.Clamp(inp.motorPercent, MinComponentPercent, 98);
-        int gp = Mathf.Clamp(inp.gyroPercent, MinComponentPercent, 99 - mp);
-        int cop = Mathf.Max(MinComponentPercent, 100 - mp - gp);
+        // Двигатель — низкий приоритет (остаток)
+        int gp = Mathf.Clamp(inp.gyroPercent, MinComponentPercent, 98);
+        int cop = Mathf.Clamp(inp.compensatorPercent, MinComponentPercent, 99 - gp);
+        int mp = Mathf.Max(MinComponentPercent, 100 - gp - cop);
 
-        r.compensatorPercent = cop;
+        r.motorPercent = mp;
 
         r.motorMassKg = Round3(r.mountTotalMass * mp / 100f);
         r.gyroMassKg = Round3(r.mountTotalMass * gp / 100f);
         r.compensatorMassKg = Round3(Mathf.Max(0f,
             r.mountTotalMass - r.motorMassKg - r.gyroMassKg));
 
-        float tierCoeff = TierCoeffs.Get(inp.corpusTier);
+        float tierCoeff = TierCoeffs.Get(inp.alloyTier);
 
         r.aimSpeed = Round3(r.gyroMassKg * tierCoeff * template.AimSpeedCoeff);
         r.recoilResistance = Round3(r.compensatorMassKg * tierCoeff * template.RecoilCoeff);
@@ -402,10 +376,10 @@ public static class TurretCalculator
         }
 
         // Проверка совместимости с патронником
-        if (res.ammoMassKg > turretResult.chamberMassKg)
+        if (res.ammoMassKg > turretResult.chamberCapacity)
         {
             res.reason = $"Масса боеприпаса ({res.ammoMassKg:F3} кг) " +
-                         $"превышает вместимость патронника ({turretResult.chamberMassKg:F3} кг).";
+                         $"превышает вместимость патронника ({turretResult.chamberCapacity:F3} кг).";
             return res;
         }
 
@@ -461,8 +435,10 @@ public static class TurretCalculator
         public float directFireRange;
         public float directDamage;
         public float directPenetration;
-        public float reloadTimeS;
-        public float propellantReloadTimeS;
+
+        // НОВЫЕ ПОЛЯ
+        public float rateOfFireRPM;     // Скорострельность (выстр/мин)
+        public float reloadTimeS;       // Перезарядка (сек)
     }
 
     public static ShotPreview CalculateShotPreview(
@@ -470,8 +446,9 @@ public static class TurretCalculator
         BarrelInput barrel,
         Result turretResult,
         float previewAngleDeg,
-        int defaultPropellantTier,
-        float defaultPropellantMassKg)
+        int propellantTier,
+        float propellantMassKg,
+        float loadingPowerCoeff)
     {
         var preview = new ShotPreview();
 
@@ -482,9 +459,32 @@ public static class TurretCalculator
         }
 
         preview.isCannonball = ammo.isCannonball;
-        preview.reloadTimeS = turretResult.reloadTimeS;
-        preview.propellantReloadTimeS = turretResult.propellantReloadTimeS;
 
+        // ---- РАСЧЁТ СКОРОСТРЕЛЬНОСТИ И ПЕРЕЗАРЯДКИ ----
+        float loadingPower = turretResult.loadingPower;
+
+        if (loadingPower > 0f && ammo.ammoMassKg > 0f)
+        {
+            // Формула: перезарядка = масса * 10 / корень(мощность) / coeff
+            // speedFactor = корень(мощность) * coeff / 10
+            float speedFactor = Mathf.Sqrt(loadingPower) * loadingPowerCoeff / 10f;
+
+            if (ammo.isCannonball)
+            {
+                float safeCharge = Mathf.Max(0.001f, propellantMassKg);
+                float reloadS = (ammo.ammoMassKg / speedFactor) + (safeCharge / speedFactor) * 9f;
+                preview.reloadTimeS = (float)Math.Ceiling(reloadS * 100f) / 100f;
+                preview.rateOfFireRPM = Round2(60f / reloadS);
+            }
+            else
+            {
+                float reloadS = ammo.ammoMassKg / speedFactor;
+                preview.reloadTimeS = (float)Math.Ceiling(reloadS * 100f) / 100f;
+                preview.rateOfFireRPM = Round2(60f / reloadS);
+            }
+        }
+
+        // ---- БАЛЛИСТИКА ----
         if (ammo.isCannonball)
         {
             var bi = new CannonballCalc.BarrelInput
@@ -492,8 +492,8 @@ public static class TurretCalculator
                 barrelDiameterMm = barrel.innerDiameterMm,
                 barrelLengthMm = barrel.lengthMm,
                 shotAngleDeg = previewAngleDeg,
-                propellantTier = defaultPropellantTier,
-                propellantMassKg = defaultPropellantMassKg
+                propellantTier = propellantTier,
+                propellantMassKg = propellantMassKg
             };
 
             var bo = CannonballCalc.CalculateBarrel(ammo.cannonballOutput, bi);

@@ -6,7 +6,6 @@ using UnityEngine;
 
 /// <summary>
 ///  онтроллер верстака турелей.
-/// ѕолный аналог GeneratorWorkbenchController.
 /// </summary>
 public class TurretWorkbenchController : MonoBehaviour
 {
@@ -60,7 +59,6 @@ public class TurretWorkbenchController : MonoBehaviour
     public int LoadingPercent { get; private set; } = 33;
     public int ChamberPercent { get; private set; } = 33;
 
-    public int CorpusTier { get; private set; } = 1;
     public int LoadingTier { get; private set; } = 1;
     public int ChamberTier { get; private set; } = 1;
 
@@ -76,11 +74,11 @@ public class TurretWorkbenchController : MonoBehaviour
     // STATE Ч MOUNT
     // =========================================
 
-    public int MotorPercent { get; private set; } = 34;
     public int GyroPercent { get; private set; } = 33;
+    public int CompensatorPercent { get; private set; } = 33;
 
     // =========================================
-    // STATE Ч PROPELLANT DEFAULTS
+    // STATE Ч PROPELLANT DEFAULTS (дл€ preview)
     // =========================================
 
     public int DefaultPropellantTier { get; private set; } = 1;
@@ -208,7 +206,7 @@ public class TurretWorkbenchController : MonoBehaviour
             if (compatResult.isCompatible)
             {
                 compatibleCodes.Add(entry.ammoCode);
-                string prefix = compatResult.isCannonball ? "[ядро]" : "[ѕатрон]";
+                string prefix = compatResult.isCannonball ? "[ядро]" : "[—нар€д/ѕул€]";
                 compatibleNames.Add(
                     $"{prefix} d={compatResult.diameterMm:F0}мм " +
                     $"m={compatResult.ammoMassKg:F3}кг " +
@@ -246,19 +244,18 @@ public class TurretWorkbenchController : MonoBehaviour
 
             LoadingPercent = SelectedRef.DefaultLoadingPercent;
             ChamberPercent = SelectedRef.DefaultChamberPercent;
-            CorpusTier = SelectedRef.DefaultCorpusTier;
-            LoadingTier = SelectedRef.DefaultLoadingTier;
-            ChamberTier = SelectedRef.DefaultChamberTier;
+            LoadingTier = Mathf.Clamp(SelectedRef.DefaultLoadingTier, 1, SelectedRef.ModuleTier);
+            ChamberTier = Mathf.Clamp(SelectedRef.DefaultChamberTier, 1, SelectedRef.ModuleTier);
 
-            MotorPercent = SelectedRef.DefaultMotorPercent;
             GyroPercent = SelectedRef.DefaultGyroPercent;
+            CompensatorPercent = SelectedRef.DefaultCompensatorPercent;
 
             BarrelInnerDiameterMm = SelectedRef.DefaultBarrelInnerDiameterMm;
             BarrelOuterDiameterMm = SelectedRef.DefaultBarrelOuterDiameterMm;
             BarrelLengthMm = SelectedRef.DefaultBarrelLengthMm;
 
-            DefaultPropellantTier = SelectedRef.DefaultPropellantTier;
-            DefaultPropellantMassKg = SelectedRef.DefaultPropellantMassKg;
+            DefaultPropellantTier = 1;
+            DefaultPropellantMassKg = 0.001f;
         }
 
         RecalculateAll();
@@ -313,9 +310,19 @@ public class TurretWorkbenchController : MonoBehaviour
         RecalculateAll();
     }
 
-    public void SetCorpusTier(int v) { CorpusTier = Mathf.Clamp(v, 1, 10); RecalculateAll(); }
-    public void SetLoadingTier(int v) { LoadingTier = Mathf.Clamp(v, 1, 10); RecalculateAll(); }
-    public void SetChamberTier(int v) { ChamberTier = Mathf.Clamp(v, 1, 10); RecalculateAll(); }
+    public void SetLoadingTier(int v)
+    {
+        int maxTier = SelectedRef != null ? SelectedRef.ModuleTier : 10;
+        LoadingTier = Mathf.Clamp(v, 1, maxTier);
+        RecalculateAll();
+    }
+
+    public void SetChamberTier(int v)
+    {
+        int maxTier = SelectedRef != null ? SelectedRef.ModuleTier : 10;
+        ChamberTier = Mathf.Clamp(v, 1, maxTier);
+        RecalculateAll();
+    }
 
     // =========================================
     // SETTERS Ч BARREL
@@ -346,19 +353,19 @@ public class TurretWorkbenchController : MonoBehaviour
     // SETTERS Ч MOUNT
     // =========================================
 
-    public void SetMotorPercent(int v)
+    public void SetGyroPercent(int v)
     {
-        int maxM = 99 - Mathf.Max(GyroPercent, TurretCalculator.MinComponentPercent);
-        MotorPercent = Mathf.Clamp(v,
-            TurretCalculator.MinComponentPercent, maxM);
+        int maxG = 99 - Mathf.Max(CompensatorPercent, TurretCalculator.MinComponentPercent);
+        GyroPercent = Mathf.Clamp(v,
+            TurretCalculator.MinComponentPercent, maxG);
         RecalculateAll();
     }
 
-    public void SetGyroPercent(int v)
+    public void SetCompensatorPercent(int v)
     {
-        int maxG = 99 - Mathf.Max(MotorPercent, TurretCalculator.MinComponentPercent);
-        GyroPercent = Mathf.Clamp(v,
-            TurretCalculator.MinComponentPercent, maxG);
+        int maxC = 99 - Mathf.Max(GyroPercent, TurretCalculator.MinComponentPercent);
+        CompensatorPercent = Mathf.Clamp(v,
+            TurretCalculator.MinComponentPercent, maxC);
         RecalculateAll();
     }
 
@@ -390,7 +397,94 @@ public class TurretWorkbenchController : MonoBehaviour
 
     public void HandleScaleInput(string input)
     {
-        if (Scaler.HandleScaleInput(input)) RecalculateAll();
+        if (Scaler.HandleScaleInput(input))
+            RecalculateAll();
+    }
+
+    private void RecalculateAll()
+    {
+        if (SelectedRef == null) return;
+
+        int alloyTier = IsAlloyDecoded ? AlloyParams.tier : 1;
+        Scaler.SetAlloyTier(alloyTier);
+        Scaler.Recalculate();
+
+        RecalculateInternalResources();
+
+        // –ассчитываем массу ствола напр€мую
+        float d = Mathf.Max(BarrelInnerDiameterMm, 0.001f);
+        float D = Mathf.Max(BarrelOuterDiameterMm, d + 0.001f);
+        float L = Mathf.Max(BarrelLengthMm, d);
+        float volumeMm3 = Mathf.PI / 4f * (D * D - d * d) * L;
+        float volumeDm3 = volumeMm3 * 1e-6f; // Mm3 to Dm3
+        float barrelMass = volumeDm3 * TurretCalculator.BarrelDensity;
+
+        // “еперь правильно распредел€ем массу
+        float receiverMass;
+
+        if (Scaler.CurrentScaleMode == ModuleScaler.ScaleMode.Mass)
+        {
+            // –ежим масштабировани€ по массе: Scaler.CalcTotalMass Ч это обща€ масса турели
+            float totalTargetMass = Scaler.CalcTotalMass;
+            float mountCoeff = SelectedRef.MountCoeff;
+
+            // receiver + mount + barrel = total
+            // mount = receiver * mountCoeff
+            // receiver * (1 + mountCoeff) + barrel = total
+            // receiver = (total - barrel) / (1 + mountCoeff)
+
+            receiverMass = (totalTargetMass - barrelMass) / (1f + mountCoeff);
+            receiverMass = Mathf.Max(0.001f, receiverMass);
+        }
+        else
+        {
+            // ƒл€ остальных режимов Scaler.CalcTotalMass Ч это масса receiver
+            receiverMass = Scaler.CalcTotalMass;
+        }
+
+        float mountMass = receiverMass * SelectedRef.MountCoeff;
+
+        var receiverInput = new TurretCalculator.ReceiverInput
+        {
+            totalMassKg = receiverMass,
+            alloyTier = alloyTier,
+            loadingTier = LoadingTier,
+            chamberTier = ChamberTier,
+            loadingPercent = LoadingPercent,
+            chamberPercent = ChamberPercent
+        };
+
+        var barrelInput = new TurretCalculator.BarrelInput
+        {
+            innerDiameterMm = BarrelInnerDiameterMm,
+            outerDiameterMm = BarrelOuterDiameterMm,
+            lengthMm = BarrelLengthMm
+        };
+
+        var mountInput = new TurretCalculator.MountInput
+        {
+            mountTotalMass = mountMass,
+            alloyTier = alloyTier,
+            gyroPercent = GyroPercent,
+            compensatorPercent = CompensatorPercent
+        };
+
+        var alloyInput = new TurretCalculator.AlloyInput
+        {
+            hasAlloy = IsAlloyDecoded,
+            tier = alloyTier,
+            kineticAbsorption = IsAlloyDecoded ? AlloyParams.kineticAbsorption : 0,
+            kineticResistance = IsAlloyDecoded ? AlloyParams.kineticResistance : 0f
+        };
+
+        CalcResult = TurretCalculator.Calculate(
+            SelectedRef, Scaler,
+            receiverInput, barrelInput, mountInput, alloyInput,
+            workbenchTier, InnerVolumeM3);
+
+        CurrentModuleCode = BuildModuleCode();
+
+        RebuildAmmoList();
     }
 
     public void ResetScale()
@@ -408,65 +502,6 @@ public class TurretWorkbenchController : MonoBehaviour
         placementMode = CraftPlacementMode.SpawnInWorld;
         ClearMessages();
         RecalculateAll();
-    }
-
-    // =========================================
-    // RECALCULATION
-    // =========================================
-
-    private void RecalculateAll()
-    {
-        if (SelectedRef == null) return;
-
-        Scaler.SetAlloyTier(IsAlloyDecoded ? AlloyParams.tier : 1);
-        Scaler.Recalculate();
-
-        RecalculateInternalResources();
-
-        float receiverMass = Scaler.CalcTotalMass;
-        float mountMass = receiverMass * SelectedRef.MountCoeff;
-
-        var receiverInput = new TurretCalculator.ReceiverInput
-        {
-            totalMassKg = receiverMass,
-            corpusTier = CorpusTier,
-            loadingTier = LoadingTier,
-            chamberTier = ChamberTier,
-            loadingPercent = LoadingPercent,
-            chamberPercent = ChamberPercent
-        };
-
-        var barrelInput = new TurretCalculator.BarrelInput
-        {
-            innerDiameterMm = BarrelInnerDiameterMm,
-            outerDiameterMm = BarrelOuterDiameterMm,
-            lengthMm = BarrelLengthMm
-        };
-
-        var mountInput = new TurretCalculator.MountInput
-        {
-            mountTotalMass = mountMass,
-            corpusTier = CorpusTier,
-            motorPercent = MotorPercent,
-            gyroPercent = GyroPercent
-        };
-
-        var alloyInput = new TurretCalculator.AlloyInput
-        {
-            hasAlloy = IsAlloyDecoded,
-            tier = IsAlloyDecoded ? AlloyParams.tier : 1,
-            kineticAbsorption = IsAlloyDecoded ? AlloyParams.kineticAbsorption : 0,
-            kineticResistance = IsAlloyDecoded ? AlloyParams.kineticResistance : 0f
-        };
-
-        CalcResult = TurretCalculator.Calculate(
-            SelectedRef, Scaler,
-            receiverInput, barrelInput, mountInput, alloyInput,
-            workbenchTier, InnerVolumeM3);
-
-        CurrentModuleCode = BuildModuleCode();
-
-        RebuildAmmoList();
     }
 
     private void RecalculateInternalResources()
@@ -509,9 +544,10 @@ public class TurretWorkbenchController : MonoBehaviour
         };
 
         LastShotPreview = TurretCalculator.CalculateShotPreview(
-            LastAmmoResult, barrelIn, CalcResult,
-            PreviewAngleDeg,
-            DefaultPropellantTier, DefaultPropellantMassKg);
+    LastAmmoResult, barrelIn, CalcResult,
+    PreviewAngleDeg,
+    DefaultPropellantTier, DefaultPropellantMassKg,
+    SelectedRef.LoadingPowerCoeff);
     }
 
     // =========================================
@@ -542,7 +578,7 @@ public class TurretWorkbenchController : MonoBehaviour
         string receiverLine = TurretCode.BuildReceiverLine(
             LoadingPercent, LoadingTier,
             ChamberPercent, ChamberTier,
-            CalcResult.corpusPercent, CorpusTier,
+            CalcResult.corpusPercent,
             SelectedRef.AmmoTierBonus,
             CalcResult.loadingPower,
             CalcResult.chamberCapacity,
@@ -562,7 +598,7 @@ public class TurretWorkbenchController : MonoBehaviour
 
         string mountLine = TurretCode.BuildMountLine(
             CalcResult.mountTotalMass,
-            MotorPercent, GyroPercent, CalcResult.compensatorPercent,
+            CalcResult.motorPercent, GyroPercent, CompensatorPercent,
             CalcResult.motorMassKg,
             CalcResult.gyroMassKg,
             CalcResult.compensatorMassKg,
@@ -574,18 +610,13 @@ public class TurretWorkbenchController : MonoBehaviour
             SelectedRef.TraverseArcDeg,
             SelectedRef.EnergyConsumption);
 
-        string propellantLine = TurretCode.BuildPropellantLine(
-            DefaultPropellantTier,
-            DefaultPropellantMassKg,
-            CalcResult.maxPropellantMassKg);
-
         string alloyCode = (IsAlloyDecoded && AlloyCodes.Length > 0)
             ? AlloyCodes[SelectedAlloyIndex]
             : "NONE";
 
         return TurretCode.BuildFullCode(
             firstLine, receiverLine, barrelLine,
-            mountLine, propellantLine, alloyCode);
+            mountLine, alloyCode);
     }
 
     public void ApplyBlueprintCode(string code)
@@ -645,19 +676,15 @@ public class TurretWorkbenchController : MonoBehaviour
 
         LoadingPercent = parsed.ReceiverLine.LoadingPercent;
         ChamberPercent = parsed.ReceiverLine.ChamberPercent;
-        CorpusTier = parsed.ReceiverLine.CorpusTier;
-        LoadingTier = parsed.ReceiverLine.LoadingTier;
-        ChamberTier = parsed.ReceiverLine.ChamberTier;
+        LoadingTier = Mathf.Clamp(parsed.ReceiverLine.LoadingTier, 1, SelectedRef.ModuleTier);
+        ChamberTier = Mathf.Clamp(parsed.ReceiverLine.ChamberTier, 1, SelectedRef.ModuleTier);
 
         BarrelInnerDiameterMm = parsed.BarrelLine.InnerDiameterMm;
         BarrelOuterDiameterMm = parsed.BarrelLine.OuterDiameterMm;
         BarrelLengthMm = parsed.BarrelLine.LengthMm;
 
-        MotorPercent = parsed.MountLine.MotorPercent;
         GyroPercent = parsed.MountLine.GyroPercent;
-
-        DefaultPropellantTier = parsed.PropellantLine.PropellantTier;
-        DefaultPropellantMassKg = parsed.PropellantLine.PropellantMassKg;
+        CompensatorPercent = parsed.MountLine.CompensatorPercent;
 
         string alloyCodeFromInput = parsed.AlloyCode;
         int alloyIndex = Array.IndexOf(AlloyCodes, alloyCodeFromInput);
@@ -732,10 +759,10 @@ public class TurretWorkbenchController : MonoBehaviour
         }
 
         string alloyCode = AlloyCodes.Length > 0 ? AlloyCodes[SelectedAlloyIndex] : null;
-        float totalAlloNeed = CalcResult.totalTurretMass;
+        float totalAlloyNeed = CalcResult.totalTurretMass;
 
         if (string.IsNullOrEmpty(alloyCode) ||
-            !alloyStorage.HasEnoughMass(alloyCode, totalAlloNeed))
+            !alloyStorage.HasEnoughMass(alloyCode, totalAlloyNeed))
         {
             failReason = "Ќедостаточно сплава.";
             return false;
@@ -806,10 +833,7 @@ public class TurretWorkbenchController : MonoBehaviour
         };
 
         var turretData = new TurretData();
-        turretData.Initialize(
-            commonData, CalcResult, barrelIn,
-            DefaultPropellantTier, DefaultPropellantMassKg,
-            SelectedRef);
+        turretData.Initialize(commonData, CalcResult, barrelIn, SelectedRef);
 
         if (!HandleCraftResult(turretData, out string resultFail))
         {
@@ -877,29 +901,16 @@ public class TurretWorkbenchController : MonoBehaviour
             durability = CalcResult.totalDurability,
             wallThicknessMm = Scaler.CalcWallThicknessMm,
 
-            heatCapacity = 0f,
-            maxTemperature = 0f,
-            heatingRate = 0f,
             craftTimeSeconds = CalcResult.craftTimeSeconds,
-
-            operationalResourceUsageSummary = "Ч",
-            staticCapacityMax = 0f,
-            staticCapacityCurrent = 0f,
-            staticCapacityDrainPerSecond = 0f,
 
             moduleCode = CurrentModuleCode,
 
             canTurnOnOff = SelectedRef.CanTurnOnOff,
             turnOnOffTime = SelectedRef.TurnOnOffTime,
-            canPulseMode = SelectedRef.CanPulseMode,
-            pulseInterval = SelectedRef.PulseInterval,
             isControllable = SelectedRef.IsControllable,
 
             isVolatile = SelectedRef.IsVolatile,
             explosionDamageType = SelectedRef.ExplosionDamageType,
-            explosionRadiusMeters = 0f,
-            explosionPenetration = 0f,
-            explosionDamage = 0f,
 
             buildVisualYawOffset = SelectedRef.BuildVisualYawOffset,
             buildAnchorLocal = SelectedRef.BuildAnchorLocal,

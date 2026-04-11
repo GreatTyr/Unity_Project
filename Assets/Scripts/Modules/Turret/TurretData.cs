@@ -27,12 +27,12 @@ public class TurretData : CommonModuleData
     public float chamberMassKg;
 
     public int corpusPercent;
-    public int corpusTier;
     public float corpusMassKg;
 
     public int ammoTierBonus;
 
     [Header("Receiver Derived")]
+    public float receiverMassKg;
     public float loadingPower;
     public float chamberCapacity;
     public int maxAmmoTier;
@@ -61,11 +61,6 @@ public class TurretData : CommonModuleData
     public float maxCaliberMm;
     public float maxAmmoLengthMm;
 
-    [Header("Cannonball Propellant Defaults")]
-    public int defaultPropellantTier;
-    public float defaultPropellantMassKg;
-    public float maxPropellantMassKg;
-
     [Header("Totals")]
     public float totalTurretMass;
     public float totalDurability;
@@ -74,8 +69,6 @@ public class TurretData : CommonModuleData
         CommonModuleCraftData commonData,
         TurretCalculator.Result calc,
         TurretCalculator.BarrelInput barrelIn,
-        int defaultPropellantTier,
-        float defaultPropellantMassKg,
         StandardTurret template)
     {
         InitializeCommon(commonData);
@@ -89,26 +82,22 @@ public class TurretData : CommonModuleData
         barrelWallThicknessMm = calc.barrelWallThicknessMm;
 
         // Receiver
-        loadingPercent = calc.loadingMassKg > 0f
-            ? Mathf.RoundToInt(calc.loadingMassKg / Mathf.Max(commonData.totalMassKg, 0.001f) * 100f)
-            : 0;
-        this.loadingPercent = calc.loadingMassKg > 0f
-            ? Mathf.RoundToInt(calc.loadingMassKg / Mathf.Max(commonData.totalMassKg, 0.001f) * 100f)
-            : 0;
-
-        loadingMassKg = calc.loadingMassKg;
-        chamberMassKg = calc.chamberMassKg;
-        corpusMassKg = calc.corpusMassKg;
-        loadingPercent = calc.corpusPercent > 0
-            ? 100 - calc.corpusPercent - chamberPercent
-            : 0;
-
-        // Проще просто взять из результата калькулятора напрямую
         loadingMassKg = calc.loadingMassKg;
         chamberMassKg = calc.chamberMassKg;
         corpusMassKg = calc.corpusMassKg;
         corpusPercent = calc.corpusPercent;
 
+        loadingPercent = calc.corpusPercent > 0
+            ? 100 - calc.corpusPercent - chamberPercent
+            : 0;
+
+        chamberPercent = (int)Math.Round(
+            calc.chamberMassKg / Mathf.Max(commonData.totalMassKg, 0.001f) * 100f);
+
+        loadingTier = template != null ? Mathf.Clamp(template.DefaultLoadingTier, 1, template.ModuleTier) : 1;
+        chamberTier = template != null ? Mathf.Clamp(template.DefaultChamberTier, 1, template.ModuleTier) : 1;
+
+        receiverMassKg = calc.receiverMassKg;
         loadingPower = calc.loadingPower;
         chamberCapacity = calc.chamberCapacity;
         maxAmmoTier = calc.maxAmmoTier;
@@ -117,10 +106,14 @@ public class TurretData : CommonModuleData
 
         // Mount
         mountTotalMass = calc.mountTotalMass;
+        motorPercent = calc.motorPercent;
         motorMassKg = calc.motorMassKg;
         gyroMassKg = calc.gyroMassKg;
         compensatorMassKg = calc.compensatorMassKg;
-        compensatorPercent = calc.compensatorPercent;
+        compensatorPercent = (int)Math.Round(
+            calc.compensatorMassKg / Mathf.Max(calc.mountTotalMass, 0.001f) * 100f);
+        gyroPercent = (int)Math.Round(
+            calc.gyroMassKg / Mathf.Max(calc.mountTotalMass, 0.001f) * 100f);
 
         aimSpeed = calc.aimSpeed;
         recoilResistance = calc.recoilResistance;
@@ -138,11 +131,6 @@ public class TurretData : CommonModuleData
         minCaliberMm = calc.minCaliberMm;
         maxCaliberMm = calc.maxCaliberMm;
         maxAmmoLengthMm = calc.maxAmmoLengthMm;
-
-        // Propellant
-        this.defaultPropellantTier = defaultPropellantTier;
-        this.defaultPropellantMassKg = defaultPropellantMassKg;
-        this.maxPropellantMassKg = calc.maxPropellantMassKg;
 
         // Totals
         totalTurretMass = calc.totalTurretMass;

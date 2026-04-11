@@ -7,7 +7,6 @@ using UnityEngine.InputSystem;
 
 /// <summary>
 /// IMGUI интерфейс верстака турелей.
-/// Полный аналог GeneratorWorkbenchUI.
 /// </summary>
 [RequireComponent(typeof(TurretWorkbenchController))]
 public class TurretWorkbenchUI : MonoBehaviour, IWorkbenchUI
@@ -26,8 +25,8 @@ public class TurretWorkbenchUI : MonoBehaviour, IWorkbenchUI
     private string sBarrelLength = "1000";
     private string sLoadingPct = "33";
     private string sChamberPct = "33";
-    private string sMotorPct = "34";
     private string sGyroPct = "33";
+    private string sCompensatorPct = "33";
     private string sPropTier = "1";
     private string sPropMass = "0,001";
     private string sPreviewAngle = "45";
@@ -115,14 +114,12 @@ public class TurretWorkbenchUI : MonoBehaviour, IWorkbenchUI
 
         if (isCrafting) GUI.enabled = false;
 
-        DrawCodeSection();
-        DrawSeparator();
         DrawWorkbenchSection();
         DrawSeparator();
 
         GUILayout.BeginHorizontal();
 
-        // Левая колонка
+        // Левая колонка — настройки
         GUILayout.BeginVertical(GUILayout.Width((windowRect.width - 60f) * 0.5f));
         DrawReferenceSection();
         DrawScalingSection();
@@ -130,21 +127,19 @@ public class TurretWorkbenchUI : MonoBehaviour, IWorkbenchUI
         DrawReceiverSection();
         DrawBarrelSection();
         DrawMountSection();
-        DrawPropellantSection();
+        DrawAmmoSelectionSection();
         GUILayout.EndVertical();
 
         GUILayout.Space(10);
 
-        // Правая колонка
+        // Правая колонка — результаты
         GUILayout.BeginVertical();
-        DrawResultsSection();
-        DrawAmmoPreviewSection();
+        DrawParametersSection();
+        DrawAmmoResultsSection();
         GUILayout.EndVertical();
 
         GUILayout.EndHorizontal();
 
-        DrawSeparator();
-        DrawAlloyParamsSection();
         DrawSeparator();
 
         if (isCrafting) GUI.enabled = true;
@@ -155,6 +150,9 @@ public class TurretWorkbenchUI : MonoBehaviour, IWorkbenchUI
         GUILayout.EndVertical();
         GUILayout.FlexibleSpace();
         GUILayout.EndHorizontal();
+
+        DrawSeparator();
+        DrawCodeSection();
 
         GUILayout.EndVertical();
         GUILayout.EndScrollView();
@@ -187,33 +185,45 @@ public class TurretWorkbenchUI : MonoBehaviour, IWorkbenchUI
 
     private void DrawCodeSection()
     {
+        GUILayout.BeginVertical(_panelStyle);
+        GUILayout.Label("<color=#E0E0E0>КОД ТУРЕЛИ</color>", GetBoldStyle());
+
         GUILayout.BeginHorizontal();
-        GUILayout.BeginVertical(GUILayout.Width((windowRect.width - 40) * 0.75f));
-
         string generatedCode = controller.CurrentModuleCode;
-        DrawCompactCodeSection("КОД ТУРЕЛИ", ref generatedCode, true,
-            "КОПИРОВАТЬ", () =>
-            {
-                if (!string.IsNullOrEmpty(controller.CurrentModuleCode))
-                    GUIUtility.systemCopyBuffer = controller.CurrentModuleCode;
-            });
+        GUI.enabled = false;
+        generatedCode = GUILayout.TextArea(generatedCode, GUILayout.Height(90f), GUILayout.ExpandWidth(true));
+        GUI.enabled = true;
 
-        GUILayout.Space(5);
+        GUILayout.BeginVertical(GUILayout.Width(100));
+        if (GUILayout.Button("КОПИРОВАТЬ", GUILayout.Height(24)))
+        {
+            if (!string.IsNullOrEmpty(controller.CurrentModuleCode))
+                GUIUtility.systemCopyBuffer = controller.CurrentModuleCode;
+        }
+        GUILayout.EndVertical();
+        GUILayout.EndHorizontal();
 
-        DrawCompactCodeSection("ВВОД ЧЕРТЕЖА", ref codeInputField, false,
-            "ВСТАВИТЬ", () =>
-            {
-                codeInputField = (GUIUtility.systemCopyBuffer ?? "").Trim();
-            },
-            "ПРИМЕНИТЬ", () =>
-            {
-                controller.ApplyBlueprintCode(codeInputField);
-                PullBuffers();
-            });
+        GUILayout.Space(10);
+
+        GUILayout.Label("<color=#E0E0E0>ВВОД ЧЕРТЕЖА</color>", GetBoldStyle());
+
+        GUILayout.BeginHorizontal();
+        codeInputField = GUILayout.TextArea(codeInputField, GUILayout.Height(90f), GUILayout.ExpandWidth(true));
+
+        GUILayout.BeginVertical(GUILayout.Width(100));
+        if (GUILayout.Button("ВСТАВИТЬ", GUILayout.Height(24)))
+        {
+            codeInputField = (GUIUtility.systemCopyBuffer ?? "").Trim();
+        }
+        if (GUILayout.Button("ПРИМЕНИТЬ", GUILayout.Height(24)))
+        {
+            controller.ApplyBlueprintCode(codeInputField);
+            PullBuffers();
+        }
+        GUILayout.EndVertical();
+        GUILayout.EndHorizontal();
 
         GUILayout.EndVertical();
-        GUILayout.FlexibleSpace();
-        GUILayout.EndHorizontal();
     }
 
     private void DrawWorkbenchSection()
@@ -318,35 +328,19 @@ public class TurretWorkbenchUI : MonoBehaviour, IWorkbenchUI
         GUILayout.BeginVertical(_panelStyle);
         GUILayout.Label("<color=#E0E0E0>СТВОЛЬНАЯ КОРОБКА</color>", GetBoldStyle());
 
-        var calc = controller.CalcResult;
+        int maxTier = controller.SelectedRef != null ? controller.SelectedRef.ModuleTier : 10;
 
-        // Тиры
+        // Тир механизма заряжания
         GUILayout.BeginHorizontal();
-        GUILayout.Label("Тир корпуса:", GUILayout.Width(120));
-        int ct = Mathf.RoundToInt(GUILayout.HorizontalSlider(controller.CorpusTier, 1, 10));
-        GUILayout.Label($"T{controller.CorpusTier}", GUILayout.Width(30));
-        if (ct != controller.CorpusTier) controller.SetCorpusTier(ct);
-        GUILayout.EndHorizontal();
-
-        GUILayout.BeginHorizontal();
-        GUILayout.Label("Тир механизма:", GUILayout.Width(120));
-        int lt = Mathf.RoundToInt(GUILayout.HorizontalSlider(controller.LoadingTier, 1, 10));
+        GUILayout.Label("Тир механизма заряжания:", GUILayout.Width(180));
+        int lt = Mathf.RoundToInt(GUILayout.HorizontalSlider(controller.LoadingTier, 1, maxTier));
         GUILayout.Label($"T{controller.LoadingTier}", GUILayout.Width(30));
         if (lt != controller.LoadingTier) controller.SetLoadingTier(lt);
         GUILayout.EndHorizontal();
 
+        // Процент механизма заряжания
         GUILayout.BeginHorizontal();
-        GUILayout.Label("Тир патронника:", GUILayout.Width(120));
-        int cht = Mathf.RoundToInt(GUILayout.HorizontalSlider(controller.ChamberTier, 1, 10));
-        GUILayout.Label($"T{controller.ChamberTier}", GUILayout.Width(30));
-        if (cht != controller.ChamberTier) controller.SetChamberTier(cht);
-        GUILayout.EndHorizontal();
-
-        GUILayout.Space(4);
-
-        // Проценты механизма
-        GUILayout.BeginHorizontal();
-        GUILayout.Label("Механизм %:", GUILayout.Width(120));
+        GUILayout.Label("Механизм заряжания %:", GUILayout.Width(180));
         sLoadingPct = GUILayout.TextField(sLoadingPct, GUILayout.Width(50));
         if (GUILayout.Button("OK", GUILayout.Width(30)))
         {
@@ -360,9 +354,19 @@ public class TurretWorkbenchUI : MonoBehaviour, IWorkbenchUI
         GUILayout.Label($"{controller.LoadingPercent}%", GUILayout.Width(40));
         GUILayout.EndHorizontal();
 
-        // Проценты патронника
+        GUILayout.Space(4);
+
+        // Тир патронника
         GUILayout.BeginHorizontal();
-        GUILayout.Label("Патронник %:", GUILayout.Width(120));
+        GUILayout.Label("Тир патронника:", GUILayout.Width(180));
+        int cht = Mathf.RoundToInt(GUILayout.HorizontalSlider(controller.ChamberTier, 1, maxTier));
+        GUILayout.Label($"T{controller.ChamberTier}", GUILayout.Width(30));
+        if (cht != controller.ChamberTier) controller.SetChamberTier(cht);
+        GUILayout.EndHorizontal();
+
+        // Процент патронника
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("Патронник %:", GUILayout.Width(180));
         sChamberPct = GUILayout.TextField(sChamberPct, GUILayout.Width(50));
         if (GUILayout.Button("OK", GUILayout.Width(30)))
         {
@@ -375,12 +379,6 @@ public class TurretWorkbenchUI : MonoBehaviour, IWorkbenchUI
         { controller.SetChamberPercent(newC); PullBuffers(); }
         GUILayout.Label($"{controller.ChamberPercent}%", GUILayout.Width(40));
         GUILayout.EndHorizontal();
-
-        GUILayout.Label(
-            $"<color=#AAAAAA>Корпус: {calc.corpusPercent}%  " +
-            $"({calc.corpusMassKg:F3} кг)  " +
-            $"Механизм: {calc.loadingMassKg:F3} кг  " +
-            $"Патронник: {calc.chamberMassKg:F3} кг</color>");
 
         GUILayout.EndVertical();
     }
@@ -399,16 +397,6 @@ public class TurretWorkbenchUI : MonoBehaviour, IWorkbenchUI
         FloatInputRow("Длина (мм):", ref sBarrelLength, v =>
         { controller.SetBarrelLength(v); PullBuffers(); });
 
-        var r = controller.CalcResult;
-        GUILayout.Label(
-            $"<color=#AAAAAA>Стенка: {r.barrelWallThicknessMm:F2} мм  " +
-            $"Масса: {r.barrelMassKg:F3} кг  " +
-            $"Коэфф. прочности: {r.barrelStrengthCoeff:F4}</color>");
-
-        GUILayout.Label(
-            $"<color=#AAAAAA>Калибр: {r.minCaliberMm:F1}–{r.maxCaliberMm:F1} мм  " +
-            $"Макс. длина снаряда: {r.maxAmmoLengthMm:F1} мм</color>");
-
         GUILayout.EndVertical();
     }
 
@@ -416,24 +404,6 @@ public class TurretWorkbenchUI : MonoBehaviour, IWorkbenchUI
     {
         GUILayout.BeginVertical(_panelStyle);
         GUILayout.Label("<color=#E0E0E0>СТАНИНА</color>", GetBoldStyle());
-
-        var calc = controller.CalcResult;
-
-        // Двигатель — высокий приоритет
-        GUILayout.BeginHorizontal();
-        GUILayout.Label("Двигатель %:", GUILayout.Width(120));
-        sMotorPct = GUILayout.TextField(sMotorPct, GUILayout.Width(50));
-        if (GUILayout.Button("OK", GUILayout.Width(30)))
-        {
-            if (int.TryParse(sMotorPct, out int mp))
-            { controller.SetMotorPercent(mp); PullBuffers(); }
-        }
-        float rawM = GUILayout.HorizontalSlider(controller.MotorPercent, 1, 98);
-        int newM = Mathf.RoundToInt(rawM);
-        if (newM != controller.MotorPercent)
-        { controller.SetMotorPercent(newM); PullBuffers(); }
-        GUILayout.Label($"{controller.MotorPercent}%", GUILayout.Width(40));
-        GUILayout.EndHorizontal();
 
         // Гироскоп — высокий приоритет
         GUILayout.BeginHorizontal();
@@ -451,112 +421,33 @@ public class TurretWorkbenchUI : MonoBehaviour, IWorkbenchUI
         GUILayout.Label($"{controller.GyroPercent}%", GUILayout.Width(40));
         GUILayout.EndHorizontal();
 
-        GUILayout.Label(
-            $"<color=#AAAAAA>Компенсатор: {calc.compensatorPercent}%</color>");
-
-        GUILayout.Space(4);
+        // Компенсатор — высокий приоритет
         GUILayout.BeginHorizontal();
-        ParamBox("Поворот", $"{calc.rotationSpeed:F3}");
-        ParamBox("Сведение", $"{calc.aimSpeed:F3}");
-        ParamBox("Отдача", $"{calc.recoilResistance:F3}");
-        ParamBox("Масса ст.", $"{calc.mountTotalMass:F3} кг");
-        GUILayout.EndHorizontal();
-
-        if (controller.SelectedRef != null)
-        {
-            var r = controller.SelectedRef;
-            GUILayout.Label(
-                $"<color=#AAAAAA>Возвышение: +{r.MaxElevationDeg:F1}°  " +
-                $"Склонение: -{r.MaxDepressionDeg:F1}°  " +
-                $"Сектор: {r.TraverseArcDeg:F1}°  " +
-                $"Энергия: {r.EnergyConsumption:F2} E/s</color>");
-        }
-
-        GUILayout.EndVertical();
-    }
-
-    private void DrawPropellantSection()
-    {
-        GUILayout.BeginVertical(_panelStyle);
-        GUILayout.Label("<color=#E0E0E0>МЕТАТЕЛЬНЫЙ ЗАРЯД ДЛЯ ЯДЕР (по умолчанию)</color>",
-            GetBoldStyle());
-
-        // Тир
-        GUILayout.BeginHorizontal();
-        GUILayout.Label("Тир заряда:", GUILayout.Width(120));
-        sPropTier = GUILayout.TextField(sPropTier, GUILayout.Width(50));
+        GUILayout.Label("Компенсатор %:", GUILayout.Width(120));
+        sCompensatorPct = GUILayout.TextField(sCompensatorPct, GUILayout.Width(50));
         if (GUILayout.Button("OK", GUILayout.Width(30)))
         {
-            if (int.TryParse(sPropTier, out int pt))
-                controller.SetDefaultPropellantTier(pt);
+            if (int.TryParse(sCompensatorPct, out int cp))
+            { controller.SetCompensatorPercent(cp); PullBuffers(); }
         }
-        int slPt = Mathf.RoundToInt(
-            GUILayout.HorizontalSlider(controller.DefaultPropellantTier, 1, 10));
-        if (slPt != controller.DefaultPropellantTier)
-        {
-            controller.SetDefaultPropellantTier(slPt);
-            sPropTier = slPt.ToString();
-        }
-        GUILayout.Label($"T{controller.DefaultPropellantTier}", GUILayout.Width(30));
+        float rawCo = GUILayout.HorizontalSlider(controller.CompensatorPercent, 1, 98);
+        int newCo = Mathf.RoundToInt(rawCo);
+        if (newCo != controller.CompensatorPercent)
+        { controller.SetCompensatorPercent(newCo); PullBuffers(); }
+        GUILayout.Label($"{controller.CompensatorPercent}%", GUILayout.Width(40));
         GUILayout.EndHorizontal();
-
-        // Масса
-        FloatInputRow("Масса заряда (кг):", ref sPropMass, v =>
-            controller.SetDefaultPropellantMass(v));
-
-        GUILayout.Label(
-            $"<color=#AAAAAA>Макс. масса заряда: " +
-            $"{controller.CalcResult.maxPropellantMassKg:F3} кг</color>");
 
         GUILayout.EndVertical();
     }
 
-    private void DrawResultsSection()
+    private void DrawAmmoSelectionSection()
     {
         GUILayout.BeginVertical(_panelStyle);
-        GUILayout.Label("<color=#E0E0E0>ИТОГОВЫЕ ПАРАМЕТРЫ ТУРЕЛИ</color>",
-            GetBoldStyle());
-
-        var r = controller.CalcResult;
-
-        GUILayout.BeginHorizontal();
-        ParamBox("Общая масса", $"{r.totalTurretMass:F3} кг");
-        ParamBox("Прочность", $"{r.totalDurability:F3}");
-        ParamBox("Макс. тир бп.", $"T{r.maxAmmoTier}");
-        ParamBox("Мощн. механ.", $"{r.loadingPower:F3}");
-        GUILayout.EndHorizontal();
-
-        GUILayout.BeginHorizontal();
-        ParamBox("Коэфф. ствола", $"{r.barrelStrengthCoeff:F4}");
-        ParamBox("Масса ствола", $"{r.barrelMassKg:F3} кг");
-        ParamBox("Масса станины", $"{r.mountTotalMass:F3} кг");
-        ParamBox("Вмест. патр.", $"{r.chamberCapacity:F3}");
-        GUILayout.EndHorizontal();
-
-        GUILayout.BeginHorizontal();
-        ParamBox("Поворот", $"{r.rotationSpeed:F3}");
-        ParamBox("Сведение", $"{r.aimSpeed:F3}");
-        ParamBox("Отдача", $"{r.recoilResistance:F3}");
-        ParamBox("Крафт (с)", $"{r.craftTimeSeconds:F1}");
-        GUILayout.EndHorizontal();
-
-        GUILayout.Label(
-            $"<color=#AAAAAA>Калибр: " +
-            $"{r.minCaliberMm:F1}–{r.maxCaliberMm:F1} мм  " +
-            $"Макс. длина снаряда: {r.maxAmmoLengthMm:F1} мм</color>");
-
-        GUILayout.EndVertical();
-    }
-
-    private void DrawAmmoPreviewSection()
-    {
-        GUILayout.BeginVertical(_panelStyle);
-        GUILayout.Label("<color=#E0E0E0>ОЦЕНКА СТРЕЛЬБЫ (PREVIEW)</color>",
-            GetBoldStyle());
+        GUILayout.Label("<color=#E0E0E0>ВЫБОР БОЕПРИПАСА</color>", GetBoldStyle());
 
         if (controller.CompatibleAmmoCodes.Length == 0)
         {
-            GUILayout.Label("<color=#FFCC00>Нет совместимых боеприпасов в AmmoStorage.</color>");
+            GUILayout.Label("<color=#FFCC00>Нет совместимых боеприпасов.</color>");
             GUILayout.EndVertical();
             return;
         }
@@ -567,6 +458,14 @@ public class TurretWorkbenchUI : MonoBehaviour, IWorkbenchUI
             Mathf.Max(0, curAmmo), controller.CompatibleAmmoNames);
         if (newAmmo != curAmmo) controller.SelectAmmo(newAmmo);
 
+        var ammo = controller.LastAmmoResult;
+        if (!ammo.isCompatible)
+        {
+            GUILayout.Label($"<color=#FF4444>{ammo.reason}</color>");
+            GUILayout.EndVertical();
+            return;
+        }
+
         // Угол возвышения
         GUILayout.BeginHorizontal();
         GUILayout.Label("Угол возвышения:", GUILayout.Width(140));
@@ -576,40 +475,192 @@ public class TurretWorkbenchUI : MonoBehaviour, IWorkbenchUI
             if (TryParseFloat(sPreviewAngle, out float ang))
                 controller.SetPreviewAngle(ang);
         }
-        float rawAng = GUILayout.HorizontalSlider(
-            controller.PreviewAngleDeg, 0f, 90f);
+        GUILayout.Label($"{controller.PreviewAngleDeg:F1}°", GUILayout.Width(50));
+        GUILayout.EndHorizontal();
+
+        float rawAng = GUILayout.HorizontalSlider(controller.PreviewAngleDeg, 0f, 90f);
         if (Mathf.Abs(rawAng - controller.PreviewAngleDeg) > 0.1f)
         {
             controller.SetPreviewAngle(rawAng);
             sPreviewAngle = rawAng.ToString("F1",
                 CultureInfo.InvariantCulture).Replace('.', ',');
         }
-        GUILayout.Label($"{controller.PreviewAngleDeg:F1}°", GUILayout.Width(50));
+
+        var preview = controller.LastShotPreview;
+
+        // Метательный заряд (только для ядер)
+        if (preview.isCannonball)
+        {
+            GUILayout.Space(4);
+            GUILayout.Label("<color=#AAAAAA>Метательный заряд (для ядер):</color>");
+
+            // Тир
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Тир заряда:", GUILayout.Width(100));
+            sPropTier = GUILayout.TextField(sPropTier, GUILayout.Width(40));
+            if (GUILayout.Button("OK", GUILayout.Width(30)))
+            {
+                if (int.TryParse(sPropTier, out int pt))
+                    controller.SetDefaultPropellantTier(pt);
+            }
+            GUILayout.Label($"T{controller.DefaultPropellantTier}", GUILayout.Width(30));
+            GUILayout.EndHorizontal();
+
+            int slPt = Mathf.RoundToInt(
+                GUILayout.HorizontalSlider(controller.DefaultPropellantTier, 1, 10));
+            if (slPt != controller.DefaultPropellantTier)
+            {
+                controller.SetDefaultPropellantTier(slPt);
+                sPropTier = slPt.ToString();
+            }
+
+            // Масса
+            FloatInputRow("Масса заряда (кг):", ref sPropMass, v =>
+                controller.SetDefaultPropellantMass(v));
+
+            float maxPropMass = Mathf.Max(0f, controller.CalcResult.chamberCapacity - ammo.ammoMassKg);
+            GUILayout.Label(
+                $"<color=#AAAAAA>Макс.: {maxPropMass:F3} кг</color>");
+        }
+
+        GUILayout.EndVertical();
+    }
+
+    private void DrawParametersSection()
+    {
+        GUILayout.BeginVertical(_panelStyle);
+        GUILayout.Label("<color=#E0E0E0>ПАРАМЕТРЫ ТУРЕЛИ</color>", GetBoldStyle());
+
+        var r = controller.CalcResult;
+        var tpl = controller.SelectedRef;
+
+        // Общие параметры
+        GUILayout.Label("<color=#CCCCCC><b>Общие параметры</b></color>");
+        GUILayout.BeginHorizontal();
+        ParamBox("Тир турели", tpl != null ? $"T{tpl.ModuleTier}" : "—");
+        ParamBox("Масса турели", $"{r.totalTurretMass:F3} кг");
+        ParamBox("Прочность", $"{r.totalDurability:F3}");
+        ParamBox("Крафт", $"{r.craftTimeSeconds:F1} с");
         GUILayout.EndHorizontal();
 
-        GUILayout.Space(4);
+        if (tpl != null)
+        {
+            GUILayout.BeginHorizontal();
+            ParamBox("Макс. угол возв.", $"+{tpl.MaxElevationDeg:F1}°");
+            ParamBox("Макс. угол скл.", $"-{tpl.MaxDepressionDeg:F1}°");
+            ParamBox("Сектор", $"{tpl.TraverseArcDeg:F1}°");
+            ParamBox("Потребл. энергии", $"{tpl.EnergyConsumption:F2} E/s");
+            GUILayout.EndHorizontal();
+        }
+
+        GUILayout.Space(6);
+
+        // Параметры сплава
+        if (controller.IsAlloyDecoded)
+        {
+            var p = controller.AlloyParams;
+            GUILayout.Label($"<color=#CCCCCC><b>Параметры сплава (Тир {p.tier})</b></color>");
+
+            GUILayout.BeginHorizontal();
+            ParamBox("Кинет. погл.", $"{p.kineticAbsorption}");
+            ParamBox("Терм. погл.", $"{p.thermalAbsorption}");
+            ParamBox("Хим. погл.", $"{p.chemicalAbsorption}");
+            ParamBox("Энерг. погл.", $"{p.energyAbsorption}");
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            ParamBox("Кинет. сопр.", $"{p.kineticResistance:F1}%");
+            ParamBox("Терм. сопр.", $"{p.thermalResistance:F1}%");
+            ParamBox("Хим. сопр.", $"{p.chemicalResistance:F1}%");
+            ParamBox("Энерг. сопр.", $"{p.energyResistance:F1}%");
+            GUILayout.EndHorizontal();
+        }
+
+        GUILayout.Space(6);
+
+        // Ствольная коробка
+        GUILayout.Label("<color=#CCCCCC><b>Ствольная коробка</b></color>");
+        GUILayout.BeginHorizontal();
+        ParamBox("Масса", $"{r.receiverMassKg:F3} кг");
+        ParamBox("Масса корпуса", $"{r.corpusMassKg:F3} кг");
+        ParamBox("Мощность мех. заряж.", $"{r.loadingPower:F3}");
+        ParamBox("Макс. масса бп.", $"{r.chamberCapacity:F3} кг");
+        GUILayout.EndHorizontal();
+
+        GUILayout.BeginHorizontal();
+        ParamBox("Макс. тир бп.", $"T{r.maxAmmoTier}");
+        ParamBox("Прочность", $"{r.receiverDurability:F3}");
+        GUILayout.EndHorizontal();
+
+        GUILayout.Space(6);
+
+        // Ствол
+        GUILayout.Label("<color=#CCCCCC><b>Ствол</b></color>");
+        GUILayout.BeginHorizontal();
+        ParamBox("Масса", $"{r.barrelMassKg:F3} кг");
+        ParamBox("Стенка", $"{r.barrelWallThicknessMm:F2} мм");
+        ParamBox("Коэфф. прочн.", $"{r.barrelStrengthCoeff:F4}");
+        ParamBox("Калибр", $"{r.minCaliberMm:F1}–{r.maxCaliberMm:F1} мм");
+        GUILayout.EndHorizontal();
+
+        GUILayout.Label($"<color=#AAAAAA>Макс. длина снаряда: {r.maxAmmoLengthMm:F1} мм</color>");
+
+        GUILayout.Space(6);
+
+        // Станина
+        GUILayout.Label("<color=#CCCCCC><b>Станина</b></color>");
+        GUILayout.BeginHorizontal();
+        ParamBox("Масса", $"{r.mountTotalMass:F3} кг");
+        ParamBox("Двигатель", $"{r.motorPercent}% / {r.motorMassKg:F3} кг");
+        ParamBox("Гироскоп", $"{controller.GyroPercent}% / {r.gyroMassKg:F3} кг");
+        ParamBox("Компенсатор", $"{controller.CompensatorPercent}% / {r.compensatorMassKg:F3} кг");
+        GUILayout.EndHorizontal();
+
+        GUILayout.BeginHorizontal();
+        ParamBox("Скорость поворота", $"{r.rotationSpeed:F3}");
+        ParamBox("Скорость сведения", $"{r.aimSpeed:F3}");
+        ParamBox("Гашение отдачи", $"{r.recoilResistance:F3}");
+        GUILayout.EndHorizontal();
+
+        GUILayout.EndVertical();
+    }
+
+    private void DrawAmmoResultsSection()
+    {
+        GUILayout.BeginVertical(_panelStyle);
+        GUILayout.Label("<color=#E0E0E0>ОЦЕНКА СТРЕЛЬБЫ</color>", GetBoldStyle());
+
+        if (controller.CompatibleAmmoCodes.Length == 0)
+        {
+            GUILayout.Label("<color=#FFCC00>Нет боеприпасов.</color>");
+            GUILayout.EndVertical();
+            return;
+        }
 
         var preview = controller.LastShotPreview;
         var ammo = controller.LastAmmoResult;
 
         if (!ammo.isCompatible)
         {
-            GUILayout.Label(
-                $"<color=#FF4444>Боеприпас несовместим: {ammo.reason}</color>");
+            GUILayout.Label($"<color=#FF4444>Несовместим</color>");
             GUILayout.EndVertical();
             return;
         }
 
-        string typeStr = preview.isCannonball ? "Ядро" : "Патрон";
+        string typeStr = preview.isCannonball ? "Ядро" : "Снаряд/Пуля";
         GUILayout.Label($"<color=#AAAAAA>Тип:</color> {typeStr}  " +
                          $"<color=#AAAAAA>Диам.:</color> {ammo.diameterMm:F1} мм  " +
-                         $"<color=#AAAAAA>Масса:</color> {ammo.ammoMassKg:F3} кг");
+                         $"<color=#AAAAAA>Масса:</color> {ammo.ammoMassKg:F3} кг  " +
+                         $"<color=#AAAAAA>Тир:</color> T{ammo.ammoTier}");
 
         if (!preview.valid && !string.IsNullOrEmpty(preview.error))
         {
             GUILayout.Label($"<color=#FF8800>⚠ {preview.error}</color>");
         }
 
+        GUILayout.Space(4);
+
+        // Баллистика
         GUILayout.BeginHorizontal();
         ParamBox("Скорость", $"{preview.projectileSpeed:F1} м/с");
         ParamBox("Точность", $"{preview.accuracy:F4}°");
@@ -624,45 +675,19 @@ public class TurretWorkbenchUI : MonoBehaviour, IWorkbenchUI
         ParamBox("Прям. пробит.", $"{preview.directPenetration:F3}");
         GUILayout.EndHorizontal();
 
-        GUILayout.Label(
-            $"<color=#AAAAAA>Перезарядка бп: {preview.reloadTimeS:F2} с  " +
-            $"Перезарядка заряда: {preview.propellantReloadTimeS:F2} с</color>");
+        // Скорострельность и перезарядка
+        GUILayout.Space(4);
+        GUILayout.BeginHorizontal();
+        ParamBox("Скорострельность", $"{preview.rateOfFireRPM:F2} выстр/мин");
+        ParamBox("Перезарядка", $"{preview.reloadTimeS:F2} с");
+        GUILayout.EndHorizontal();
 
-        GUILayout.EndVertical();
-    }
-
-    private void DrawAlloyParamsSection()
-    {
-        GUILayout.BeginVertical(_panelStyle);
-        GUILayout.Label("<color=#E0E0E0>АНАЛИЗ СПЛАВА</color>", GetBoldStyle());
-
-        if (!controller.IsAlloyDecoded)
+        // Предупреждение о лучевой механике
+        if (preview.rateOfFireRPM > 600f)
         {
-            GUILayout.Label("<color=#FFCC00>(Сплав не выбран)</color>");
-            GUILayout.EndVertical();
-            return;
+            GUILayout.Label(
+                "<color=#FFD700><b>⚡ При скорострельности более 10 выстр/с механика турели меняется на лучевую.</b></color>");
         }
-
-        var p = controller.AlloyParams;
-        GUILayout.BeginHorizontal();
-        GUILayout.Label($"<color=#AAAAAA>Тир:</color> <b>{p.tier}</b>",
-            GUILayout.Width(100));
-        GUILayout.Label(
-            $"<color=#AAAAAA>Хим.:</color> " +
-            $"{(p.useChemicals ? "<color=#00FF00>Да</color>" : "<color=#FF4444>Нет</color>")}",
-            GUILayout.Width(100));
-        GUILayout.Label(
-            $"<color=#AAAAAA>Нан.:</color> " +
-            $"{(p.useNanites ? "<color=#00FF00>Да</color>" : "<color=#FF4444>Нет</color>")}");
-        GUILayout.EndHorizontal();
-
-        float colW = (windowRect.width - 70) / 4f;
-        GUILayout.BeginHorizontal();
-        DrawAlloyCol("KINETIC", p.kineticAbsorption, p.kineticResistance, colW);
-        DrawAlloyCol("THERMAL", p.thermalAbsorption, p.thermalResistance, colW);
-        DrawAlloyCol("CHEMICAL", p.chemicalAbsorption, p.chemicalResistance, colW);
-        DrawAlloyCol("ENERGY", p.energyAbsorption, p.energyResistance, colW);
-        GUILayout.EndHorizontal();
 
         GUILayout.EndVertical();
     }
@@ -789,8 +814,8 @@ public class TurretWorkbenchUI : MonoBehaviour, IWorkbenchUI
             "F1", CultureInfo.InvariantCulture).Replace('.', ',');
         sLoadingPct = controller.LoadingPercent.ToString();
         sChamberPct = controller.ChamberPercent.ToString();
-        sMotorPct = controller.MotorPercent.ToString();
         sGyroPct = controller.GyroPercent.ToString();
+        sCompensatorPct = controller.CompensatorPercent.ToString();
         sPropTier = controller.DefaultPropellantTier.ToString();
         sPropMass = controller.DefaultPropellantMassKg.ToString(
             "0.###", CultureInfo.InvariantCulture).Replace('.', ',');
@@ -818,17 +843,6 @@ public class TurretWorkbenchUI : MonoBehaviour, IWorkbenchUI
             CultureInfo.InvariantCulture, out v);
     }
 
-    private void DrawCompactCodeSection(
-        string title, ref string text, bool readOnly,
-        string btn1, Action act1,
-        string btn2 = null, Action act2 = null)
-    {
-        WorkbenchUICommon.DrawCompactCodeSection(
-            title, ref text, readOnly,
-            btn1, act1, _panelStyle, GetBoldStyle(),
-            btn2, act2);
-    }
-
     private void ParamBox(string label, string val)
     {
         GUILayout.BeginVertical(GUILayout.Width(130));
@@ -836,15 +850,6 @@ public class TurretWorkbenchUI : MonoBehaviour, IWorkbenchUI
             $"<color=#AAAAAA>{label}</color>",
             new GUIStyle(GUI.skin.label) { fontSize = 11 });
         GUILayout.Label(val, GetBoldStyle());
-        GUILayout.EndVertical();
-    }
-
-    private void DrawAlloyCol(string title, int absorb, float resist, float width)
-    {
-        GUILayout.BeginVertical("box", GUILayout.Width(width));
-        GUILayout.Label($"<color=#CCCCCC><b>{title}</b></color>");
-        GUILayout.Label($"Поглощение: <b>{absorb}</b>");
-        GUILayout.Label($"Сопротивление: <b>{resist:F1}%</b>");
         GUILayout.EndVertical();
     }
 

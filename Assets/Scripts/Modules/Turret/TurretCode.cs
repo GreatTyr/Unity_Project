@@ -4,13 +4,12 @@ using System.Globalization;
 
 /// <summary>
 /// Кодек строкового представления турели.
-/// Формат: 6 строк, разделитель '\n'.
-/// Строка 1: общие параметры (как генератор)
-/// Строка 2: параметры ствольной коробки (проценты, тиры, рассчитанные значения)
+/// Формат: 5 строк, разделитель '\n'.
+/// Строка 1: общие параметры
+/// Строка 2: параметры ствольной коробки
 /// Строка 3: параметры ствола
 /// Строка 4: параметры станины
-/// Строка 5: метательный заряд по умолчанию для ядер
-/// Строка 6: сплав
+/// Строка 5: сплав
 /// </summary>
 public static class TurretCode
 {
@@ -41,7 +40,6 @@ public static class TurretCode
         public int ChamberPercent;
         public int ChamberTier;
         public int CorpusPercent;
-        public int CorpusTier;
         public int AmmoTierBonus;
         public float LoadingPower;
         public float ChamberCapacity;
@@ -84,15 +82,6 @@ public static class TurretCode
         public float EnergyConsumption;
     }
 
-    public struct ParsedPropellantLine
-    {
-        public bool IsValid;
-        public string ErrorMessage;
-        public int PropellantTier;
-        public float PropellantMassKg;
-        public float MaxPropellantMassKg;
-    }
-
     public struct ParsedFullCode
     {
         public bool IsValid;
@@ -101,7 +90,6 @@ public static class TurretCode
         public ParsedReceiverLine ReceiverLine;
         public ParsedBarrelLine BarrelLine;
         public ParsedMountLine MountLine;
-        public ParsedPropellantLine PropellantLine;
         public string AlloyCode;
     }
 
@@ -134,7 +122,7 @@ public static class TurretCode
     public static string BuildReceiverLine(
         int loadingPercent, int loadingTier,
         int chamberPercent, int chamberTier,
-        int corpusPercent, int corpusTier,
+        int corpusPercent,
         int ammoTierBonus,
         float loadingPower, float chamberCapacity,
         int maxAmmoTier, float receiverDurability,
@@ -142,7 +130,7 @@ public static class TurretCode
     {
         return $"LP{loadingPercent}-LT{loadingTier}" +
                $"-CP{chamberPercent}-CT{chamberTier}" +
-               $"-RP{corpusPercent}-RT{corpusTier}" +
+               $"-RP{corpusPercent}" +
                $"-ATB{ammoTierBonus}" +
                $"-LPW{F3(loadingPower)}" +
                $"-CC{F3(chamberCapacity)}" +
@@ -187,24 +175,15 @@ public static class TurretCode
                $"-EC{F3(energyConsumption)}";
     }
 
-    public static string BuildPropellantLine(
-        int propellantTier, float propellantMassKg, float maxPropellantMassKg)
-    {
-        return $"PT{propellantTier}" +
-               $"-PM{F3(propellantMassKg)}" +
-               $"-PMX{F3(maxPropellantMassKg)}";
-    }
-
     public static string BuildFullCode(
         string firstLine, string receiverLine,
         string barrelLine, string mountLine,
-        string propellantLine, string alloyCode)
+        string alloyCode)
     {
         return $"{Norm(firstLine)}\n" +
                $"{Norm(receiverLine)}\n" +
                $"{Norm(barrelLine)}\n" +
                $"{Norm(mountLine)}\n" +
-               $"{Norm(propellantLine)}\n" +
                $"{Norm(alloyCode)}";
     }
 
@@ -218,9 +197,9 @@ public static class TurretCode
         string norm = Norm(code);
         string[] lines = norm.Split('\n');
 
-        if (lines.Length < 6)
+        if (lines.Length < 5)
         {
-            parsed.ErrorMessage = "Код турели должен содержать 6 строк.";
+            parsed.ErrorMessage = "Код турели должен содержать 5 строк.";
             return false;
         }
 
@@ -248,13 +227,7 @@ public static class TurretCode
             return false;
         }
 
-        if (!TryParsePropellantLine(lines[4], out parsed.PropellantLine))
-        {
-            parsed.ErrorMessage = parsed.PropellantLine.ErrorMessage;
-            return false;
-        }
-
-        parsed.AlloyCode = lines[5].Trim();
+        parsed.AlloyCode = lines[4].Trim();
         parsed.IsValid = true;
         return true;
     }
@@ -312,7 +285,6 @@ public static class TurretCode
             !TryGetInt(tokens, "CP", out p.ChamberPercent) ||
             !TryGetInt(tokens, "CT", out p.ChamberTier) ||
             !TryGetInt(tokens, "RP", out p.CorpusPercent) ||
-            !TryGetInt(tokens, "RT", out p.CorpusTier) ||
             !TryGetInt(tokens, "ATB", out p.AmmoTierBonus) ||
             !TryGetFloat(tokens, "LPW", out p.LoadingPower) ||
             !TryGetFloat(tokens, "CC", out p.ChamberCapacity) ||
@@ -384,26 +356,6 @@ public static class TurretCode
         return true;
     }
 
-    public static bool TryParsePropellantLine(string line, out ParsedPropellantLine p)
-    {
-        p = default;
-        if (string.IsNullOrWhiteSpace(line))
-        { p.ErrorMessage = "Пустая строка метательного заряда."; return false; }
-
-        var tokens = TokenDict(Norm(line).Split('-'));
-
-        if (!TryGetInt(tokens, "PT", out p.PropellantTier) ||
-            !TryGetFloat(tokens, "PM", out p.PropellantMassKg) ||
-            !TryGetFloat(tokens, "PMX", out p.MaxPropellantMassKg))
-        {
-            p.ErrorMessage = "Ошибка разбора строки метательного заряда.";
-            return false;
-        }
-
-        p.IsValid = true;
-        return true;
-    }
-
     // =========================================
     // EQUIVALENCE
     // =========================================
@@ -438,7 +390,6 @@ public static class TurretCode
                pa.LoadingTier == pb.LoadingTier &&
                pa.ChamberPercent == pb.ChamberPercent &&
                pa.ChamberTier == pb.ChamberTier &&
-               pa.CorpusTier == pb.CorpusTier &&
                pa.AmmoTierBonus == pb.AmmoTierBonus &&
                Near(pa.LoadingPower, pb.LoadingPower, GenTol) &&
                Near(pa.ChamberCapacity, pb.ChamberCapacity, GenTol) &&

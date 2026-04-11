@@ -53,8 +53,8 @@ public static class TurretVerifier
         string inL4 = inputLines.Length > 3 ? inputLines[3] : "";
         string caL4 = canonicalLines.Length > 3 ? canonicalLines[3] : "";
 
-        string inL6 = inputLines.Length > 5 ? inputLines[5] : "";
-        string caL6 = canonicalLines.Length > 5 ? canonicalLines[5] : "";
+        string inL5 = inputLines.Length > 4 ? inputLines[4] : "";
+        string caL5 = canonicalLines.Length > 4 ? canonicalLines[4] : "";
 
         if (!TurretCode.AreFirstLinesEquivalent(inL1, caL1))
         {
@@ -80,11 +80,11 @@ public static class TurretVerifier
             return result;
         }
 
-        if (!string.Equals(inL6, caL6, StringComparison.Ordinal))
+        if (!string.Equals(inL5, caL5, StringComparison.Ordinal))
         {
             result.WarningMessage =
                 $"Код турели соответствует конфигурации, но код сплава отличается.\n" +
-                $"Было: {inL6}\nОжидалось: {caL6}";
+                $"Было: {inL5}\nОжидалось: {caL5}";
         }
 
         result.IsValid = true;

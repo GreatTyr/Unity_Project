@@ -86,8 +86,12 @@ MonoBehaviour:
   factionShortName: TESTF1
   blueprintId: 001
   VolumeCoefficientPercent: 15
-  ConstantFillPercent: 100
-  InternalResourceCosts: []
+  ConstantFillPercent: 80
+  InternalResourceCosts:
+  - resourceType: 20
+    gramsPerLiter: 90
+  - resourceType: 40
+    gramsPerLiter: 10
   CraftCoefficient: 1
   CanTurnOnOff: 0
   TurnOnOffTime: 1
@@ -108,8 +112,8 @@ MonoBehaviour:
   aabbVolume: 8.168952
   realVolume: 1.225343
   effectiveVolume: 1.225343
-  massKg: 1225.343
-  fillPercentUsed: 100
+  massKg: 980.274
+  fillPercentUsed: 80
   DurabilityCoeff: 1
   LoadingPowerCoeff: 1
   ChamberCapacityCoeff: 1
@@ -120,19 +124,19 @@ MonoBehaviour:
   AimSpeedCoeff: 1
   RecoilCoeff: 1
   RotationSpeedCoeff: 1
-  MaxElevationDeg: 45
-  MaxDepressionDeg: 10
-  TraverseArcDeg: 360
+  MaxElevationDeg: 10
+  MaxDepressionDeg: 5
+  TraverseArcDeg: 20
   EnergyConsumption: 0
   DefaultCorpusTier: 1
   DefaultLoadingTier: 1
   DefaultChamberTier: 1
   DefaultLoadingPercent: 33
   DefaultChamberPercent: 33
-  DefaultMotorPercent: 34
-  DefaultGyroPercent: 33
+  DefaultMotorPercent: 80
+  DefaultGyroPercent: 10
   DefaultBarrelInnerDiameterMm: 150
   DefaultBarrelOuterDiameterMm: 200
   DefaultBarrelLengthMm: 3000
   DefaultPropellantTier: 1
-  DefaultPropellantMassKg: 0.001
+  DefaultPropellantMassKg: 15

@@ -32,22 +32,17 @@ public class StandardTurret : StandardModuleBase
     [Min(0f)] public float EnergyConsumption = 0f;
 
     [Header("Defaults for Workbench")]
-    [Range(1, 10)] public int DefaultCorpusTier = 1;
     [Range(1, 10)] public int DefaultLoadingTier = 1;
     [Range(1, 10)] public int DefaultChamberTier = 1;
     [Range(1, 99)] public int DefaultLoadingPercent = 33;
     [Range(1, 99)] public int DefaultChamberPercent = 33;
-    [Range(1, 99)] public int DefaultMotorPercent = 34;
     [Range(1, 99)] public int DefaultGyroPercent = 33;
+    [Range(1, 99)] public int DefaultCompensatorPercent = 33;
 
     [Header("Defaults for Barrel")]
     [Min(1f)] public float DefaultBarrelInnerDiameterMm = 100f;
     [Min(1f)] public float DefaultBarrelOuterDiameterMm = 120f;
     [Min(1f)] public float DefaultBarrelLengthMm = 1000f;
-
-    [Header("Defaults for Cannonball Propellant")]
-    [Range(1, 10)] public int DefaultPropellantTier = 1;
-    [Min(0.001f)] public float DefaultPropellantMassKg = 0.001f;
 
     protected override void OnValidate()
     {
@@ -66,8 +61,6 @@ public class StandardTurret : StandardModuleBase
         DefaultBarrelLengthMm = Mathf.Max(
             DefaultBarrelInnerDiameterMm,
             DefaultBarrelLengthMm);
-
-        DefaultPropellantMassKg = Mathf.Max(0.001f, DefaultPropellantMassKg);
     }
 
     protected override void ComputeSpecificOutputs() { }
@@ -113,20 +106,16 @@ public class StandardTurretEditor : Editor
     private SerializedProperty pTraverseArcDeg;
     private SerializedProperty pEnergyConsumption;
 
-    private SerializedProperty pDefaultCorpusTier;
     private SerializedProperty pDefaultLoadingTier;
     private SerializedProperty pDefaultChamberTier;
     private SerializedProperty pDefaultLoadingPercent;
     private SerializedProperty pDefaultChamberPercent;
-    private SerializedProperty pDefaultMotorPercent;
     private SerializedProperty pDefaultGyroPercent;
+    private SerializedProperty pDefaultCompensatorPercent;
 
     private SerializedProperty pDefaultBarrelInnerDiameterMm;
     private SerializedProperty pDefaultBarrelOuterDiameterMm;
     private SerializedProperty pDefaultBarrelLengthMm;
-
-    private SerializedProperty pDefaultPropellantTier;
-    private SerializedProperty pDefaultPropellantMassKg;
 
     private string[] factionDisplayNames;
     private string[] factionShortNames;
@@ -169,20 +158,16 @@ public class StandardTurretEditor : Editor
         pTraverseArcDeg = serializedObject.FindProperty("TraverseArcDeg");
         pEnergyConsumption = serializedObject.FindProperty("EnergyConsumption");
 
-        pDefaultCorpusTier = serializedObject.FindProperty("DefaultCorpusTier");
         pDefaultLoadingTier = serializedObject.FindProperty("DefaultLoadingTier");
         pDefaultChamberTier = serializedObject.FindProperty("DefaultChamberTier");
         pDefaultLoadingPercent = serializedObject.FindProperty("DefaultLoadingPercent");
         pDefaultChamberPercent = serializedObject.FindProperty("DefaultChamberPercent");
-        pDefaultMotorPercent = serializedObject.FindProperty("DefaultMotorPercent");
         pDefaultGyroPercent = serializedObject.FindProperty("DefaultGyroPercent");
+        pDefaultCompensatorPercent = serializedObject.FindProperty("DefaultCompensatorPercent");
 
         pDefaultBarrelInnerDiameterMm = serializedObject.FindProperty("DefaultBarrelInnerDiameterMm");
         pDefaultBarrelOuterDiameterMm = serializedObject.FindProperty("DefaultBarrelOuterDiameterMm");
         pDefaultBarrelLengthMm = serializedObject.FindProperty("DefaultBarrelLengthMm");
-
-        pDefaultPropellantTier = serializedObject.FindProperty("DefaultPropellantTier");
-        pDefaultPropellantMassKg = serializedObject.FindProperty("DefaultPropellantMassKg");
 
         RebuildFactionList();
     }
@@ -287,7 +272,6 @@ public class StandardTurretEditor : Editor
         // DEFAULTS
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Workbench Defaults — Receiver", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(pDefaultCorpusTier, new GUIContent("Default Corpus Tier"));
         EditorGUILayout.PropertyField(pDefaultLoadingTier, new GUIContent("Default Loading Tier"));
         EditorGUILayout.PropertyField(pDefaultChamberTier, new GUIContent("Default Chamber Tier"));
         EditorGUILayout.PropertyField(pDefaultLoadingPercent, new GUIContent("Default Loading %"));
@@ -295,19 +279,14 @@ public class StandardTurretEditor : Editor
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Workbench Defaults — Mount", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(pDefaultMotorPercent, new GUIContent("Default Motor %"));
         EditorGUILayout.PropertyField(pDefaultGyroPercent, new GUIContent("Default Gyro %"));
+        EditorGUILayout.PropertyField(pDefaultCompensatorPercent, new GUIContent("Default Compensator %"));
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Workbench Defaults — Barrel", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(pDefaultBarrelInnerDiameterMm, new GUIContent("Default Inner Diameter (mm)"));
         EditorGUILayout.PropertyField(pDefaultBarrelOuterDiameterMm, new GUIContent("Default Outer Diameter (mm)"));
         EditorGUILayout.PropertyField(pDefaultBarrelLengthMm, new GUIContent("Default Length (mm)"));
-
-        EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Workbench Defaults — Cannonball Propellant", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(pDefaultPropellantTier, new GUIContent("Default Propellant Tier"));
-        EditorGUILayout.PropertyField(pDefaultPropellantMassKg, new GUIContent("Default Propellant Mass (kg)"));
 
         // CRAFTING
         EditorGUILayout.Space();
@@ -320,13 +299,9 @@ public class StandardTurretEditor : Editor
         EditorGUILayout.LabelField("Module Capabilities", EditorStyles.boldLabel);
         var pTurn = serializedObject.FindProperty("CanTurnOnOff");
         var pTurnT = serializedObject.FindProperty("TurnOnOffTime");
-        var pPulse = serializedObject.FindProperty("CanPulseMode");
-        var pPulseI = serializedObject.FindProperty("PulseInterval");
         var pControl = serializedObject.FindProperty("IsControllable");
         if (pTurn != null) EditorGUILayout.PropertyField(pTurn, new GUIContent("Can Turn On/Off"));
         if (pTurnT != null) EditorGUILayout.PropertyField(pTurnT, new GUIContent("Turn On/Off Time"));
-        if (pPulse != null) EditorGUILayout.PropertyField(pPulse, new GUIContent("Can Pulse Mode"));
-        if (pPulseI != null) EditorGUILayout.PropertyField(pPulseI, new GUIContent("Pulse Interval"));
         if (pControl != null) EditorGUILayout.PropertyField(pControl, new GUIContent("Is Controllable"));
 
         // DESTRUCTION
