@@ -2,11 +2,15 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
-/// Универсальный переключатель окон. 
-/// Автоматически находит любой скрипт, реализующий IWorkbenchUI (Генератор, Батарея и т.д.).
+/// Универсальный переключатель окон верстака. 
+/// Можно указать верстак напрямую или он найдется автоматически на этом объекте.
 /// </summary>
 public class WorkbenchToggle : MonoBehaviour
 {
+    [Header("Workbench Reference")]
+    [Tooltip("Оставь пустым для автопоиска на этом объекте")]
+    [SerializeField] private GameObject workbenchObject;
+
     [Header("Input")]
     [SerializeField] private Key toggleKey = Key.P;
 
@@ -15,12 +19,25 @@ public class WorkbenchToggle : MonoBehaviour
 
     private void Awake()
     {
-        // Ищем любой UI верстака, который висит на этом же объекте
-        workbenchUI = GetComponent<IWorkbenchUI>();
-
-        if (workbenchUI == null)
+        // Если объект указан вручную — ищем UI на нём
+        if (workbenchObject != null)
         {
-            Debug.LogError($"[WorkbenchToggle] На объекте {gameObject.name} не найден компонент, реализующий IWorkbenchUI!");
+            workbenchUI = workbenchObject.GetComponent<IWorkbenchUI>();
+
+            if (workbenchUI == null)
+            {
+                Debug.LogError($"[WorkbenchToggle] На объекте {workbenchObject.name} не найден компонент, реализующий IWorkbenchUI!");
+            }
+        }
+        // Иначе ищем на текущем объекте
+        else
+        {
+            workbenchUI = GetComponent<IWorkbenchUI>();
+
+            if (workbenchUI == null)
+            {
+                Debug.LogError($"[WorkbenchToggle] На объекте {gameObject.name} не найден компонент, реализующий IWorkbenchUI!");
+            }
         }
     }
 
@@ -28,16 +45,18 @@ public class WorkbenchToggle : MonoBehaviour
     {
         if (workbenchUI == null || Keyboard.current == null) return;
 
-        if (!Keyboard.current[toggleKey].wasPressedThisFrame) return;
+        if (Keyboard.current[toggleKey].wasPressedThisFrame)
+        {
+            isOpen = !isOpen;
 
-        isOpen = !isOpen;
-        if (isOpen)
-        {
-            workbenchUI.OpenPanel();
-        }
-        else
-        {
-            workbenchUI.ClosePanel();
+            if (isOpen)
+            {
+                workbenchUI.OpenPanel();
+            }
+            else
+            {
+                workbenchUI.ClosePanel();
+            }
         }
     }
 }

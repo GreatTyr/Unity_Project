@@ -1,0 +1,127 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &7019373707278266118
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: 3766c4338da0b724081be6dc7d647551, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3766c4338da0b724081be6dc7d647551, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -6.98
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3766c4338da0b724081be6dc7d647551, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -1.0004205
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3766c4338da0b724081be6dc7d647551, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -10.47
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3766c4338da0b724081be6dc7d647551, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3766c4338da0b724081be6dc7d647551, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3766c4338da0b724081be6dc7d647551, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3766c4338da0b724081be6dc7d647551, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3766c4338da0b724081be6dc7d647551, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3766c4338da0b724081be6dc7d647551, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3766c4338da0b724081be6dc7d647551, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 3766c4338da0b724081be6dc7d647551, type: 3}
+      propertyPath: m_Name
+      value: Test ArmorPlate
+      objectReference: {fileID: 0}
+    - target: {fileID: 6280153719303336519, guid: 3766c4338da0b724081be6dc7d647551, type: 3}
+      propertyPath: m_Name
+      value: Test ArmorPlate_Collider
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3766c4338da0b724081be6dc7d647551, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 606010083236238620}
+  m_SourcePrefab: {fileID: 100100000, guid: 3766c4338da0b724081be6dc7d647551, type: 3}
+--- !u!1 &7901771033362076247 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 3766c4338da0b724081be6dc7d647551, type: 3}
+  m_PrefabInstance: {fileID: 7019373707278266118}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &606010083236238620
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7901771033362076247}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 52d236964b00f7146a5457472cb74ee0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StandardArmorPlate
+  ModuleTier: 1
+  factionShortName: TESTF1
+  blueprintId: 0
+  lengthMeters: 3.9666252
+  widthMeters: 1.27667
+  heightMeters: 2.2070308
+  volumeM3: 2.7235684
+  MassCoefficient: 1
+  DurabilityCoefficient: 1
+  WallThicknessCoefficient: 1
+  KineticAbsorptionRelativeBonus: 1
+  ThermalAbsorptionRelativeBonus: 1
+  ChemicalAbsorptionRelativeBonus: 1
+  EnergyAbsorptionRelativeBonus: 1
+  KineticAbsorptionAbsoluteBonus: 0
+  ThermalAbsorptionAbsoluteBonus: 0
+  ChemicalAbsorptionAbsoluteBonus: 0
+  EnergyAbsorptionAbsoluteBonus: 0
+  KineticResistanceRelativeBonus: 1
+  ThermalResistanceRelativeBonus: 1
+  ChemicalResistanceRelativeBonus: 1
+  EnergyResistanceRelativeBonus: 1
+  KineticResistanceAbsoluteBonus: 0
+  ThermalResistanceAbsoluteBonus: 0
+  ChemicalResistanceAbsoluteBonus: 0
+  EnergyResistanceAbsoluteBonus: 0
+  BaseHeating: 10
+  HeatCapacityCoeff: 1000
+  InternalResourceCosts: []
+  CraftCoefficient: 1
+  IsVolatile: 0
+  ExplosionDamageType: 0
+  ExplosionRadiusCoefficient: 1
+  ExplosionPenetrationCoefficient: 1
+  ExplosionDamageCoefficient: 1
+  BuildVisualYawOffset: 0
+  BuildAnchorLocal: {x: 0, y: 0, z: 0}
+  UseBuildAnchorPlacement: 0
+  BuildAnchorCellLocal: {x: 0, y: 0, z: 0}
+  Description: 
