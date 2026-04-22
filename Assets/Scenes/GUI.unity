@@ -1188,10 +1188,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c19b16e96ee60fd4ebcf5d1eff5b06ea, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TurretWorkbenchController
-  workbenchTier: 3
-  innerLength: 3
-  innerWidth: 3
-  innerHeight: 3
+  workbenchTier: 10
+  innerLength: 10
+  innerWidth: 10
+  innerHeight: 10
   database: {fileID: 11400000, guid: c54345556ab769748bcd637d22fede7a, type: 2}
   resourcesStorage: {fileID: 116770712}
   alloyStorage: {fileID: 116770713}
@@ -1409,6 +1409,95 @@ WheelCollider:
   m_LayerOverridePriority: 0
   m_Enabled: 1
   m_ProvidesContacts: 0
+--- !u!1001 &443652593
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 1279308056668017557, guid: 512e6336a86ceac4dbc601de127161ba, type: 3}
+      propertyPath: m_Name
+      value: UIRoot
+      objectReference: {fileID: 0}
+    - target: {fileID: 1279308056668017557, guid: 512e6336a86ceac4dbc601de127161ba, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8233634036188346862, guid: 512e6336a86ceac4dbc601de127161ba, type: 3}
+      propertyPath: furnaceUI
+      value: 
+      objectReference: {fileID: 443652595}
+    - target: {fileID: 8233634036188346862, guid: 512e6336a86ceac4dbc601de127161ba, type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8411017661538127405, guid: 512e6336a86ceac4dbc601de127161ba, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -37.25967
+      objectReference: {fileID: 0}
+    - target: {fileID: 8411017661538127405, guid: 512e6336a86ceac4dbc601de127161ba, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8411017661538127405, guid: 512e6336a86ceac4dbc601de127161ba, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -9.23146
+      objectReference: {fileID: 0}
+    - target: {fileID: 8411017661538127405, guid: 512e6336a86ceac4dbc601de127161ba, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8411017661538127405, guid: 512e6336a86ceac4dbc601de127161ba, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8411017661538127405, guid: 512e6336a86ceac4dbc601de127161ba, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8411017661538127405, guid: 512e6336a86ceac4dbc601de127161ba, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8411017661538127405, guid: 512e6336a86ceac4dbc601de127161ba, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8411017661538127405, guid: 512e6336a86ceac4dbc601de127161ba, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8411017661538127405, guid: 512e6336a86ceac4dbc601de127161ba, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1279308056668017557, guid: 512e6336a86ceac4dbc601de127161ba, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 443652595}
+  m_SourcePrefab: {fileID: 100100000, guid: 512e6336a86ceac4dbc601de127161ba, type: 3}
+--- !u!1 &443652594 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1279308056668017557, guid: 512e6336a86ceac4dbc601de127161ba, type: 3}
+  m_PrefabInstance: {fileID: 443652593}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &443652595
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 443652594}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0e79f98ac8d2a9d4e82cbb047467c4c9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FurnaceUI
 --- !u!1001 &489078026
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -4478,6 +4567,7 @@ SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 1108148732}
+  - {fileID: 443652593}
   - {fileID: 565360689}
   - {fileID: 751877469}
   - {fileID: 1214531446}

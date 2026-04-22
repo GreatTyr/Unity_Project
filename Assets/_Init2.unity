@@ -474,10 +474,18 @@ PrefabInstance:
       propertyPath: m_Name
       value: UIRoot
       objectReference: {fileID: 0}
+    - target: {fileID: 1279308056668017557, guid: 512e6336a86ceac4dbc601de127161ba, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 8233634036188346862, guid: 512e6336a86ceac4dbc601de127161ba, type: 3}
       propertyPath: furnaceUI
       value: 
       objectReference: {fileID: 3715623699333537242}
+    - target: {fileID: 8233634036188346862, guid: 512e6336a86ceac4dbc601de127161ba, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 8411017661538127405, guid: 512e6336a86ceac4dbc601de127161ba, type: 3}
       propertyPath: m_LocalPosition.x
       value: -37.25967
@@ -538,7 +546,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3715623699333537241}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0e79f98ac8d2a9d4e82cbb047467c4c9, type: 3}
   m_Name: 

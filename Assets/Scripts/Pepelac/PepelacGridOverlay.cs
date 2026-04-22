@@ -197,7 +197,7 @@ public class PepelacGridOverlay : MonoBehaviour
         if (explicitMaterial != null && renderer.sharedMaterial != explicitMaterial)
             renderer.sharedMaterial = explicitMaterial;
 
-        var mat = renderer.material;
+        var mat = renderer.sharedMaterial;
         if (mat != null)
         {
             if (mat.HasProperty("_BaseColor"))
@@ -594,8 +594,8 @@ public class PepelacGridOverlay : MonoBehaviour
 
         footprintMeshRenderer.enabled = true;
 
-        if (footprintMeshRenderer.material != null)
-            footprintMeshRenderer.material.color = color;
+        if (footprintMeshRenderer.sharedMaterial != null)
+            footprintMeshRenderer.sharedMaterial.color = color;
     }
 
     public void HideFootprint()

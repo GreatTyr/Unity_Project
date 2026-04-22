@@ -62,8 +62,23 @@ public class ArmorPlateDatabase : ScriptableObject
             string compFaction = string.IsNullOrEmpty(comp.FactionShortName) ? "NONE" : comp.FactionShortName;
             string searchFaction = string.IsNullOrEmpty(faction) ? "NONE" : faction;
 
-            if (compFaction == searchFaction && comp.BlueprintId == blueprintId)
+            if (compFaction == searchFaction && comp.BlueprintIdInt == blueprintId)
+
+
                 return comp;
+        }
+        return null;
+    }
+    public StandardArmorPlate GetByName(string referenceName)
+    {
+        foreach (var go in modules)
+        {
+            if (go == null) continue;
+            if (go.name == referenceName)
+            {
+                var comp = go.GetComponent<StandardArmorPlate>();
+                if (comp != null) return comp;
+            }
         }
         return null;
     }

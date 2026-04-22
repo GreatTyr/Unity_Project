@@ -357,7 +357,7 @@ public class ArmorPlateWorkbenchController : MonoBehaviour
             Scaler.ScaleY,
             Scaler.ScaleZ,
             string.IsNullOrEmpty(SelectedRef.FactionShortName) ? "NONE" : SelectedRef.FactionShortName,
-            SelectedRef.BlueprintId
+            SelectedRef.BlueprintIdInt
         );
 
         string secondLine = ArmorPlateCode.BuildSecondLine(
@@ -554,7 +554,7 @@ public class ArmorPlateWorkbenchController : MonoBehaviour
 
             buildVisualYawOffset = SelectedRef.BuildVisualYawOffset,
             buildAnchorLocal = SelectedRef.BuildAnchorLocal,
-            buildAnchorCellLocal = new Vector2Int(SelectedRef.BuildAnchorCellLocal.x, SelectedRef.BuildAnchorCellLocal.z),
+            buildAnchorCellLocal = new Vector2Int(SelectedRef.BuildAnchorCellLocal.x, SelectedRef.BuildAnchorCellLocal.y),
             referenceVisualScale = SelectedRef.transform.localScale
         };
     }

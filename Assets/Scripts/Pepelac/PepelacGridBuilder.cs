@@ -753,13 +753,10 @@ public class PepelacGridBuilder : MonoBehaviour
         craftedComp.SetData(selectedData);
 
         RuntimeModuleBase runtimeMod = AddRuntimeComponent(newModuleObj, selectedData);
-        if (runtimeMod == null)
-        {
-            Destroy(newModuleObj);
-            return;
-        }
+        // Runtime больше не обязателен, не прерываем если null
 
-        runtimeMod.Orientation = currentOrientation;
+        if (runtimeMod != null)
+            runtimeMod.Orientation = currentOrientation;
 
         if (selectedData.isVolatile)
         {
@@ -912,7 +909,8 @@ public class PepelacGridBuilder : MonoBehaviour
         if (ModuleTypeRegistry.TryAddRuntimeComponent(data.moduleType, obj, out RuntimeModuleBase runtimeModule))
             return runtimeModule;
 
-        Debug.LogError($"[PepelacGridBuilder] Неизвестный тип модуля: '{data.moduleType}'. RuntimeModuleBase не добавлен!");
+        // Runtime больше не обязателен
+        Debug.LogWarning($"[PepelacGridBuilder] Runtime-компонент не добавлен для '{data.moduleType}'. Продолжаем без него.");
         return null;
     }
 }

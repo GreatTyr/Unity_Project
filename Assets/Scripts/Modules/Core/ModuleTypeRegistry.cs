@@ -82,6 +82,32 @@ public static class ModuleTypeRegistry
                 : null,
             addRuntimeComponent = go => go != null ? go.AddComponent<RuntimeCooler>() : null
         });
+
+        // Turret
+        Register(new ModuleTypeDescriptor
+        {
+            moduleType = StandardTurret.TYPE_TURRET,
+            dataTypeName = nameof(TurretData),
+            standardComponentType = typeof(StandardTurret),
+            deserialize = json => JsonUtility.FromJson<TurretData>(json),
+            resolveReferenceByName = name => TurretDatabase.Instance != null
+                ? TurretDatabase.Instance.GetByName(name)
+                : null,
+            addRuntimeComponent = go => null // runtime отказались
+        });
+
+        // ArmorPlate
+        Register(new ModuleTypeDescriptor
+        {
+            moduleType = StandardArmorPlate.TYPE_ARMORPLATE,
+            dataTypeName = nameof(ArmorPlateData),
+            standardComponentType = typeof(StandardArmorPlate),
+            deserialize = json => JsonUtility.FromJson<ArmorPlateData>(json),
+            resolveReferenceByName = name => ArmorPlateDatabase.Instance != null
+                ? ArmorPlateDatabase.Instance.GetByName(name)
+                : null,
+            addRuntimeComponent = go => null // runtime отказались
+        });
     }
 
     private static void Register(ModuleTypeDescriptor descriptor)

@@ -82,9 +82,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3450605b69adcc249b9e912f4d79738b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StandardTurret
-  ModuleTier: 2
+  ModuleTier: 10
   factionShortName: TESTF2
-  blueprintId: 001
+  blueprintId: 002
   VolumeCoefficientPercent: 25
   ConstantFillPercent: 85
   InternalResourceCosts:
@@ -130,15 +130,12 @@ MonoBehaviour:
   MaxDepressionDeg: 10
   TraverseArcDeg: 360
   EnergyConsumption: 0
-  DefaultCorpusTier: 1
   DefaultLoadingTier: 1
   DefaultChamberTier: 1
   DefaultLoadingPercent: 80
   DefaultChamberPercent: 5
-  DefaultMotorPercent: 80
   DefaultGyroPercent: 10
+  DefaultCompensatorPercent: 33
   DefaultBarrelInnerDiameterMm: 100
   DefaultBarrelOuterDiameterMm: 120
   DefaultBarrelLengthMm: 1500
-  DefaultPropellantTier: 2
-  DefaultPropellantMassKg: 10

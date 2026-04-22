@@ -17,17 +17,18 @@ public class InternalResourceCost
 
 /// <summary>
 /// Эталонный модуль Бронеплиты.
-/// В отличие от других модулей, использует точный расчет объема меша.
+/// Наследует StandardModuleBase.
+/// В отличие от других модулей, использует точный расчёт объёма меша.
 /// </summary>
-public class StandardArmorPlate : MonoBehaviour
+public class StandardArmorPlate : StandardModuleBase
 {
     public const string TYPE_ARMORPLATE = "ArmorPlate";
-    public string ModuleType => TYPE_ARMORPLATE;
+    public override string ModuleType => TYPE_ARMORPLATE;
 
     [Header("Identity")]
-    [Range(1, 10)] public int ModuleTier = 1;
-    public string factionShortName = "";
-    public int blueprintId = 0;
+    [SerializeField, HideInInspector] private int blueprintIdArmorPlate = 0;
+
+
 
     [Header("Geometry")]
     [SerializeField, HideInInspector] private float lengthMeters;
@@ -66,37 +67,33 @@ public class StandardArmorPlate : MonoBehaviour
     [Min(0f)] public float BaseHeating = 10f;
     [Min(0.001f)] public float HeatCapacityCoeff = 1000f;
 
-    [Header("Internal Resource Costs")]
-    public InternalResourceCost[] InternalResourceCosts = Array.Empty<InternalResourceCost>();
-
-    [Header("Crafting")]
-    [Min(0.001f)] public float CraftCoefficient = 1f;
-
-    [Header("Destruction")]
-    public bool IsVolatile = false;
-    public DamageType ExplosionDamageType = DamageType.Kinetic;
-    [Min(0f)] public float ExplosionRadiusCoefficient = 1f;
-    [Min(0f)] public float ExplosionPenetrationCoefficient = 1f;
-    [Min(0f)] public float ExplosionDamageCoefficient = 1f;
-
-    [Header("Build Visual")]
-    public float BuildVisualYawOffset = 0f;
-    public Vector3 BuildAnchorLocal = Vector3.zero;
-    public bool UseBuildAnchorPlacement = false;
-    public Vector3Int BuildAnchorCellLocal = Vector3Int.zero;
+    [Header("Internal Resource Costs (Armor Plate)")]
+    public InternalResourceCost[] ArmorPlateInternalResourceCosts = Array.Empty<InternalResourceCost>();
 
     [Header("Description")]
     [TextArea(3, 10)] public string Description = "";
 
-    // Public accessors
-    public float LengthMeters => lengthMeters;
-    public float WidthMeters => widthMeters;
-    public float HeightMeters => heightMeters;
-    public float VolumeM3 => volumeM3;
-    public string FactionShortName => factionShortName;
-    public int BlueprintId => blueprintId;
+    // =========================================
+    // PUBLIC ACCESSORS
+    // =========================================
 
-    private void OnValidate()
+    public new float LengthMeters => lengthMeters;
+    public new float WidthMeters => widthMeters;
+    public new float HeightMeters => heightMeters;
+    public float VolumeM3 => volumeM3;
+
+    /// <summary>
+    /// BlueprintId как int для ArmorPlate (базовый BlueprintId в StandardModuleBase — string).
+    /// </summary>
+    public int BlueprintIdInt => blueprintIdArmorPlate;
+
+
+
+    // =========================================
+    // OVERRIDE: VALIDATION
+    // =========================================
+
+    protected override void OnValidate()
     {
         ModuleTier = Mathf.Clamp(ModuleTier, 1, 10);
         MassCoefficient = Mathf.Max(0.001f, MassCoefficient);
@@ -124,6 +121,43 @@ public class StandardArmorPlate : MonoBehaviour
         RecalculateGeometry();
     }
 
+    // =========================================
+    // OVERRIDE: COMPUTE SPECIFIC OUTPUTS
+    // =========================================
+
+    protected override void ComputeSpecificOutputs()
+    {
+        RecalculateGeometry();
+
+        // Переписываем базовые геометрические поля на mesh-значения
+        length = lengthMeters;
+        width = widthMeters;
+        height = heightMeters;
+        aabbVolume = lengthMeters * widthMeters * heightMeters;
+        realVolume = volumeM3;
+        effectiveVolume = volumeM3;
+
+        // Масса через коэффициент эталона (не через fill как у обычных модулей)
+        massKg = realVolume * MassCoefficient;
+    }
+
+    // =========================================
+    // OVERRIDE: ROUND AND STORE SPECIFIC RESULTS
+    // =========================================
+
+    protected override void RoundAndStoreSpecificResults()
+    {
+        lengthMeters = RoundToWithEps(lengthMeters, 6);
+        widthMeters = RoundToWithEps(widthMeters, 6);
+        heightMeters = RoundToWithEps(heightMeters, 6);
+        volumeM3 = RoundToWithEps(volumeM3, 6);
+        massKg = RoundToWithEps(massKg, 3);
+    }
+
+    // =========================================
+    // PRIVATE: GEOMETRY CALCULATION
+    // =========================================
+
     private void RecalculateGeometry()
     {
         MeshFilter meshFilter = GetComponent<MeshFilter>();
@@ -145,23 +179,6 @@ public class StandardArmorPlate : MonoBehaviour
         heightMeters = size.y * scale.y;
 
         volumeM3 = MeshVolumeCalculator.CalculateVolume(meshFilter, scale);
-    }
-
-    public float CalculateExplosionRadius(float mass)
-    {
-        return mass * ExplosionRadiusCoefficient * 0.01f;
-    }
-
-    public float CalculateExplosionPenetration(float volume, float mass, int alloyTier)
-    {
-        float tierCoeff = TierCoeffs.Get(alloyTier);
-        return (mass / Mathf.Max(0.001f, volume)) * tierCoeff * ExplosionPenetrationCoefficient;
-    }
-
-    public float CalculateExplosionDamage(float mass, int alloyTier)
-    {
-        float tierCoeff = TierCoeffs.Get(alloyTier);
-        return mass * tierCoeff * ExplosionDamageCoefficient;
     }
 }
 
@@ -243,7 +260,8 @@ public class StandardArmorPlateEditor : Editor
             EditorGUILayout.PropertyField(pFaction, new GUIContent("Faction (short name)"));
         }
 
-        EditorGUILayout.PropertyField(serializedObject.FindProperty("blueprintId"), new GUIContent("Blueprint ID"));
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("blueprintIdArmorPlate"), new GUIContent("Blueprint ID (int)"));
+
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Coefficients", EditorStyles.boldLabel);
@@ -279,8 +297,8 @@ public class StandardArmorPlateEditor : Editor
         EditorGUILayout.PropertyField(serializedObject.FindProperty("HeatCapacityCoeff"));
 
         EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Internal Resource Costs", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(serializedObject.FindProperty("InternalResourceCosts"), true);
+        EditorGUILayout.LabelField("Internal Resource Costs (Armor Plate)", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("ArmorPlateInternalResourceCosts"), true);
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Crafting", EditorStyles.boldLabel);
@@ -303,7 +321,7 @@ public class StandardArmorPlateEditor : Editor
         EditorGUILayout.PropertyField(serializedObject.FindProperty("BuildVisualYawOffset"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("BuildAnchorLocal"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("UseBuildAnchorPlacement"));
-        EditorGUILayout.PropertyField(serializedObject.FindProperty("BuildAnchorCellLocal"));
+
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Description", EditorStyles.boldLabel);

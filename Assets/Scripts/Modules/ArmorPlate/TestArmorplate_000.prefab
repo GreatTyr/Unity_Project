@@ -126,11 +126,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::StandardArmorPlate
   ModuleTier: 1
   factionShortName: TESTF1
-  blueprintId: 0
+  blueprintId: 1
   lengthMeters: 1
   widthMeters: 1
   heightMeters: 1
-  volumeM3: 1
+  volumeM3: 0.9999999
   MassCoefficient: 1
   DurabilityCoefficient: 1
   WallThicknessCoefficient: 1
