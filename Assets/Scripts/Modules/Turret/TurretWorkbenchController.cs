@@ -33,6 +33,9 @@ public class TurretWorkbenchController : MonoBehaviour
     [Header("Settings")]
     public CraftPlacementMode placementMode = CraftPlacementMode.SpawnInWorld;
 
+    [Header("Module Types")]
+    public ModuleTypesConfig moduleTypesConfig;
+
     // =========================================
     // STATE — REFERENCE
     // =========================================
@@ -824,22 +827,35 @@ public class TurretWorkbenchController : MonoBehaviour
             yield return null;
         }
 
-        var commonData = BuildCommonCraftData(alloyCode);
-        var barrelIn = new TurretCalculator.BarrelInput
-        {
-            innerDiameterMm = BarrelInnerDiameterMm,
-            outerDiameterMm = BarrelOuterDiameterMm,
-            lengthMm = BarrelLengthMm
-        };
+        // Прямое создание и заполнение
+        TurretData moduleData = new TurretData();
+        moduleData.SetBaseStats(Scaler, SelectedRef, CurrentModuleCode, alloyCode);
 
-        var turretData = new TurretData();
-        turretData.Initialize(commonData, CalcResult, barrelIn, SelectedRef);
+        // Специфика Турели (из CalcResult)
+        var res = CalcResult;
+        moduleData.barrelInnerDiameterMm = BarrelInnerDiameterMm;
+        moduleData.barrelOuterDiameterMm = BarrelOuterDiameterMm;
+        moduleData.barrelLengthMm = BarrelLengthMm;
+        moduleData.barrelMassKg = res.barrelMassKg;
+        moduleData.barrelStrengthCoeff = res.barrelStrengthCoeff;
+        moduleData.barrelWallThicknessMm = res.barrelWallThicknessMm;
 
-        if (!HandleCraftResult(turretData, out string resultFail))
+        moduleData.loadingMassKg = res.loadingMassKg;
+        moduleData.chamberMassKg = res.chamberMassKg;
+        moduleData.corpusMassKg = res.corpusMassKg;
+        moduleData.loadingPower = res.loadingPower;
+        moduleData.chamberCapacity = res.chamberCapacity;
+        moduleData.maxAmmoTier = res.maxAmmoTier;
+        moduleData.receiverDurability = res.receiverDurability;
+
+        moduleData.mountTotalMass = res.mountTotalMass;
+        moduleData.rotationSpeed = res.rotationSpeed;
+        moduleData.aimSpeed = res.aimSpeed;
+        moduleData.recoilResistance = res.recoilResistance;
+
+        if (!HandleCraftResult(moduleData, out string resultFail))
         {
-            FinalizeCraftFailure(string.IsNullOrEmpty(resultFail)
-                ? "Не удалось выдать результат крафта."
-                : resultFail);
+            FinalizeCraftFailure(resultFail);
             yield break;
         }
 
@@ -869,55 +885,7 @@ public class TurretWorkbenchController : MonoBehaviour
         return true;
     }
 
-    private CommonModuleCraftData BuildCommonCraftData(string alloyCode)
-    {
-        return new CommonModuleCraftData
-        {
-            moduleType = StandardTurret.TYPE_TURRET,
-            moduleTier = SelectedRef.ModuleTier,
-            faction = string.IsNullOrEmpty(SelectedRef.FactionShortName)
-                            ? "NONE" : SelectedRef.FactionShortName,
-            referenceIndex = SelectedRefIndex,
-            referenceName = SelectedRef.gameObject.name,
 
-            alloyCode = alloyCode,
-            alloyTier = IsAlloyDecoded ? AlloyParams.tier : 1,
-            shellPercent = Scaler.RefFillPercent,
-            scaleFactor = Scaler.CurrentScaleFactor,
-            fillPercent = Scaler.RefFillPercent,
-
-            length = Scaler.CalcLength,
-            width = Scaler.CalcWidth,
-            height = Scaler.CalcHeight,
-
-            aabbVolume = Scaler.CalcAABBVolume,
-            realVolume = Scaler.CalcRealVolume,
-            shellVolumeM3 = Scaler.CalcShellVolume,
-            effectiveVolume = Scaler.CalcEffectiveVolume,
-
-            shellMassKg = CalcResult.corpusMassKg,
-            innerMassKg = Scaler.CalcInnerMass,
-            totalMassKg = CalcResult.totalTurretMass,
-            durability = CalcResult.totalDurability,
-            wallThicknessMm = Scaler.CalcWallThicknessMm,
-
-            craftTimeSeconds = CalcResult.craftTimeSeconds,
-
-            moduleCode = CurrentModuleCode,
-
-            canTurnOnOff = SelectedRef.CanTurnOnOff,
-            turnOnOffTime = SelectedRef.TurnOnOffTime,
-            isControllable = SelectedRef.IsControllable,
-
-            isVolatile = SelectedRef.IsVolatile,
-            explosionDamageType = SelectedRef.ExplosionDamageType,
-
-            buildVisualYawOffset = SelectedRef.BuildVisualYawOffset,
-            buildAnchorLocal = SelectedRef.BuildAnchorLocal,
-            buildAnchorCellLocal = SelectedRef.BuildAnchorCellLocal,
-            referenceVisualScale = SelectedRef.transform.localScale
-        };
-    }
 
     private bool HandleCraftResult(TurretData turretData, out string failReason)
     {
@@ -930,13 +898,19 @@ public class TurretWorkbenchController : MonoBehaviour
                 moduleStorage.AddModule(turretData);
                 return true;
             }
+
             failReason = "ModuleStorage не назначен.";
             return false;
         }
 
+        if (moduleTypesConfig == null)
+        {
+            failReason = "ModuleTypesConfig не назначен в TurretWorkbenchController.";
+            return false;
+        }
+
         Vector3 spawnPos = transform.position + Vector3.up * 2f;
-        GameObject inst = Instantiate(
-            SelectedRef.gameObject, spawnPos, Quaternion.identity);
+        GameObject inst = Instantiate(SelectedRef.gameObject, spawnPos, Quaternion.identity);
 
         inst.name = $"Crafted_Turret_{SelectedRef.gameObject.name}_T{SelectedRef.ModuleTier}";
         inst.transform.localScale = turretData.referenceVisualScale == Vector3.zero
@@ -946,8 +920,36 @@ public class TurretWorkbenchController : MonoBehaviour
         var stdComp = inst.GetComponent<StandardTurret>();
         if (stdComp != null) Destroy(stdComp);
 
-        var craftedComp = inst.AddComponent<CraftedModule>();
-        craftedComp.SetData(turretData);
+        bool assembled = ModuleCraftAssembler.Assemble(
+            inst,
+            turretData,
+            moduleTypesConfig,
+            craftToWorld: true,
+            out string assembleError);
+
+        if (!assembled)
+        {
+            failReason = $"Module assemble failed: {assembleError}";
+            Destroy(inst);
+            return false;
+        }
+
+        if (turretData.isVolatile)
+        {
+            RuntimeVolatileModule volComp = inst.GetComponent<RuntimeVolatileModule>();
+            if (volComp == null)
+                volComp = inst.AddComponent<RuntimeVolatileModule>();
+
+            volComp.Initialize(
+                turretData.explosionRadiusMeters,
+                turretData.explosionPenetration,
+                turretData.explosionDamage,
+                turretData.explosionDamageType,
+                turretData.totalMassKg,
+                turretData.moduleTier,
+                turretData.effectiveVolume
+            );
+        }
 
         return true;
     }

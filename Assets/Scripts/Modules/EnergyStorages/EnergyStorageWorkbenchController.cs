@@ -35,6 +35,9 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
     [Header("Settings")]
     public CraftPlacementMode placementMode = CraftPlacementMode.SpawnInWorld;
 
+    [Header("Module Types")]
+    public ModuleTypesConfig moduleTypesConfig;
+
     // State
     public ModuleScaler Scaler { get; private set; } = new ModuleScaler();
     public StandardEnergyStorage SelectedRef { get; private set; }
@@ -445,68 +448,6 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
     // COMMON CRAFT DATA
     // =========================================
 
-    protected CommonModuleCraftData BuildCommonCraftData(string alloyCode, float shellMass)
-    {
-        return new CommonModuleCraftData
-        {
-            moduleType = StandardEnergyStorage.TYPE_ENERGY_STORAGE,
-            moduleTier = SelectedRef.ModuleTier,
-            faction = string.IsNullOrEmpty(SelectedRef.FactionShortName) ? "NONE" : SelectedRef.FactionShortName,
-            referenceIndex = SelectedRefIndex,
-            referenceName = SelectedRef.gameObject.name,
-
-            alloyCode = alloyCode,
-            alloyTier = AlloyParams.tier,
-            shellPercent = ShellPercent,
-
-            scaleFactor = Scaler.CurrentScaleFactor,
-            fillPercent = Scaler.RefFillPercent,
-
-            length = Scaler.CalcLength,
-            width = Scaler.CalcWidth,
-            height = Scaler.CalcHeight,
-
-            aabbVolume = Scaler.CalcAABBVolume,
-            realVolume = Scaler.CalcRealVolume,
-            shellVolumeM3 = Scaler.CalcShellVolume,
-            effectiveVolume = Scaler.CalcEffectiveVolume,
-
-            shellMassKg = shellMass,
-            innerMassKg = Scaler.CalcInnerMass,
-            totalMassKg = Scaler.CalcTotalMass,
-            durability = Scaler.CalcDurability,
-            wallThicknessMm = Scaler.CalcWallThicknessMm,
-
-            heatCapacity = CalcHeatCapacity,
-            maxTemperature = CalcMaxTemperature,
-            heatingRate = CalcHeatingRate,
-            craftTimeSeconds = CalcCraftTimeSeconds,
-
-            operationalResourceUsageSummary = CalcOperationalResourceUsageSummary,
-            staticCapacityMax = CalcStaticCapacityMax,
-            staticCapacityCurrent = CalcStaticCapacityCurrent,
-            staticCapacityDrainPerSecond = CalcStaticCapacityDrainPerSecond,
-
-            moduleCode = CurrentModuleCode,
-
-            canTurnOnOff = SelectedRef.CanTurnOnOff,
-            turnOnOffTime = SelectedRef.TurnOnOffTime,
-            canPulseMode = SelectedRef.CanPulseMode,
-            pulseInterval = SelectedRef.PulseInterval,
-            isControllable = SelectedRef.IsControllable,
-
-            isVolatile = SelectedRef.IsVolatile,
-            explosionDamageType = SelectedRef.ExplosionDamageType,
-            explosionRadiusMeters = CalcExplosionRadius,
-            explosionPenetration = CalcExplosionPenetration,
-            explosionDamage = CalcExplosionDamage,
-
-            buildVisualYawOffset = SelectedRef.BuildVisualYawOffset,
-            buildAnchorLocal = SelectedRef.BuildAnchorLocal,
-            buildAnchorCellLocal = SelectedRef.BuildAnchorCellLocal,
-            referenceVisualScale = SelectedRef.transform.localScale
-        };
-    }
 
     // =========================================
     // VALIDATION
@@ -610,20 +551,19 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
 
         yield return RunCraftTimer();
 
-        CommonModuleCraftData commonData = BuildCommonCraftData(alloyCode, craftShellMass);
-        EnergyStorageData moduleData = CreateModuleData(commonData);
+        // Прямое создание и заполнение
+        EnergyStorageData moduleData = new EnergyStorageData();
+        moduleData.SetBaseStats(Scaler, SelectedRef, CurrentModuleCode, alloyCode);
 
-        if (moduleData == null)
-        {
-            FinalizeCraftFailure("Не удалось создать данные модуля.");
-            yield break;
-        }
+        // Специфика
+        moduleData.energyCapacity = CalcEnergyCapacity;
+        moduleData.heatCapacity = CalcHeatCapacity;
+        moduleData.maxTemperature = CalcMaxTemperature;
+        moduleData.heatingRate = CalcHeatingRate;
 
         if (!HandleCraftResult(moduleData, out string resultFail))
         {
-            FinalizeCraftFailure(string.IsNullOrEmpty(resultFail)
-                ? "Не удалось выдать результат крафта."
-                : resultFail);
+            FinalizeCraftFailure(resultFail);
             yield break;
         }
 
@@ -665,16 +605,6 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
         }
     }
 
-    private EnergyStorageData CreateModuleData(CommonModuleCraftData commonData)
-    {
-        var data = new EnergyStorageData();
-        data.Initialize(
-            commonData,
-            CalcEnergyCapacity
-        );
-        return data;
-    }
-
     private bool HandleCraftResult(EnergyStorageData moduleData, out string failReason)
     {
         failReason = "";
@@ -691,6 +621,12 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
             return false;
         }
 
+        if (moduleTypesConfig == null)
+        {
+            failReason = "ModuleTypesConfig не назначен в EnergyStorageWorkbenchController.";
+            return false;
+        }
+
         Vector3 spawnPos = transform.position + Vector3.up * 2f;
         GameObject inst = Instantiate(SelectedRef.gameObject, spawnPos, Quaternion.identity);
 
@@ -702,14 +638,26 @@ public class EnergyStorageWorkbenchController : MonoBehaviour
         var standardComp = inst.GetComponent<StandardEnergyStorage>();
         if (standardComp != null) Destroy(standardComp);
 
-        var craftedComp = inst.AddComponent<CraftedModule>();
-        craftedComp.SetData(moduleData);
+        bool assembled = ModuleCraftAssembler.Assemble(
+            inst,
+            moduleData,
+            moduleTypesConfig,
+            craftToWorld: true,
+            out string assembleError);
 
-        inst.AddComponent<RuntimeEnergyStorage>();
+        if (!assembled)
+        {
+            failReason = $"Module assemble failed: {assembleError}";
+            Destroy(inst);
+            return false;
+        }
 
         if (moduleData.isVolatile)
         {
-            var volComp = inst.AddComponent<RuntimeVolatileModule>();
+            RuntimeVolatileModule volComp = inst.GetComponent<RuntimeVolatileModule>();
+            if (volComp == null)
+                volComp = inst.AddComponent<RuntimeVolatileModule>();
+
             volComp.Initialize(
                 moduleData.explosionRadiusMeters,
                 moduleData.explosionPenetration,

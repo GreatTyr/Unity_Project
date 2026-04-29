@@ -7,7 +7,7 @@ using UnityEngine;
 /// ’ранит все параметры как сериализуемую запись.
 /// </summary>
 [Serializable]
-public class TurretData : CommonModuleData
+public class TurretData : ModuleCommonData
 {
     [Header("Barrel")]
     public float barrelInnerDiameterMm;
@@ -65,75 +65,5 @@ public class TurretData : CommonModuleData
     public float totalTurretMass;
     public float totalDurability;
 
-    public void Initialize(
-        CommonModuleCraftData commonData,
-        TurretCalculator.Result calc,
-        TurretCalculator.BarrelInput barrelIn,
-        StandardTurret template)
-    {
-        InitializeCommon(commonData);
-
-        // Barrel
-        barrelInnerDiameterMm = barrelIn.innerDiameterMm;
-        barrelOuterDiameterMm = barrelIn.outerDiameterMm;
-        barrelLengthMm = barrelIn.lengthMm;
-        barrelMassKg = calc.barrelMassKg;
-        barrelStrengthCoeff = calc.barrelStrengthCoeff;
-        barrelWallThicknessMm = calc.barrelWallThicknessMm;
-
-        // Receiver
-        loadingMassKg = calc.loadingMassKg;
-        chamberMassKg = calc.chamberMassKg;
-        corpusMassKg = calc.corpusMassKg;
-        corpusPercent = calc.corpusPercent;
-
-        loadingPercent = calc.corpusPercent > 0
-            ? 100 - calc.corpusPercent - chamberPercent
-            : 0;
-
-        chamberPercent = (int)Math.Round(
-            calc.chamberMassKg / Mathf.Max(commonData.totalMassKg, 0.001f) * 100f);
-
-        loadingTier = template != null ? Mathf.Clamp(template.DefaultLoadingTier, 1, template.ModuleTier) : 1;
-        chamberTier = template != null ? Mathf.Clamp(template.DefaultChamberTier, 1, template.ModuleTier) : 1;
-
-        receiverMassKg = calc.receiverMassKg;
-        loadingPower = calc.loadingPower;
-        chamberCapacity = calc.chamberCapacity;
-        maxAmmoTier = calc.maxAmmoTier;
-        receiverDurability = calc.receiverDurability;
-        ammoTierBonus = template != null ? template.AmmoTierBonus : 0;
-
-        // Mount
-        mountTotalMass = calc.mountTotalMass;
-        motorPercent = calc.motorPercent;
-        motorMassKg = calc.motorMassKg;
-        gyroMassKg = calc.gyroMassKg;
-        compensatorMassKg = calc.compensatorMassKg;
-        compensatorPercent = (int)Math.Round(
-            calc.compensatorMassKg / Mathf.Max(calc.mountTotalMass, 0.001f) * 100f);
-        gyroPercent = (int)Math.Round(
-            calc.gyroMassKg / Mathf.Max(calc.mountTotalMass, 0.001f) * 100f);
-
-        aimSpeed = calc.aimSpeed;
-        recoilResistance = calc.recoilResistance;
-        rotationSpeed = calc.rotationSpeed;
-
-        if (template != null)
-        {
-            maxElevationDeg = template.MaxElevationDeg;
-            maxDepressionDeg = template.MaxDepressionDeg;
-            traverseArcDeg = template.TraverseArcDeg;
-            energyConsumption = template.EnergyConsumption;
-        }
-
-        // Ammo compatibility
-        minCaliberMm = calc.minCaliberMm;
-        maxCaliberMm = calc.maxCaliberMm;
-        maxAmmoLengthMm = calc.maxAmmoLengthMm;
-
-        // Totals
-        totalTurretMass = calc.totalTurretMass;
-        totalDurability = calc.totalDurability;
-    }
+    
 }

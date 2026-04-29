@@ -9,7 +9,8 @@ public class CraftedModuleEditor : Editor
         CraftedModule cm = target as CraftedModule;
         if (cm == null) return;
 
-        ModuleData data = cm.GetData();
+        // Заменяем ModuleData на ModuleCommonData
+        ModuleCommonData data = cm.GetData(); 
         if (data == null)
         {
             EditorGUILayout.HelpBox("No module data.", MessageType.Warning);
@@ -21,20 +22,22 @@ public class CraftedModuleEditor : Editor
         CraftedModuleEditorCommon.DrawGeometrySection(data);
         CraftedModuleEditorCommon.DrawMassSection(data);
 
-        if (data is CommonModuleData commonData)
-            CraftedModuleEditorCommon.DrawCommonSection(commonData);
+        // Все данные теперь в одном месте, рисуем секцию
+        CraftedModuleEditorCommon.DrawCommonSection(data);
 
+        // Специфичные отрисовщики подхватят данные сами
         if (data is GeneratorData gd)
             GeneratorCraftedDataDrawer.Draw(gd);
-
         if (data is EnergyStorageData esd)
             EnergyStorageCraftedDataDrawer.Draw(esd);
-
         if (data is FuelTankData ftd)
             FuelTankCraftedDataDrawer.Draw(ftd);
-
         if (data is CoolerData cd)
             CoolerCraftedDataDrawer.Draw(cd);
+        if (data is TurretData td)
+            //TurretCraftedDataDrawer.Draw(td);
+        if (data is ArmorPlateData apd)
+            //ArmorPlateCraftedDataDrawer.Draw(apd);
 
         CraftedModuleEditorCommon.DrawBuildSection(data);
         CraftedModuleEditorCommon.DrawExplosionSection(data);

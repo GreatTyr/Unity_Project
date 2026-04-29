@@ -7,7 +7,7 @@ public class GridCell
     public Vector2Int coordinates;
     public bool isBuildable = true;
     public bool isOccupied;
-    public RuntimeModuleBase occupant;
+    public ModuleRuntimeState occupant;
 }
 
 public enum PlacementBlockReason
@@ -36,7 +36,7 @@ public class PlacementQueryResult
 [System.Serializable]
 public class PlacedModuleRecord
 {
-    public RuntimeModuleBase module;
+    public ModuleRuntimeState module;
     public Vector2Int anchorCell;
     public ModuleOrientation orientation;
     public Vector2Int buildAnchorCellLocal;
@@ -67,9 +67,9 @@ public class PepelacGrid : MonoBehaviour
 
     private GridCell[,] cells;
 
-    private readonly List<RuntimeModuleBase> installedModules = new List<RuntimeModuleBase>();
-    private readonly Dictionary<RuntimeModuleBase, PlacedModuleRecord> placedModuleRecords =
-        new Dictionary<RuntimeModuleBase, PlacedModuleRecord>();
+    private readonly List<ModuleRuntimeState> installedModules = new List<ModuleRuntimeState>();
+    private readonly Dictionary<ModuleRuntimeState, PlacedModuleRecord> placedModuleRecords =
+        new Dictionary<ModuleRuntimeState, PlacedModuleRecord>();
 
     private readonly HashSet<Vector2Int> existingCells = new HashSet<Vector2Int>();
     private readonly HashSet<Vector2Int> buildableCells = new HashSet<Vector2Int>();
@@ -305,7 +305,7 @@ public class PepelacGrid : MonoBehaviour
             : 0;
     }
 
-    public IReadOnlyList<RuntimeModuleBase> GetAllModules() => installedModules;
+    public IReadOnlyList<ModuleRuntimeState> GetAllModules() => installedModules;
 
     public IReadOnlyCollection<Vector2Int> GetAllExistingCells()
     {
@@ -433,7 +433,7 @@ public class PepelacGrid : MonoBehaviour
         return result;
     }
 
-    public bool TryGetPlacedModuleRecord(RuntimeModuleBase module, out PlacedModuleRecord record)
+    public bool TryGetPlacedModuleRecord(ModuleRuntimeState module, out PlacedModuleRecord record)
     {
         if (module == null)
         {
@@ -444,7 +444,7 @@ public class PepelacGrid : MonoBehaviour
         return placedModuleRecords.TryGetValue(module, out record);
     }
 
-    public IReadOnlyList<Vector2Int> GetModuleFootprint(RuntimeModuleBase module)
+    public IReadOnlyList<Vector2Int> GetModuleFootprint(ModuleRuntimeState module)
     {
         if (module == null) return null;
 
@@ -454,7 +454,7 @@ public class PepelacGrid : MonoBehaviour
         return null;
     }
 
-    public Vector2Int GetModuleAnchorCell(RuntimeModuleBase module)
+    public Vector2Int GetModuleAnchorCell(ModuleRuntimeState module)
     {
         if (module == null) return new Vector2Int(-1, -1);
 
@@ -464,7 +464,7 @@ public class PepelacGrid : MonoBehaviour
         return new Vector2Int(-1, -1);
     }
 
-    public int GetModuleBuildableRegionId(RuntimeModuleBase module)
+    public int GetModuleBuildableRegionId(ModuleRuntimeState module)
     {
         if (module == null) return -1;
 
@@ -771,7 +771,7 @@ public class PepelacGrid : MonoBehaviour
     }
 
     public bool TryPlaceModule(
-        RuntimeModuleBase module,
+        ModuleRuntimeState module,
         Vector2Int anchorCell,
         float lengthMeters,
         float widthMeters,
@@ -790,7 +790,7 @@ public class PepelacGrid : MonoBehaviour
             anchorCell,
             lengthMeters,
             widthMeters,
-            module.Orientation,
+            module.orientation,
             buildAnchorCellLocal
         );
 
@@ -815,13 +815,14 @@ public class PepelacGrid : MonoBehaviour
         {
             module = module,
             anchorCell = anchorCell,
-            orientation = module.Orientation,
+            orientation = module.orientation,
             buildAnchorCellLocal = buildAnchorCellLocal,
             buildableRegionId = query.expectedRegionId,
             occupiedCells = occupiedFootprint
         };
 
-        module.GridPosition = anchorCell;
+        module.gridPosition = anchorCell;
+        module.placed = true;
         installedModules.Add(module);
         placedModuleRecords[module] = record;
 
@@ -829,7 +830,7 @@ public class PepelacGrid : MonoBehaviour
         return true;
     }
 
-    public void RemoveModule(RuntimeModuleBase module)
+    public void RemoveModule(ModuleRuntimeState module)
     {
         if (module == null || cells == null) return;
         if (!installedModules.Contains(module)) return;
@@ -869,6 +870,8 @@ public class PepelacGrid : MonoBehaviour
 
         installedModules.Remove(module);
         RefreshDebugSummary();
+        module.placed = false;
+        module.gridPosition = new Vector2Int(-1, -1);
     }
 
     // ==========================================
@@ -963,7 +966,7 @@ public class PepelacGrid : MonoBehaviour
 
         foreach (var kvp in placedModuleRecords)
         {
-            RuntimeModuleBase module = kvp.Key;
+            ModuleRuntimeState module = kvp.Key;
             PlacedModuleRecord record = kvp.Value;
 
             if (module == null || record == null) continue;
@@ -1088,7 +1091,7 @@ public class PepelacGrid : MonoBehaviour
 
         foreach (var kvp in placedModuleRecords)
         {
-            RuntimeModuleBase module = kvp.Key;
+            ModuleRuntimeState module = kvp.Key;
             PlacedModuleRecord record = kvp.Value;
 
             if (module == null)

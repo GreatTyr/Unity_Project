@@ -19,6 +19,9 @@ public class PepelacGridBuilder : MonoBehaviour
     [Tooltip("—сылка на ModuleStorage дл€ списани€/возврата модулей")]
     public ModuleStorage moduleStorage;
 
+    [Tooltip("Ќова€ конфигураци€ типов модулей")]
+    public ModuleTypesConfig moduleTypesConfig;
+
     [Header("Ghost & Highlight Visuals")]
     public Material validGhostMaterial;
     public Material invalidGhostMaterial;
@@ -65,7 +68,7 @@ public class PepelacGridBuilder : MonoBehaviour
     private PepelacBuildSurface buildSurface;
     private PepelacGridOverlay gridOverlay;
 
-    private ModuleData selectedData;
+    private ModuleCommonData selectedData;
     private string selectedCode;
     private ModuleOrientation currentOrientation = ModuleOrientation.Deg0;
 
@@ -75,7 +78,7 @@ public class PepelacGridBuilder : MonoBehaviour
     private Vector2Int currentHoverCell = new Vector2Int(-1, -1); // anchor cell
     private bool isPlacementValid;
 
-    private RuntimeModuleBase hoveredInstalledModule;
+    private ModuleRuntimeState hoveredInstalledModule;
 
     private void Awake()
     {
@@ -165,7 +168,7 @@ public class PepelacGridBuilder : MonoBehaviour
     // UI / SELECTION
     // =========================================
 
-    public void SetSelectedModule(ModuleData data, string code)
+    public void SetSelectedModule(ModuleCommonData data, string code)
     {
         selectedData = data;
         selectedCode = code;
@@ -300,7 +303,7 @@ public class PepelacGridBuilder : MonoBehaviour
     // GHOST
     // =========================================
 
-    private void CreateGhost(ModuleData data)
+    private void CreateGhost(ModuleCommonData data)
     {
         ghostObject = SpawnRealModulePrefab(data);
         if (ghostObject == null)
@@ -334,7 +337,7 @@ public class PepelacGridBuilder : MonoBehaviour
         }
     }
 
-    private Vector3 GetReferenceVisualScale(ModuleData data, Transform currentTransform)
+    private Vector3 GetReferenceVisualScale(ModuleCommonData data, Transform currentTransform)
     {
         if (data != null && data.referenceVisualScale != Vector3.zero)
             return data.referenceVisualScale;
@@ -345,7 +348,7 @@ public class PepelacGridBuilder : MonoBehaviour
         return Vector3.one;
     }
 
-    private void EnsureReferenceVisualScale(ModuleData data, Transform target)
+    private void EnsureReferenceVisualScale(ModuleCommonData data, Transform target)
     {
         if (data == null || target == null)
             return;
@@ -354,7 +357,7 @@ public class PepelacGridBuilder : MonoBehaviour
             data.referenceVisualScale = target.localScale;
     }
 
-    private float GetFinalVisualYaw(ModuleData data, ModuleOrientation orientation)
+    private float GetFinalVisualYaw(ModuleCommonData data, ModuleOrientation orientation)
     {
         float orientationYaw = 0f;
 
@@ -371,7 +374,7 @@ public class PepelacGridBuilder : MonoBehaviour
 
     private void ApplyModuleVisualTransform(
         Transform target,
-        ModuleData data,
+        ModuleCommonData data,
         ModuleOrientation orientation,
         Vector3 localPlacementPoint)
     {
@@ -608,7 +611,7 @@ public class PepelacGridBuilder : MonoBehaviour
             gridOverlay.HideBlockedCellDebug();
         }
 
-        RuntimeModuleBase moduleUnderMouse = null;
+        ModuleRuntimeState moduleUnderMouse = null;
 
         if (isHoveringGrid)
         {
@@ -629,7 +632,7 @@ public class PepelacGridBuilder : MonoBehaviour
         }
     }
 
-    private void SetHighlight(RuntimeModuleBase module, bool enable)
+    private void SetHighlight(ModuleRuntimeState module, bool enable)
     {
         if (module == null)
             return;
@@ -740,6 +743,12 @@ public class PepelacGridBuilder : MonoBehaviour
             }
         }
 
+        if (moduleTypesConfig == null)
+        {
+            Debug.LogError("[PepelacGridBuilder] ModuleTypesConfig не назначен.");
+            return;
+        }
+
         GameObject newModuleObj = SpawnRealModulePrefab(selectedData);
         if (newModuleObj == null)
         {
@@ -749,18 +758,36 @@ public class PepelacGridBuilder : MonoBehaviour
 
         EnsureReferenceVisualScale(selectedData, newModuleObj.transform);
 
-        CraftedModule craftedComp = newModuleObj.AddComponent<CraftedModule>();
-        craftedComp.SetData(selectedData);
+        bool assembled = ModuleCraftAssembler.Assemble(
+            newModuleObj,
+            selectedData,
+            moduleTypesConfig,
+            craftToWorld: true,
+            out string assembleError);
 
-        RuntimeModuleBase runtimeMod = AddRuntimeComponent(newModuleObj, selectedData);
-        // Runtime больше не об€зателен, не прерываем если null
+        if (!assembled)
+        {
+            Debug.LogError($"[PepelacGridBuilder] Module assemble failed: {assembleError}");
+            Destroy(newModuleObj);
+            return;
+        }
 
-        if (runtimeMod != null)
-            runtimeMod.Orientation = currentOrientation;
+        ModuleRuntimeState runtimeState = newModuleObj.GetComponent<ModuleRuntimeState>();
+        if (runtimeState == null)
+        {
+            Debug.LogError("[PepelacGridBuilder] ModuleRuntimeState не добавлен после сборки.");
+            Destroy(newModuleObj);
+            return;
+        }
+
+        runtimeState.orientation = currentOrientation;
 
         if (selectedData.isVolatile)
         {
-            RuntimeVolatileModule volatileModule = newModuleObj.AddComponent<RuntimeVolatileModule>();
+            RuntimeVolatileModule volatileModule = newModuleObj.GetComponent<RuntimeVolatileModule>();
+            if (volatileModule == null)
+                volatileModule = newModuleObj.AddComponent<RuntimeVolatileModule>();
+
             volatileModule.Initialize(
                 selectedData.explosionRadiusMeters,
                 selectedData.explosionPenetration,
@@ -773,7 +800,7 @@ public class PepelacGridBuilder : MonoBehaviour
         }
 
         bool success = grid.TryPlaceModule(
-            runtimeMod,
+            runtimeState,
             currentHoverCell,
             selectedData.length,
             selectedData.width,
@@ -798,7 +825,7 @@ public class PepelacGridBuilder : MonoBehaviour
             {
                 Debug.LogError($"[PepelacGridBuilder] Ќе удалось списать модуль '{selectedCode}' со склада. Placement откатываетс€.");
 
-                grid.RemoveModule(runtimeMod);
+                grid.RemoveModule(runtimeState);
                 Destroy(newModuleObj);
                 return;
             }
@@ -824,7 +851,7 @@ public class PepelacGridBuilder : MonoBehaviour
         if (cell == null || !cell.isOccupied || cell.occupant == null)
             return;
 
-        RuntimeModuleBase moduleToRemove = cell.occupant;
+        ModuleRuntimeState moduleToRemove = cell.occupant;
 
         CraftedModule craftedComp = moduleToRemove.GetComponent<CraftedModule>();
         if (craftedComp == null)
@@ -833,10 +860,10 @@ public class PepelacGridBuilder : MonoBehaviour
             return;
         }
 
-        ModuleData dataToReturn = craftedComp.GetData();
+        ModuleCommonData dataToReturn = craftedComp.GetData();
         if (dataToReturn == null)
         {
-            Debug.LogWarning("[PepelacGridBuilder] Ќельз€ сн€ть модуль: не удалось прочитать ModuleData.");
+            Debug.LogWarning("[PepelacGridBuilder] Ќельз€ сн€ть модуль: не удалось прочитать ModuleCommonData.");
             return;
         }
 
@@ -874,43 +901,33 @@ public class PepelacGridBuilder : MonoBehaviour
         return grid.AnchorCellToLocalCenter(anchorCell.x, anchorCell.y);
     }
 
-    private GameObject SpawnRealModulePrefab(ModuleData data)
+    private GameObject SpawnRealModulePrefab(ModuleCommonData data)
     {
         if (data == null)
         {
-            Debug.LogError("[PepelacGridBuilder] ModuleData is null.");
+            Debug.LogError("[PepelacGridBuilder] ModuleCommonData is null.");
             return null;
         }
 
-        if (!ModuleTypeRegistry.TryResolveReference(data.moduleType, data.referenceName, out StandardModuleBase reference) ||
-            reference == null)
+        if (moduleTypesConfig == null)
         {
-            Debug.LogError($"[PepelacGridBuilder] Ќе найден эталон дл€ типа '{data.moduleType}' и reference '{data.referenceName}'.");
+            Debug.LogError("[PepelacGridBuilder] ModuleTypesConfig не назначен.");
             return null;
         }
 
-        GameObject instance = Instantiate(reference.gameObject);
-
-        if (!ModuleTypeRegistry.TryRemoveStandardComponent(data.moduleType, instance))
+        if (!moduleTypesConfig.TryResolveStandardByName(data.moduleType, data.referenceName, out StandardModuleBase standard) || standard == null)
         {
-            StandardModuleBase standardBase = instance.GetComponent<StandardModuleBase>();
-            if (standardBase != null)
-                Destroy(standardBase);
+            Debug.LogError($"[PepelacGridBuilder] Ќе найден эталон '{data.referenceName}' дл€ типа '{data.moduleType}'.");
+            return null;
         }
+
+        GameObject instance = Instantiate(standard.gameObject);
+
+        StandardModuleBase standardBase = instance.GetComponent<StandardModuleBase>();
+        if (standardBase != null)
+            Destroy(standardBase);
 
         return instance;
     }
 
-    private RuntimeModuleBase AddRuntimeComponent(GameObject obj, ModuleData data)
-    {
-        if (obj == null || data == null)
-            return null;
-
-        if (ModuleTypeRegistry.TryAddRuntimeComponent(data.moduleType, obj, out RuntimeModuleBase runtimeModule))
-            return runtimeModule;
-
-        // Runtime больше не об€зателен
-        Debug.LogWarning($"[PepelacGridBuilder] Runtime-компонент не добавлен дл€ '{data.moduleType}'. ѕродолжаем без него.");
-        return null;
-    }
 }

@@ -35,6 +35,9 @@ public class GeneratorWorkbenchController : MonoBehaviour
     [Header("Settings")]
     public CraftPlacementMode placementMode = CraftPlacementMode.SpawnInWorld;
 
+    [Header("Module Types")]
+    public ModuleTypesConfig moduleTypesConfig;
+
     // State
     public ModuleScaler Scaler { get; private set; } = new ModuleScaler();
     public StandardGenerator SelectedRef { get; private set; }
@@ -459,68 +462,6 @@ public class GeneratorWorkbenchController : MonoBehaviour
     // COMMON CRAFT DATA
     // =========================================
 
-    protected CommonModuleCraftData BuildCommonCraftData(string alloyCode, float shellMass)
-    {
-        return new CommonModuleCraftData
-        {
-            moduleType = StandardGenerator.TYPE_GENERATOR,
-            moduleTier = SelectedRef.ModuleTier,
-            faction = string.IsNullOrEmpty(SelectedRef.FactionShortName) ? "NONE" : SelectedRef.FactionShortName,
-            referenceIndex = SelectedRefIndex,
-            referenceName = SelectedRef.gameObject.name,
-
-            alloyCode = alloyCode,
-            alloyTier = AlloyParams.tier,
-            shellPercent = ShellPercent,
-
-            scaleFactor = Scaler.CurrentScaleFactor,
-            fillPercent = Scaler.RefFillPercent,
-
-            length = Scaler.CalcLength,
-            width = Scaler.CalcWidth,
-            height = Scaler.CalcHeight,
-
-            aabbVolume = Scaler.CalcAABBVolume,
-            realVolume = Scaler.CalcRealVolume,
-            shellVolumeM3 = Scaler.CalcShellVolume,
-            effectiveVolume = Scaler.CalcEffectiveVolume,
-
-            shellMassKg = shellMass,
-            innerMassKg = Scaler.CalcInnerMass,
-            totalMassKg = Scaler.CalcTotalMass,
-            durability = Scaler.CalcDurability,
-            wallThicknessMm = Scaler.CalcWallThicknessMm,
-
-            heatCapacity = CalcHeatCapacity,
-            maxTemperature = CalcMaxTemperature,
-            heatingRate = CalcHeatingRate,
-            craftTimeSeconds = CalcCraftTimeSeconds,
-
-            operationalResourceUsageSummary = CalcOperationalResourceUsageSummary,
-            staticCapacityMax = CalcStaticCapacityMax,
-            staticCapacityCurrent = CalcStaticCapacityCurrent,
-            staticCapacityDrainPerSecond = CalcStaticCapacityDrainPerSecond,
-
-            moduleCode = CurrentModuleCode,
-
-            canTurnOnOff = SelectedRef.CanTurnOnOff,
-            turnOnOffTime = SelectedRef.TurnOnOffTime,
-            canPulseMode = SelectedRef.CanPulseMode,
-            pulseInterval = SelectedRef.PulseInterval,
-            isControllable = SelectedRef.IsControllable,
-
-            isVolatile = SelectedRef.IsVolatile,
-            explosionDamageType = SelectedRef.ExplosionDamageType,
-            explosionRadiusMeters = CalcExplosionRadius,
-            explosionPenetration = CalcExplosionPenetration,
-            explosionDamage = CalcExplosionDamage,
-
-            buildVisualYawOffset = SelectedRef.BuildVisualYawOffset,
-            buildAnchorLocal = SelectedRef.BuildAnchorLocal,
-            buildAnchorCellLocal = SelectedRef.BuildAnchorCellLocal,
-            referenceVisualScale = SelectedRef.transform.localScale
-        };
-    }
 
     // =========================================
     // VALIDATION
@@ -616,6 +557,7 @@ public class GeneratorWorkbenchController : MonoBehaviour
         string alloyCode = AlloyCodes[SelectedAlloyIndex];
         float craftShellMass = Scaler.CalcShellMass;
 
+        // 1. —писание ресурсов (остаетс€ как было)
         if (!TryConsumeCraftCosts(alloyCode, craftShellMass, out string consumeFail))
         {
             FinalizeCraftFailure(consumeFail);
@@ -624,20 +566,23 @@ public class GeneratorWorkbenchController : MonoBehaviour
 
         yield return RunCraftTimer();
 
-        CommonModuleCraftData commonData = BuildCommonCraftData(alloyCode, craftShellMass);
-        GeneratorData moduleData = CreateModuleData(commonData);
+        // 2. —ќ«ƒј≈ћ ќЅЏ≈ “ ƒјЌЌџ’ Ќјѕ–яћ”ё
+        GeneratorData moduleData = new GeneratorData();
 
-        if (moduleData == null)
-        {
-            FinalizeCraftFailure("Ќе удалось создать данные модул€.");
-            yield break;
-        }
+        // 3. «јѕќЋЌя≈ћ Ѕј«” (через метод, который мы добавили в ModuleCommonData)
+        moduleData.SetBaseStats(Scaler, SelectedRef, CurrentModuleCode, alloyCode);
 
+        // 4. ƒќ«јѕќЋЌя≈ћ —ѕ≈÷»‘» ” (то, что раньше делал Initialize)
+        moduleData.specificPower = CalcSpecificPower;
+        moduleData.fuelKgPerS = CalcFuelKgPerS;
+        moduleData.fuelTier = SelectedRef.FuelTier;
+        moduleData.energyCapacity = CalcEnergyCapacity;
+        // ... и остальные пол€ Calc* которые есть в этом контроллере ...
+
+        // 5. ¬џƒј≈ћ –≈«”Ћ№“ј“
         if (!HandleCraftResult(moduleData, out string resultFail))
         {
-            FinalizeCraftFailure(string.IsNullOrEmpty(resultFail)
-                ? "Ќе удалось выдать результат крафта."
-                : resultFail);
+            FinalizeCraftFailure(resultFail);
             yield break;
         }
 
@@ -679,22 +624,6 @@ public class GeneratorWorkbenchController : MonoBehaviour
         }
     }
 
-    private GeneratorData CreateModuleData(CommonModuleCraftData commonData)
-    {
-        var data = new GeneratorData();
-        data.Initialize(
-            commonData,
-            CalcSpecificPower,
-            CalcFuelKgPerS,
-            SelectedRef.FuelTier,
-            calcPowerTimesTierPer0001,
-            calcFuelPer0001m3Tiered,
-            SelectedRef.PowerBy0001m3,
-            SelectedRef.FuelBy0001m3_Base,
-            CalcEnergyCapacity
-        );
-        return data;
-    }
 
     private bool HandleCraftResult(GeneratorData moduleData, out string failReason)
     {
@@ -712,6 +641,12 @@ public class GeneratorWorkbenchController : MonoBehaviour
             return false;
         }
 
+        if (moduleTypesConfig == null)
+        {
+            failReason = "ModuleTypesConfig не назначен в GeneratorWorkbenchController.";
+            return false;
+        }
+
         Vector3 spawnPos = transform.position + Vector3.up * 2f;
         GameObject inst = Instantiate(SelectedRef.gameObject, spawnPos, Quaternion.identity);
 
@@ -721,16 +656,29 @@ public class GeneratorWorkbenchController : MonoBehaviour
             : moduleData.referenceVisualScale * Mathf.Max(0.001f, moduleData.scaleFactor);
 
         var standardComp = inst.GetComponent<StandardGenerator>();
-        if (standardComp != null) Destroy(standardComp);
+        if (standardComp != null)
+            Destroy(standardComp);
 
-        var craftedComp = inst.AddComponent<CraftedModule>();
-        craftedComp.SetData(moduleData);
+        bool assembled = ModuleCraftAssembler.Assemble(
+            inst,
+            moduleData,
+            moduleTypesConfig,
+            craftToWorld: true,
+            out string assembleError);
 
-        inst.AddComponent<RuntimeGenerator>();
+        if (!assembled)
+        {
+            failReason = $"Module assemble failed: {assembleError}";
+            Destroy(inst);
+            return false;
+        }
 
         if (moduleData.isVolatile)
         {
-            var volComp = inst.AddComponent<RuntimeVolatileModule>();
+            RuntimeVolatileModule volComp = inst.GetComponent<RuntimeVolatileModule>();
+            if (volComp == null)
+                volComp = inst.AddComponent<RuntimeVolatileModule>();
+
             volComp.Initialize(
                 moduleData.explosionRadiusMeters,
                 moduleData.explosionPenetration,

@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using System;
 
 /// <summary>
 /// Контейнер скрафченного модуля.
@@ -13,13 +14,13 @@ public class CraftedModule : MonoBehaviour
     [SerializeField, HideInInspector]
     private string dataTypeName;
 
-    private ModuleData cachedData;
+    private ModuleCommonData cachedData;
 
     public string ModuleType => GetData()?.moduleType ?? string.Empty;
 
     public bool HasData => !string.IsNullOrEmpty(serializedData) && !string.IsNullOrEmpty(dataTypeName);
 
-    public ModuleData GetData()
+    public ModuleCommonData GetData()
     {
         if (cachedData != null)
             return cachedData;
@@ -31,18 +32,18 @@ public class CraftedModule : MonoBehaviour
         return cachedData;
     }
 
-    public T GetData<T>() where T : ModuleData
+    public T GetData<T>() where T : ModuleCommonData
     {
         return GetData() as T;
     }
 
-    public bool TryGetData<T>(out T data) where T : ModuleData
+    public bool TryGetData<T>(out T data) where T : ModuleCommonData
     {
         data = GetData<T>();
         return data != null;
     }
 
-    public void SetData(ModuleData data)
+    public void SetData(ModuleCommonData data)
     {
         if (data == null) return;
 
@@ -54,15 +55,36 @@ public class CraftedModule : MonoBehaviour
     public string GetSerializedJson() => serializedData;
     public string GetDataTypeName() => dataTypeName;
 
-    public static ModuleData DeserializeData(string typeName, string json)
+    public static ModuleCommonData DeserializeData(string typeName, string json)
     {
         if (string.IsNullOrEmpty(typeName) || string.IsNullOrEmpty(json))
             return null;
 
-        if (ModuleTypeRegistry.TryDeserialize(typeName, json, out ModuleData typedData))
-            return typedData;
-
-        Debug.LogWarning($"[CraftedModule] Unknown data type '{typeName}'. Fallback to ModuleData.");
-        return JsonUtility.FromJson<ModuleData>(json);
+        try
+        {
+            switch (typeName)
+            {
+                case nameof(GeneratorData):
+                    return JsonUtility.FromJson<GeneratorData>(json);
+                case nameof(EnergyStorageData):
+                    return JsonUtility.FromJson<EnergyStorageData>(json);
+                case nameof(FuelTankData):
+                    return JsonUtility.FromJson<FuelTankData>(json);
+                case nameof(CoolerData):
+                    return JsonUtility.FromJson<CoolerData>(json);
+                case nameof(TurretData):
+                    return JsonUtility.FromJson<TurretData>(json);
+                case nameof(ArmorPlateData):
+                    return JsonUtility.FromJson<ArmorPlateData>(json);
+                default:
+                    Debug.LogWarning($"[CraftedModule] Unknown data type '{typeName}'. Fallback to ModuleCommonData.");
+                    return JsonUtility.FromJson<ModuleCommonData>(json);
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[CraftedModule] Deserialize failed for '{typeName}': {ex.Message}");
+            return null;
+        }
     }
 }

@@ -320,7 +320,8 @@ public class StandardArmorPlateEditor : Editor
         EditorGUILayout.LabelField("Build Visual", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(serializedObject.FindProperty("BuildVisualYawOffset"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("BuildAnchorLocal"));
-        EditorGUILayout.PropertyField(serializedObject.FindProperty("UseBuildAnchorPlacement"));
+        EditorGUILayout.LabelField("Use Build Anchor Placement", t.UseBuildAnchorPlacement ? "True" : "False");
+
 
 
         EditorGUILayout.Space();

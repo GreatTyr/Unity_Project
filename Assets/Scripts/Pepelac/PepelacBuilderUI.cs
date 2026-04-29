@@ -113,7 +113,7 @@ public class PepelacBuilderUI : MonoBehaviour // ИСПРАВЛЕНО: Было PepelacGridBui
         }
     }
 
-    private void SelectModule(string moduleCode, ModuleData data)
+    private void SelectModule(string moduleCode, ModuleCommonData data)
     {
         SelectedModuleCode = moduleCode;
         Debug.Log($"[BuilderUI] Выбран модуль: {moduleCode}");

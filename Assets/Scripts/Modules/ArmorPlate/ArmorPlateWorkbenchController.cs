@@ -33,6 +33,9 @@ public class ArmorPlateWorkbenchController : MonoBehaviour
     [Header("Settings")]
     public CraftPlacementMode placementMode = CraftPlacementMode.SpawnInWorld;
 
+    [Header("Module Types")]
+    public ModuleTypesConfig moduleTypesConfig;
+
     // State
     public ArmorPlateScaler Scaler { get; private set; } = new ArmorPlateScaler();
     public StandardArmorPlate SelectedRef { get; private set; }
@@ -496,68 +499,6 @@ public class ArmorPlateWorkbenchController : MonoBehaviour
     // COMMON CRAFT DATA
     // =========================================
 
-    protected CommonModuleCraftData BuildCommonCraftData(string alloyCode, float totalMass)
-    {
-        return new CommonModuleCraftData
-        {
-            moduleType = StandardArmorPlate.TYPE_ARMORPLATE,
-            moduleTier = SelectedRef.ModuleTier,
-            faction = string.IsNullOrEmpty(SelectedRef.FactionShortName) ? "NONE" : SelectedRef.FactionShortName,
-            referenceIndex = SelectedRefIndex,
-            referenceName = SelectedRef.gameObject.name,
-
-            alloyCode = alloyCode,
-            alloyTier = AlloyParams.tier,
-            shellPercent = 100f,
-
-            scaleFactor = (Scaler.ScaleX + Scaler.ScaleY + Scaler.ScaleZ) / 3f,
-            fillPercent = 100f,
-
-            length = Scaler.CalcLength,
-            width = Scaler.CalcWidth,
-            height = Scaler.CalcHeight,
-
-            aabbVolume = Scaler.CalcLength * Scaler.CalcWidth * Scaler.CalcHeight,
-            realVolume = Scaler.CalcVolume,
-            shellVolumeM3 = Scaler.CalcVolume,
-            effectiveVolume = Scaler.CalcVolume,
-
-            shellMassKg = totalMass,
-            innerMassKg = 0f,
-            totalMassKg = totalMass,
-            durability = CalcDurability,
-            wallThicknessMm = CalcWallThicknessMm,
-
-            heatCapacity = CalcHeatCapacity,
-            maxTemperature = CalcMaxTemperature,
-            heatingRate = CalcHeatingRate,
-            craftTimeSeconds = CalcCraftTimeSeconds,
-
-            operationalResourceUsageSummary = CalcOperationalResourceUsageSummary,
-            staticCapacityMax = CalcStaticCapacityMax,
-            staticCapacityCurrent = CalcStaticCapacityCurrent,
-            staticCapacityDrainPerSecond = CalcStaticCapacityDrainPerSecond,
-
-            moduleCode = CurrentModuleCode,
-
-            canTurnOnOff = false,
-            turnOnOffTime = 0f,
-            canPulseMode = false,
-            pulseInterval = 0f,
-            isControllable = false,
-
-            isVolatile = SelectedRef.IsVolatile,
-            explosionDamageType = SelectedRef.ExplosionDamageType,
-            explosionRadiusMeters = CalcExplosionRadius,
-            explosionPenetration = CalcExplosionPenetration,
-            explosionDamage = CalcExplosionDamage,
-
-            buildVisualYawOffset = SelectedRef.BuildVisualYawOffset,
-            buildAnchorLocal = SelectedRef.BuildAnchorLocal,
-            buildAnchorCellLocal = new Vector2Int(SelectedRef.BuildAnchorCellLocal.x, SelectedRef.BuildAnchorCellLocal.y),
-            referenceVisualScale = SelectedRef.transform.localScale
-        };
-    }
 
     // =========================================
     // VALIDATION
@@ -661,20 +602,27 @@ public class ArmorPlateWorkbenchController : MonoBehaviour
 
         yield return RunCraftTimer();
 
-        CommonModuleCraftData commonData = BuildCommonCraftData(alloyCode, craftMass);
-        ArmorPlateData moduleData = CreateModuleData(commonData);
+        // Прямое создание и заполнение
+        ArmorPlateData moduleData = new ArmorPlateData();
+        moduleData.SetBaseStatsArmor(Scaler, SelectedRef, CurrentModuleCode, alloyCode);
 
-        if (moduleData == null)
-        {
-            FinalizeCraftFailure("Не удалось создать данные модуля.");
-            yield break;
-        }
+        // Специфика Бронеплиты
+        moduleData.durability = CalcDurability;
+        moduleData.kineticAbsorption = CalcKineticAbsorption;
+        moduleData.thermalAbsorption = CalcThermalAbsorption;
+        moduleData.chemicalAbsorption = CalcChemicalAbsorption;
+        moduleData.energyAbsorption = CalcEnergyAbsorption;
+        moduleData.kineticResistance = CalcKineticResistance;
+        moduleData.thermalResistance = CalcThermalResistance;
+        moduleData.chemicalResistance = CalcChemicalResistance;
+        moduleData.energyResistance = CalcEnergyResistance;
+        moduleData.heatCapacity = CalcHeatCapacity;
+        moduleData.maxTemperature = CalcMaxTemperature;
+        moduleData.heatingRate = CalcHeatingRate;
 
         if (!HandleCraftResult(moduleData, out string resultFail))
         {
-            FinalizeCraftFailure(string.IsNullOrEmpty(resultFail)
-                ? "Не удалось выдать результат крафта."
-                : resultFail);
+            FinalizeCraftFailure(resultFail);
             yield break;
         }
 
@@ -716,25 +664,6 @@ public class ArmorPlateWorkbenchController : MonoBehaviour
         }
     }
 
-    private ArmorPlateData CreateModuleData(CommonModuleCraftData commonData)
-    {
-        var data = new ArmorPlateData();
-        data.Initialize(
-            commonData,
-            CalcDurability,
-            CalcKineticAbsorption,
-            CalcThermalAbsorption,
-            CalcChemicalAbsorption,
-            CalcEnergyAbsorption,
-            CalcKineticResistance,
-            CalcThermalResistance,
-            CalcChemicalResistance,
-            CalcEnergyResistance,
-            CalcWallThicknessMm
-        );
-        return data;
-    }
-
     private bool HandleCraftResult(ArmorPlateData moduleData, out string failReason)
     {
         failReason = "";
@@ -748,6 +677,12 @@ public class ArmorPlateWorkbenchController : MonoBehaviour
             }
 
             failReason = "ModuleStorage не назначен.";
+            return false;
+        }
+
+        if (moduleTypesConfig == null)
+        {
+            failReason = "ModuleTypesConfig не назначен в ArmorPlateWorkbenchController.";
             return false;
         }
 
@@ -766,14 +701,26 @@ public class ArmorPlateWorkbenchController : MonoBehaviour
         var standardComp = inst.GetComponent<StandardArmorPlate>();
         if (standardComp != null) Destroy(standardComp);
 
-        var craftedComp = inst.AddComponent<CraftedModule>();
-        craftedComp.SetData(moduleData);
+        bool assembled = ModuleCraftAssembler.Assemble(
+            inst,
+            moduleData,
+            moduleTypesConfig,
+            craftToWorld: true,
+            out string assembleError);
 
-        // TODO: Добавить RuntimeArmorPlate если нужен
+        if (!assembled)
+        {
+            failReason = $"Module assemble failed: {assembleError}";
+            Destroy(inst);
+            return false;
+        }
 
         if (moduleData.isVolatile)
         {
-            var volComp = inst.AddComponent<RuntimeVolatileModule>();
+            RuntimeVolatileModule volComp = inst.GetComponent<RuntimeVolatileModule>();
+            if (volComp == null)
+                volComp = inst.AddComponent<RuntimeVolatileModule>();
+
             volComp.Initialize(
                 moduleData.explosionRadiusMeters,
                 moduleData.explosionPenetration,

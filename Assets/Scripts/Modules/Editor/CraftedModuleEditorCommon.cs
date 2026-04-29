@@ -37,7 +37,7 @@ public static class CraftedModuleEditorCommon
             GUILayout.MinHeight(48));
     }
 
-    public static void DrawIdentitySection(ModuleData data)
+    public static void DrawIdentitySection(ModuleCommonData data)
     {
         DrawSection("Identity");
         DrawValue("Type", data.moduleType);
@@ -47,7 +47,7 @@ public static class CraftedModuleEditorCommon
         DrawValue("Alloy", data.alloyCode);
     }
 
-    public static void DrawGeometrySection(ModuleData data)
+    public static void DrawGeometrySection(ModuleCommonData data)
     {
         DrawSection("Geometry");
         DrawValue("Length (X)", Format3(data.length));
@@ -62,7 +62,7 @@ public static class CraftedModuleEditorCommon
         DrawValue("Shell %", Format3(data.shellPercent));
     }
 
-    public static void DrawMassSection(ModuleData data)
+    public static void DrawMassSection(ModuleCommonData data)
     {
         DrawSection("Mass / Structure");
         DrawValue("Shell Mass (kg)", Format3(data.shellMassKg));
@@ -72,7 +72,7 @@ public static class CraftedModuleEditorCommon
         DrawValue("Wall Thickness (mm)", Format1(data.wallThicknessMm));
     }
 
-    public static void DrawCommonSection(CommonModuleData data)
+    public static void DrawCommonSection(ModuleCommonData data)
     {
         DrawSection("Common Module Params");
         DrawValue("Heat Capacity", Format1(data.heatCapacity));
@@ -85,7 +85,7 @@ public static class CraftedModuleEditorCommon
         DrawValue("Static Drain / s", Format3(data.staticCapacityDrainPerSecond));
     }
 
-    public static void DrawBuildSection(ModuleData data)
+    public static void DrawBuildSection(ModuleCommonData data)
     {
         DrawSection("Build");
         DrawValue("Build Visual Yaw Offset", Format3(data.buildVisualYawOffset));
@@ -94,7 +94,7 @@ public static class CraftedModuleEditorCommon
         DrawValue("Reference Visual Scale", data.referenceVisualScale.ToString("F3"));
     }
 
-    public static void DrawExplosionSection(ModuleData data)
+    public static void DrawExplosionSection(ModuleCommonData data)
     {
         DrawSection("Explosion / Volatility");
         DrawValue("Is Volatile", data.isVolatile ? "Yes" : "No");
@@ -104,7 +104,7 @@ public static class CraftedModuleEditorCommon
         DrawValue("Explosion Damage", Format3(data.explosionDamage));
     }
 
-    public static void DrawCodeSection(ModuleData data, CraftedModule cm)
+    public static void DrawCodeSection(ModuleCommonData data, CraftedModule cm)
     {
         DrawSection("Code");
         DrawMultilineValue("Module Code", data.moduleCode);

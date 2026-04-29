@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 85bb3b75757912345b586e4cd55f83d9, type: 3}
+  m_Name: ModuleTypesConfig
+  m_EditorClassIdentifier: Assembly-CSharp::ModuleTypesConfig
+  moduleTypes:
+  - standardScript: {fileID: 11500000, guid: 1e8d1e1597051444e9c566fda08cd0b3, type: 3}
+    standardDatabase: {fileID: 11400000, guid: 54121b5cadbab4f4c995cf32bd095521, type: 2}
+    resolvedStandardClassName: StandardGenerator
+    resolvedModuleType: Generator
+    scripts:
+    - script: {fileID: 0}
+    - script: {fileID: 0}
+  - standardScript: {fileID: 11500000, guid: 52d236964b00f7146a5457472cb74ee0, type: 3}
+    standardDatabase: {fileID: 11400000, guid: c3b40434effa53e40940f4df3b3da4ce, type: 2}
+    resolvedStandardClassName: StandardArmorPlate
+    resolvedModuleType: ArmorPlate
+    scripts: []
+  - standardScript: {fileID: 11500000, guid: 3450605b69adcc249b9e912f4d79738b, type: 3}
+    standardDatabase: {fileID: 11400000, guid: c54345556ab769748bcd637d22fede7a, type: 2}
+    resolvedStandardClassName: StandardTurret
+    resolvedModuleType: Turret
+    scripts: []
+  - standardScript: {fileID: 11500000, guid: b6a03372163f0014fb92576d26ca7fde, type: 3}
+    standardDatabase: {fileID: 11400000, guid: 23db244920ac00f45bd8a8a5a05a874b, type: 2}
+    resolvedStandardClassName: StandardFuelTank
+    resolvedModuleType: FuelTank
+    scripts: []
+  - standardScript: {fileID: 11500000, guid: e7198bc50b79104478609efeffaf97f1, type: 3}
+    standardDatabase: {fileID: 11400000, guid: 7919acbaa0cd31b48a8a9851118e1ab9, type: 2}
+    resolvedStandardClassName: StandardEnergyStorage
+    resolvedModuleType: EnergyStorage
+    scripts: []
+  - standardScript: {fileID: 11500000, guid: 3c813e34bbd818642a62e5ed7d714c35, type: 3}
+    standardDatabase: {fileID: 11400000, guid: e2d05c272f43aff4aabae3dfa0ce713c, type: 2}
+    resolvedStandardClassName: StandardCooler
+    resolvedModuleType: Cooler
+    scripts: []

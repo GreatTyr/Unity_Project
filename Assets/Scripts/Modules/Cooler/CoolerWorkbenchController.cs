@@ -36,6 +36,9 @@ public class CoolerWorkbenchController : MonoBehaviour
     [Header("Settings")]
     public CraftPlacementMode placementMode = CraftPlacementMode.SpawnInWorld;
 
+    [Header("Module Types")]
+    public ModuleTypesConfig moduleTypesConfig;
+
     // Состояние
     public ModuleScaler Scaler { get; private set; } = new ModuleScaler();
     public StandardCooler SelectedRef { get; private set; }
@@ -464,68 +467,7 @@ public class CoolerWorkbenchController : MonoBehaviour
     // COMMON CRAFT DATA
     // =========================================
 
-    protected CommonModuleCraftData BuildCommonCraftData(string alloyCode, float shellMass)
-    {
-        return new CommonModuleCraftData
-        {
-            moduleType = StandardCooler.TYPE_COOLER,
-            moduleTier = SelectedRef.ModuleTier,
-            faction = string.IsNullOrEmpty(SelectedRef.FactionShortName) ? "NONE" : SelectedRef.FactionShortName,
-            referenceIndex = SelectedRefIndex,
-            referenceName = SelectedRef.gameObject.name,
-
-            alloyCode = alloyCode,
-            alloyTier = AlloyParams.tier,
-            shellPercent = ShellPercent,
-
-            scaleFactor = Scaler.CurrentScaleFactor,
-            fillPercent = Scaler.RefFillPercent,
-
-            length = Scaler.CalcLength,
-            width = Scaler.CalcWidth,
-            height = Scaler.CalcHeight,
-
-            aabbVolume = Scaler.CalcAABBVolume,
-            realVolume = Scaler.CalcRealVolume,
-            shellVolumeM3 = Scaler.CalcShellVolume,
-            effectiveVolume = Scaler.CalcEffectiveVolume,
-
-            shellMassKg = shellMass,
-            innerMassKg = Scaler.CalcInnerMass,
-            totalMassKg = Scaler.CalcTotalMass,
-            durability = Scaler.CalcDurability,
-            wallThicknessMm = Scaler.CalcWallThicknessMm,
-
-            heatCapacity = CalcHeatCapacity,
-            maxTemperature = CalcMaxTemperature,
-            heatingRate = CalcHeatingRate,
-            craftTimeSeconds = CalcCraftTimeSeconds,
-
-            operationalResourceUsageSummary = CalcOperationalResourceUsageSummary,
-            staticCapacityMax = CalcStaticCapacityMax,
-            staticCapacityCurrent = CalcStaticCapacityCurrent,
-            staticCapacityDrainPerSecond = CalcStaticCapacityDrainPerSecond,
-
-            moduleCode = CurrentModuleCode,
-
-            canTurnOnOff = SelectedRef.CanTurnOnOff,
-            turnOnOffTime = SelectedRef.TurnOnOffTime,
-            canPulseMode = SelectedRef.CanPulseMode,
-            pulseInterval = SelectedRef.PulseInterval,
-            isControllable = SelectedRef.IsControllable,
-
-            isVolatile = SelectedRef.IsVolatile,
-            explosionDamageType = SelectedRef.ExplosionDamageType,
-            explosionRadiusMeters = CalcExplosionRadius,
-            explosionPenetration = CalcExplosionPenetration,
-            explosionDamage = CalcExplosionDamage,
-
-            buildVisualYawOffset = SelectedRef.BuildVisualYawOffset,
-            buildAnchorLocal = SelectedRef.BuildAnchorLocal,
-            buildAnchorCellLocal = SelectedRef.BuildAnchorCellLocal,
-            referenceVisualScale = SelectedRef.transform.localScale
-        };
-    }
+ 
 
     // =========================================
     // VALIDATION
@@ -629,20 +571,23 @@ public class CoolerWorkbenchController : MonoBehaviour
 
         yield return RunCraftTimer();
 
-        CommonModuleCraftData commonData = BuildCommonCraftData(alloyCode, craftShellMass);
-        CoolerData moduleData = CreateModuleData(commonData);
+        // Прямое создание и заполнение
+        CoolerData moduleData = new CoolerData();
+        moduleData.SetBaseStats(Scaler, SelectedRef, CurrentModuleCode, alloyCode);
 
-        if (moduleData == null)
-        {
-            FinalizeCraftFailure("Не удалось создать данные модуля.");
-            yield break;
-        }
+        // Специфика
+        moduleData.coolingRadius = CalcCoolingRadius;
+        moduleData.coolingPower = CalcCoolingPower;
+        moduleData.energyConsumption = CalcEnergyConsumption;
+        moduleData.maxCoolingDifference = CalcMaxCoolingDifference;
+        moduleData.minTemperature = CalcMinTemperature;
+        moduleData.heatCapacity = CalcHeatCapacity;
+        moduleData.maxTemperature = CalcMaxTemperature;
+        moduleData.heatingRate = CalcHeatingRate;
 
         if (!HandleCraftResult(moduleData, out string resultFail))
         {
-            FinalizeCraftFailure(string.IsNullOrEmpty(resultFail)
-                ? "Не удалось выдать результат крафта."
-                : resultFail);
+            FinalizeCraftFailure(resultFail);
             yield break;
         }
 
@@ -684,24 +629,6 @@ public class CoolerWorkbenchController : MonoBehaviour
         }
     }
 
-    private CoolerData CreateModuleData(CommonModuleCraftData commonData)
-    {
-        var data = new CoolerData();
-        data.Initialize(
-            commonData,
-            CalcCoolingRadius,
-            CalcCoolingPower,
-            CalcEnergyConsumption,
-            CalcSpecificCoolingPower,
-            SelectedRef.SpecificCoolingPowerBase,
-            SelectedRef.SpecificEnergyConsumption,
-            SelectedRef.RadiusCoefficient,
-            CalcMaxCoolingDifference,
-            CalcMinTemperature
-        );
-        return data;
-    }
-
     private bool HandleCraftResult(CoolerData moduleData, out string failReason)
     {
         failReason = "";
@@ -718,6 +645,12 @@ public class CoolerWorkbenchController : MonoBehaviour
             return false;
         }
 
+        if (moduleTypesConfig == null)
+        {
+            failReason = "ModuleTypesConfig не назначен в CoolerWorkbenchController.";
+            return false;
+        }
+
         Vector3 spawnPos = transform.position + Vector3.up * 2f;
         GameObject inst = Instantiate(SelectedRef.gameObject, spawnPos, Quaternion.identity);
 
@@ -729,14 +662,26 @@ public class CoolerWorkbenchController : MonoBehaviour
         var standardComp = inst.GetComponent<StandardCooler>();
         if (standardComp != null) Destroy(standardComp);
 
-        var craftedComp = inst.AddComponent<CraftedModule>();
-        craftedComp.SetData(moduleData);
+        bool assembled = ModuleCraftAssembler.Assemble(
+            inst,
+            moduleData,
+            moduleTypesConfig,
+            craftToWorld: true,
+            out string assembleError);
 
-        inst.AddComponent<RuntimeCooler>();
+        if (!assembled)
+        {
+            failReason = $"Module assemble failed: {assembleError}";
+            Destroy(inst);
+            return false;
+        }
 
         if (moduleData.isVolatile)
         {
-            var volComp = inst.AddComponent<RuntimeVolatileModule>();
+            RuntimeVolatileModule volComp = inst.GetComponent<RuntimeVolatileModule>();
+            if (volComp == null)
+                volComp = inst.AddComponent<RuntimeVolatileModule>();
+
             volComp.Initialize(
                 moduleData.explosionRadiusMeters,
                 moduleData.explosionPenetration,
